@@ -90,11 +90,13 @@ const MENU: MenuItem[] = [
 export function SiteNav({
   user,
   isUserLoading = false,
-  overHero = false,
+  overHero: overHeroProp,
   searchItems = [],
   preview = false,
 }: SiteNavProps) {
   const pathname = usePathname();
+  // 지정하지 않으면 풀블리드 히어로가 있는 메인(/)에서만 투명 모드
+  const overHero = overHeroProp ?? pathname === "/";
   const [searchOpen, setSearchOpen] = useState(false);
   const scrolled = useScrolled();
 
