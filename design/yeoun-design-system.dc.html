@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0;background:#FAF9F6;color:#1B1A17;-webkit-font-smoothing:antialiased}
+a{color:#3B6447;text-decoration:none}a:hover{color:#304F3A;text-decoration:underline}
+*{box-sizing:border-box}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</helmet>
+
+<div style="font-family:'DM Sans','IBM Plex Sans KR',sans-serif;color:#1B1A17;background:#FAF9F6;min-height:100vh;word-break:keep-all">
+
+<header style="position:sticky;top:0;z-index:20;background:rgba(250,249,246,0.94);backdrop-filter:blur(8px);border-bottom:1px solid #E5E1D9">
+  <div style="max-width:1360px;margin:0 auto;padding:14px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap">
+    <div style="display:flex;align-items:baseline;gap:10px">
+      <span style="font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:20px;letter-spacing:-0.02em">여운</span>
+      <span style="font-family:'Instrument Serif',serif;font-size:20px;color:#5D584F">Yeoun — Design System v1.0</span>
+    </div>
+    <nav style="display:flex;gap:22px;flex-wrap:wrap;font-size:14px">
+      <a href="#concept">01 컨셉</a><a href="#tokens">02 토큰</a><a href="#code">03 Tailwind</a><a href="#pages">04 페이지</a><a href="#components">05 컴포넌트</a>
+    </nav>
+  </div>
+</header>
+
+<main style="max-width:1360px;margin:0 auto;padding:0 40px 160px">
+
+<!-- 01 CONCEPT -->
+<section id="concept" data-screen-label="01 Concept" style="padding-top:88px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1.5px solid #1B1A17;padding-top:18px;margin-bottom:48px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">01</span>
+    <h2 style="margin:0;font-family:'Instrument Serif',serif;font-weight:400;font-size:48px;line-height:1">Concept</h2>
+    <span style="font-size:15px;color:#5D584F">디자인 컨셉</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:56px">
+    <div>
+      <p style="margin:0;font-family:'IBM Plex Sans KR',sans-serif;font-weight:600;font-size:40px;line-height:1.3;letter-spacing:-0.025em;text-wrap:pretty">떠나기 전의 설렘이<br>돌아온 뒤의 여운으로.</p>
+      <div style="display:flex;gap:8px;margin-top:28px;flex-wrap:wrap">
+        <span style="padding:6px 12px;border-radius:999px;background:#F2F0EB;font-size:13px;color:#45413A">타깃 · 20~30대 자유여행자</span>
+        <span style="padding:6px 12px;border-radius:999px;background:#F2F0EB;font-size:13px;color:#45413A">shadcn/ui · Tailwind</span>
+        <span style="padding:6px 12px;border-radius:999px;background:#F2F0EB;font-size:13px;color:#45413A">360 / 768 / 1280</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;font-size:17px;line-height:1.75;color:#2D2A26;text-wrap:pretty">
+      <p style="margin:0">여운은 자연의 색을 기본 팔레트로 삼아, 사진이 화면의 주인공이 되도록 UI를 한 발 물러서게 합니다. 이끼색(Moss) Primary와 스톤 뉴트럴이 깔끔한 바탕을 만들고, 노을빛 코랄(Glow)은 찜·시즌 배지처럼 설렘이 필요한 순간에만 짧게 등장합니다.</p>
+      <p style="margin:0">한글 정보는 IBM Plex Sans KR로 단정하게 정리하고, 여행지 이름과 헤드라인의 영문은 Instrument Serif로 감성을 더합니다. 인터랙션은 150–360ms 안에 끝나는 부드러운 전환으로 제한하고, 모든 색 조합은 shadcn/ui 시맨틱 토큰에 매핑해 라이트/다크 모드에서 WCAG AA를 기본으로 충족합니다.</p>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin-top:56px">
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F;font-family:'JetBrains Mono',monospace">KEYWORD 01</div>
+      <div style="font-size:22px;font-weight:600;margin-top:8px;font-family:'IBM Plex Sans KR',sans-serif">깔끔함</div>
+      <p style="margin:10px 0 0;font-size:15px;line-height:1.65;color:#45413A">4 / 8 / 12 컬럼 그리드, 1px 보더와 낮은 그림자. 장식 대신 정렬과 여백으로 위계를 만듭니다.</p>
+    </div>
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F;font-family:'JetBrains Mono',monospace">KEYWORD 02</div>
+      <div style="font-size:22px;font-weight:600;margin-top:8px;font-family:'IBM Plex Sans KR',sans-serif">설렘</div>
+      <p style="margin:10px 0 0;font-size:15px;line-height:1.65;color:#45413A">풀블리드 히어로, 영문 세리프 디스플레이, 계절 큐레이션. 코랄 포인트는 화면당 1–2회만 사용합니다.</p>
+    </div>
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F;font-family:'JetBrains Mono',monospace">KEYWORD 03</div>
+      <div style="font-size:22px;font-weight:600;margin-top:8px;font-family:'IBM Plex Sans KR',sans-serif">자연스러움</div>
+      <p style="margin:10px 0 0;font-size:15px;line-height:1.65;color:#45413A">이끼·호수·스톤에서 가져온 저채도 팔레트, 4:5 사진 비율, 과장 없는 ease-out 모션.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 TOKENS -->
+<section id="tokens" data-screen-label="02 Tokens" style="padding-top:120px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1.5px solid #1B1A17;padding-top:18px;margin-bottom:48px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">02</span>
+    <h2 style="margin:0;font-family:'Instrument Serif',serif;font-weight:400;font-size:48px;line-height:1">Tokens</h2>
+    <span style="font-size:15px;color:#5D584F">디자인 토큰</span>
+  </div>
+
+  <h3 style="margin:0 0 6px;font-size:20px;font-weight:600">2.1 컬러 스케일</h3>
+  <p style="margin:0 0 28px;font-size:15px;color:#5D584F">각 칸의 비율은 표시된 글자색과의 실측 대비입니다. 4.5:1 미만 칸은 텍스트 배경으로 쓰지 않습니다.</p>
+  <div style="display:flex;flex-direction:column;gap:28px">
+    <sc-for list="{{ scales }}" as="s" hint-placeholder-count="4">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+          <span style="font-size:16px;font-weight:600">{{ s.role }}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#45413A">{{ s.name }}</span>
+          <span style="font-size:14px;color:#5D584F">{{ s.use }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px">
+          <sc-for list="{{ s.sw }}" as="c" hint-placeholder-count="10">
+            <div style="background:{{ c.hex }};color:{{ c.fg }};border-radius:8px;padding:10px 8px;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;outline:{{ c.outline }};outline-offset:2px">
+              <span style="font-size:13px;font-weight:600">{{ c.k }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.4">{{ c.hex }}<br>{{ c.ratio }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <h3 style="margin:64px 0 6px;font-size:20px;font-weight:600">2.2 시맨틱 토큰 (shadcn/ui 매핑) · 라이트 / 다크</h3>
+  <p style="margin:0 0 20px;font-size:15px;color:#5D584F">컴포넌트는 스케일이 아닌 시맨틱 토큰만 참조합니다. 다크 모드는 <code style="font-family:'JetBrains Mono',monospace;font-size:13px">.dark</code> 클래스에서 같은 이름의 변수를 교체합니다.</p>
+  <div style="border:1px solid #E5E1D9;border-radius:16px;overflow:hidden;background:#FFFFFF">
+    <div style="display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(130px,1fr) minmax(130px,1fr) minmax(0,2fr);gap:16px;padding:12px 20px;background:#F2F0EB;font-size:13px;font-weight:600;color:#45413A">
+      <span>Token</span><span>Light</span><span>Dark</span><span>사용처</span>
+    </div>
+    <sc-for list="{{ semRows }}" as="r" hint-placeholder-count="12">
+      <div style="display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(130px,1fr) minmax(130px,1fr) minmax(0,2fr);gap:16px;padding:11px 20px;border-top:1px solid #F2F0EB;align-items:center;font-size:14px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px">--{{ r.k }}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:6px;background:{{ r.light }};border:1px solid #D1CBC0;flex:none"></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ r.light }}</span></span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="width:22px;height:22px;border-radius:6px;background:{{ r.dark }};border:1px solid #D1CBC0;flex:none"></span><span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ r.dark }}</span></span>
+        <span style="color:#45413A">{{ r.use }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <h3 style="margin:48px 0 16px;font-size:20px;font-weight:600">2.3 대비율 검증 (WCAG 2.2)</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px">
+    <sc-for list="{{ pairs }}" as="p" hint-placeholder-count="8">
+      <div style="display:flex;border:1px solid #E5E1D9;border-radius:12px;overflow:hidden;background:#FFFFFF">
+        <div style="width:92px;flex:none;display:grid;place-items:center;background:{{ p.bg }};color:{{ p.fg }};font-weight:600;font-size:18px">Aa 가</div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0">
+          <span style="font-size:13px;color:#45413A">{{ p.mode }} · {{ p.label }}</span>
+          <span style="display:flex;gap:8px;align-items:baseline"><span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500">{{ p.ratio }}</span><span style="font-size:12px;font-weight:600;color:#304F3A;background:#DDE8DF;padding:1px 7px;border-radius:999px">{{ p.grade }}</span></span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <h3 style="margin:64px 0 16px;font-size:20px;font-weight:600">2.4 타이포그래피</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-bottom:28px">
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F">영문 디스플레이 · font-display</div>
+      <div style="font-family:'Instrument Serif',serif;font-size:52px;line-height:1.1;margin-top:12px">Kyoto, <i>in autumn</i></div>
+      <div style="font-size:13px;color:#45413A;margin-top:12px">Instrument Serif 400 / Italic — 헤드라인 영문, 여행지 영문명, 로고타입</div>
+    </div>
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F">영문 본문 · font-sans</div>
+      <div style="font-family:'DM Sans',sans-serif;font-size:28px;line-height:1.3;margin-top:12px;font-weight:500">4 nights · 11.02 — 11.06 · ★ 4.9</div>
+      <div style="font-size:13px;color:#45413A;margin-top:12px">DM Sans 400–700 — 숫자, 날짜, 라틴 UI 텍스트 (tabular-nums)</div>
+    </div>
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:13px;color:#5D584F">한글 · font-kr (sans 폴백 체인)</div>
+      <div style="font-family:'IBM Plex Sans KR',sans-serif;font-size:28px;line-height:1.35;margin-top:12px;font-weight:600;letter-spacing:-0.02em">단풍이 물드는 교토의 골목</div>
+      <div style="font-size:13px;color:#45413A;margin-top:12px">IBM Plex Sans KR 400–700 — 한글 헤드라인·본문 전체</div>
+    </div>
+  </div>
+  <div style="border:1px solid #E5E1D9;border-radius:16px;overflow:hidden;background:#FFFFFF">
+    <sc-for list="{{ typeScale }}" as="t" hint-placeholder-count="9">
+      <div style="display:grid;grid-template-columns:64px 110px minmax(0,1fr) minmax(0,220px);gap:16px;padding:14px 20px;border-bottom:1px solid #F2F0EB;align-items:center">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500">{{ t.k }}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">{{ t.spec }}</span>
+        <span style="font-family:'IBM Plex Sans KR',sans-serif;font-size:{{ t.px }}px;line-height:{{ t.lh }}px;font-weight:{{ t.fw }};letter-spacing:{{ t.ls }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">여운이 남는 여행</span>
+        <span style="font-size:13px;color:#45413A">{{ t.use }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <h3 style="margin:64px 0 16px;font-size:20px;font-weight:600">2.5 간격 · Radius · Shadow · Motion</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:16px">
+    <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">Spacing · 4px base</div>
+      <div style="font-size:13px;color:#5D584F;margin-bottom:16px">Tailwind 기본 스케일 사용 + 섹션 토큰 3종</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ spacing }}" as="s" hint-placeholder-count="12">
+          <div style="display:grid;grid-template-columns:96px 52px minmax(0,1fr);gap:12px;align-items:center;font-size:13px">
+            <span style="font-family:'JetBrains Mono',monospace">{{ s.k }}</span>
+            <span style="color:#5D584F">{{ s.px }}px</span>
+            <span style="display:flex;align-items:center;gap:10px;min-width:0"><span style="height:10px;width:{{ s.w }}px;max-width:100%;background:#6B9776;border-radius:2px;flex:none"></span><span style="color:#45413A;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.use }}</span></span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+        <div style="font-size:15px;font-weight:600;margin-bottom:16px">Radius · --radius: 10px</div>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px">
+          <sc-for list="{{ radii }}" as="r" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="aspect-ratio:1;background:#F2F0EB;border:1.5px solid #A8A195;border-radius:{{ r.v }}"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ r.k }}</span>
+              <span style="font-size:12px;color:#5D584F;line-height:1.4">{{ r.label }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#F2F0EB">
+        <div style="font-size:15px;font-weight:600;margin-bottom:16px">Shadow · 스톤 틴트 (rgb 45 42 38)</div>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px">
+          <sc-for list="{{ shadows }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="height:64px;background:#FFFFFF;border-radius:10px;box-shadow:{{ s.v }}"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px">{{ s.k }}</span>
+              <span style="font-size:12px;color:#45413A;line-height:1.4">{{ s.use }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+        <div style="font-size:15px;font-weight:600;margin-bottom:12px">Motion</div>
+        <div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 16px;font-size:13px">
+          <span style="font-family:'JetBrains Mono',monospace">fast 150ms</span><span style="color:#45413A">hover 색·보더, 칩 선택</span>
+          <span style="font-family:'JetBrains Mono',monospace">base 220ms</span><span style="color:#45413A">카드 lift, 드롭다운, 탭 전환</span>
+          <span style="font-family:'JetBrains Mono',monospace">slow 360ms</span><span style="color:#45413A">이미지 scale, 시트·드로어 진입</span>
+          <span style="font-family:'JetBrains Mono',monospace">ease-out-soft</span><span style="color:#45413A">cubic-bezier(0.2, 0.7, 0.2, 1)</span>
+          <span style="font-family:'JetBrains Mono',monospace">reduced</span><span style="color:#45413A">prefers-reduced-motion: 이동·스케일 제거, 투명도 전환만 유지</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 CODE -->
+<section id="code" data-screen-label="03 Tailwind" style="padding-top:120px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1.5px solid #1B1A17;padding-top:18px;margin-bottom:32px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">03</span>
+    <h2 style="margin:0;font-family:'Instrument Serif',serif;font-weight:400;font-size:48px;line-height:1">Tailwind</h2>
+    <span style="font-size:15px;color:#5D584F">tailwind.config.ts · shadcn/ui 호환</span>
+  </div>
+  <p style="margin:0 0 20px;font-size:15px;color:#45413A;max-width:760px;line-height:1.7">Tailwind v3 + shadcn/ui 기준입니다. 시맨틱 컬러는 RGB 채널 변수로 정의해 <code style="font-family:'JetBrains Mono',monospace;font-size:13px">bg-primary/80</code> 같은 투명도 수식어를 그대로 쓸 수 있습니다. 세 파일을 함께 적용하세요.</p>
+  <div style="border-radius:16px;overflow:hidden;background:#1B1A17">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #2D2A26;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;gap:4px">
+        <sc-for list="{{ codeTabs }}" as="t" hint-placeholder-count="3">
+          <button onClick="{{ t.onClick }}" style="font-family:'JetBrains Mono',monospace;font-size:13px;padding:8px 14px;border-radius:8px;border:none;cursor:pointer;background:{{ t.bg }};color:{{ t.fg }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+      <button onClick="{{ copy }}" style="font-family:'DM Sans','IBM Plex Sans KR',sans-serif;font-size:13px;padding:8px 14px;border-radius:8px;border:1px solid #45413A;background:transparent;color:#F2F0EB;cursor:pointer" style-hover="background:#2D2A26">{{ copyLabel }}</button>
+    </div>
+    <pre style="margin:0;padding:24px 28px;max-height:620px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.65;color:#E5E1D9;white-space:pre">{{ codeText }}</pre>
+  </div>
+</section>
+
+<!-- 04 PAGES -->
+<section id="pages" data-screen-label="04 Pages" style="padding-top:120px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1.5px solid #1B1A17;padding-top:18px;margin-bottom:48px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">04</span>
+    <h2 style="margin:0;font-family:'Instrument Serif',serif;font-weight:400;font-size:48px;line-height:1">Pages</h2>
+    <span style="font-size:15px;color:#5D584F">페이지별 레이아웃 · 하이파이 2종(1280)</span>
+  </div>
+
+  <!-- 4.1 MAIN -->
+  <div id="page-main" data-screen-label="04-1 Main" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:40px;margin-bottom:28px">
+    <div>
+      <h3 style="margin:0 0 6px;font-size:22px;font-weight:600">4.1 메인</h3>
+      <p style="margin:0;font-size:14px;color:#5D584F">Hi-fi · 1280 / 12 col · gutter 24 · margin 40</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px;font-size:14px;line-height:1.65;color:#2D2A26">
+      <div><b style="font-weight:600">히어로</b><br>풀블리드 사진(높이 640) + 하단 스크림. 헤드라인 5xl, 검색 바(어디로 / 언제 / 테마) 3필드. 모바일은 높이 480, 검색은 단일 필드 → 바텀시트.</div>
+      <div><b style="font-weight:600">추천 여행지</b><br>시즌 큐레이션 4열(3col씩). 768은 2.5열 가로 스크롤, 360은 1.3열 스냅 스크롤.</div>
+      <div><b style="font-weight:600">테마별 컬렉션</b><br>대형 1 + 소형 2 비대칭 그리드. 768 이하에서 세로 스택, 타일 비율 3:2.</div>
+    </div>
+  </div>
+  <div style="position:relative;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF;overflow:auto;box-shadow:0 20px 40px -16px rgba(45,42,38,0.18)">
+    <div style="width:1280px;zoom:0.78;position:relative;background:#FAF9F6">
+      <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:30;pointer-events:none;padding:0 40px;display:grid;grid-template-columns:repeat(12,1fr);gap:24px">
+          <sc-for list="{{ cols }}" as="c" hint-placeholder-count="12"><div style="background:rgba(214,94,66,0.08);border-left:1px solid rgba(214,94,66,0.25);border-right:1px solid rgba(214,94,66,0.25)"></div></sc-for>
+        </div>
+      </sc-if>
+      <div style="position:relative;height:640px;background:#5A6B5E;overflow:hidden">
+        <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1600&q=70" alt="가을 교토" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,23,0.45) 0%,rgba(27,26,23,0) 22%,rgba(27,26,23,0) 45%,rgba(27,26,23,0.62) 100%)"></div>
+        <div style="position:relative;height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;color:#FFFFFF">
+          <div style="display:flex;align-items:center;gap:48px">
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600;font-size:24px;letter-spacing:-0.02em;font-family:'IBM Plex Sans KR',sans-serif">여운</span><span style="font-family:'Instrument Serif',serif;font-size:20px">Yeoun</span></div>
+            <div style="display:flex;gap:32px;font-size:15px;font-weight:500"><span style="border-bottom:2px solid #FFFFFF;padding-bottom:4px">여행지</span><span>테마 컬렉션</span><span>나의 여행</span></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="width:40px;height:40px;border-radius:999px;display:grid;place-items:center;border:1px solid rgba(255,255,255,0.5)"><img src="https://unpkg.com/lucide-static@latest/icons/heart.svg" alt="" style="width:18px;height:18px;filter:invert(1)"></span>
+            <span style="height:40px;padding:0 18px;border-radius:999px;background:#FFFFFF;color:#1B1A17;display:flex;align-items:center;font-size:14px;font-weight:600">로그인</span>
+          </div>
+        </div>
+        <div style="position:absolute;left:40px;right:40px;bottom:56px;color:#FFFFFF">
+          <div style="font-family:'Instrument Serif',serif;font-size:24px;font-style:italic;margin-bottom:10px">Autumn edit — 2026</div>
+          <h1 style="margin:0;font-family:'IBM Plex Sans KR',sans-serif;font-size:56px;line-height:64px;font-weight:600;letter-spacing:-0.03em;max-width:760px">이번 가을, 단풍이 먼저<br>도착하는 곳으로.</h1>
+          <div style="margin-top:36px;display:flex;align-items:center;background:#FFFFFF;border-radius:999px;padding:8px;max-width:820px;box-shadow:0 20px 40px -12px rgba(45,42,38,0.35);color:#1B1A17">
+            <div style="flex:1.3;padding:8px 24px;border-right:1px solid #E5E1D9"><div style="font-size:12px;font-weight:600">어디로</div><div style="font-size:15px;color:#5D584F;margin-top:2px">도시, 나라, 여행지 검색</div></div>
+            <div style="flex:1;padding:8px 24px;border-right:1px solid #E5E1D9"><div style="font-size:12px;font-weight:600">언제</div><div style="font-size:15px;color:#5D584F;margin-top:2px">날짜 또는 계절</div></div>
+            <div style="flex:1;padding:8px 24px"><div style="font-size:12px;font-weight:600">테마</div><div style="font-size:15px;color:#5D584F;margin-top:2px">전체</div></div>
+            <span style="height:56px;padding:0 28px;border-radius:999px;background:#3B6447;color:#FFFFFF;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px"><img src="https://unpkg.com/lucide-static@latest/icons/search.svg" alt="" style="width:18px;height:18px;filter:invert(1)">검색</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:96px 40px 0">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px">
+          <div>
+            <div style="font-family:'Instrument Serif',serif;font-size:22px;color:#5D584F;font-style:italic">Picked for October</div>
+            <h2 style="margin:6px 0 0;font-size:30px;line-height:40px;font-weight:600;letter-spacing:-0.02em;font-family:'IBM Plex Sans KR',sans-serif">지금 떠나기 좋은 여행지</h2>
+          </div>
+          <span style="font-size:15px;font-weight:500;color:#3B6447">전체 보기 →</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px">
+          <sc-for list="{{ featured }}" as="d" hint-placeholder-count="4">
+            <article style="display:flex;flex-direction:column;gap:14px;cursor:pointer">
+              <div style="position:relative;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0">
+                <img src="{{ d.img }}" alt="{{ d.name }}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 360ms cubic-bezier(0.2,0.7,0.2,1)" style-hover="transform:scale(1.03)">
+                <span style="position:absolute;left:12px;top:12px;padding:5px 10px;border-radius:999px;background:#FFFFFF;font-size:12px;font-weight:600;color:#1B1A17">{{ d.season }}</span>
+                <button onClick="{{ d.toggle }}" aria-label="찜하기" aria-pressed="{{ d.liked }}" style="position:absolute;top:10px;right:10px;width:44px;height:44px;border-radius:999px;border:none;background:rgba(255,255,255,0.94);color:{{ d.heartColor }};font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center">{{ d.heart }}</button>
+              </div>
+              <div>
+                <div style="font-size:13px;color:#5D584F">{{ d.meta }}</div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+                  <div style="display:flex;align-items:baseline;gap:8px;min-width:0"><span style="font-size:19px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">{{ d.name }}</span><span style="font-family:'Instrument Serif',serif;font-size:19px;color:#5D584F;white-space:nowrap">{{ d.en }}</span></div>
+                  <span style="font-size:13px;color:#2D2A26;white-space:nowrap">★ {{ d.rating }}</span>
+                </div>
+              </div>
+            </article>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="padding:120px 40px 120px">
+        <div style="margin-bottom:32px">
+          <div style="font-family:'Instrument Serif',serif;font-size:22px;color:#5D584F;font-style:italic">Collections</div>
+          <h2 style="margin:6px 0 0;font-size:30px;line-height:40px;font-weight:600;letter-spacing:-0.02em;font-family:'IBM Plex Sans KR',sans-serif">취향대로 고르는 테마 여행</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:280px 280px;gap:24px">
+          <div style="grid-column:span 7;grid-row:span 2;position:relative;border-radius:24px;overflow:hidden;background:#80ABC1">
+            <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=70" alt="바다" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,23,0) 50%,rgba(27,26,23,0.6) 100%)"></div>
+            <div style="position:absolute;left:32px;bottom:28px;color:#FFFFFF"><div style="font-family:'Instrument Serif',serif;font-size:22px;font-style:italic">By the sea</div><div style="font-size:30px;font-weight:600;letter-spacing:-0.02em;font-family:'IBM Plex Sans KR',sans-serif">파도 소리로 깨는 아침</div><div style="font-size:14px;margin-top:6px">여행지 24곳</div></div>
+          </div>
+          <div style="grid-column:span 5;position:relative;border-radius:24px;overflow:hidden;background:#93B59B">
+            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=900&q=70" alt="산" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,23,0) 40%,rgba(27,26,23,0.6) 100%)"></div>
+            <div style="position:absolute;left:28px;bottom:24px;color:#FFFFFF"><div style="font-size:24px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">걷기 좋은 능선</div><div style="font-size:14px;margin-top:4px">트레킹 · 18곳</div></div>
+          </div>
+          <div style="grid-column:span 5;position:relative;border-radius:24px;overflow:hidden;background:#A8A195">
+            <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=70" alt="도시" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(27,26,23,0) 40%,rgba(27,26,23,0.6) 100%)"></div>
+            <div style="position:absolute;left:28px;bottom:24px;color:#FFFFFF"><div style="font-size:24px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">골목을 걷는 도시</div><div style="font-size:14px;margin-top:4px">도시·예술 · 31곳</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="border-top:1px solid #E5E1D9;padding:32px 40px;display:flex;justify-content:space-between;font-size:13px;color:#5D584F"><span>© 2026 여운 Yeoun · 포트폴리오 프로젝트</span><span>Photos · Unsplash</span></div>
+    </div>
+  </div>
+
+  <!-- 4.2 LIST -->
+  <div id="page-list" data-screen-label="04-2 List" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:40px;margin:96px 0 28px">
+    <div>
+      <h3 style="margin:0 0 6px;font-size:22px;font-weight:600">4.2 여행지 목록</h3>
+      <p style="margin:0;font-size:14px;color:#5D584F">Hi-fi · 1280 · 필터·검색·찜이 실제로 동작합니다</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px;font-size:14px;line-height:1.65;color:#2D2A26">
+      <div><b style="font-weight:600">필터 바</b><br>검색 · 국가(Select) · 테마(칩) · 계절(세그먼트) · 초기화. 스크롤 시 nav 아래 sticky(top 72). 768 이하에서는 검색 + “필터” 버튼 → 바텀시트.</div>
+      <div><b style="font-weight:600">결과 그리드</b><br>1280: 4열 · 768: 2열 · 360: 1열(4:5) 또는 2열 compact. 24개 단위 “더 보기”.</div>
+      <div><b style="font-weight:600">상태</b><br>로딩 시 스켈레톤 8개, 결과 0건이면 빈 상태 + 필터 초기화 CTA. (Tweaks에서 확인)</div>
+    </div>
+  </div>
+  <div style="border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF;overflow:auto;box-shadow:0 20px 40px -16px rgba(45,42,38,0.18)">
+    <div style="width:1280px;zoom:0.78;position:relative;background:#FAF9F6;min-height:1100px">
+      <sc-if value="{{ showGrid }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;z-index:30;pointer-events:none;padding:0 40px;display:grid;grid-template-columns:repeat(12,1fr);gap:24px">
+          <sc-for list="{{ cols }}" as="c" hint-placeholder-count="12"><div style="background:rgba(214,94,66,0.08);border-left:1px solid rgba(214,94,66,0.25);border-right:1px solid rgba(214,94,66,0.25)"></div></sc-for>
+        </div>
+      </sc-if>
+      <div style="height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 40px;border-bottom:1px solid #E5E1D9;background:#FAF9F6">
+        <div style="display:flex;align-items:center;gap:48px">
+          <div style="display:flex;align-items:baseline;gap:8px"><span style="font-weight:600;font-size:24px;letter-spacing:-0.02em;font-family:'IBM Plex Sans KR',sans-serif">여운</span><span style="font-family:'Instrument Serif',serif;font-size:20px;color:#5D584F">Yeoun</span></div>
+          <div style="display:flex;gap:32px;font-size:15px;font-weight:500;color:#45413A"><span style="color:#1B1A17;font-weight:600;border-bottom:2px solid #3B6447;padding-bottom:4px">여행지</span><span>테마 컬렉션</span><span>나의 여행</span></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="width:40px;height:40px;border-radius:999px;display:grid;place-items:center;border:1px solid #D1CBC0"><img src="https://unpkg.com/lucide-static@latest/icons/heart.svg" alt="" style="width:18px;height:18px;opacity:0.8"></span>
+          <span style="height:40px;padding:0 18px;border-radius:999px;background:#1B1A17;color:#FAF9F6;display:flex;align-items:center;font-size:14px;font-weight:600">로그인</span>
+        </div>
+      </div>
+      <div style="padding:56px 40px 0">
+        <div style="font-family:'Instrument Serif',serif;font-size:22px;color:#5D584F;font-style:italic">Explore</div>
+        <div style="display:flex;align-items:baseline;gap:14px;margin-top:4px">
+          <h1 style="margin:0;font-size:40px;line-height:50px;font-weight:600;letter-spacing:-0.025em;font-family:'IBM Plex Sans KR',sans-serif">여행지 둘러보기</h1>
+          <span style="font-size:16px;color:#5D584F">{{ resultLabel }}</span>
+        </div>
+      </div>
+      <div style="position:sticky;top:0;z-index:5;background:rgba(250,249,246,0.96);padding:24px 40px 20px;border-bottom:1px solid #E5E1D9;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <label style="flex:1;display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border:1px solid #D1CBC0;border-radius:10px;background:#FFFFFF" style-focus-within="border-color:#3B6447;box-shadow:0 0 0 3px rgba(59,100,71,0.3)">
+            <img src="https://unpkg.com/lucide-static@latest/icons/search.svg" alt="" style="width:18px;height:18px;opacity:0.65">
+            <input value="{{ q }}" onChange="{{ onSearch }}" placeholder="여행지 이름으로 검색 (예: 교토)" aria-label="여행지 검색" style="flex:1;border:none;outline:none;background:transparent;font-size:15px;font-family:'DM Sans','IBM Plex Sans KR',sans-serif;color:#1B1A17">
+          </label>
+          <select value="{{ country }}" onChange="{{ onCountry }}" aria-label="국가" style="height:48px;min-width:180px;padding:0 14px;border:1px solid #D1CBC0;border-radius:10px;background:#FFFFFF;font-size:15px;font-family:'DM Sans','IBM Plex Sans KR',sans-serif;color:#1B1A17;cursor:pointer">
+            <sc-for list="{{ countries }}" as="c" hint-placeholder-count="5"><option value="{{ c.value }}">{{ c.label }}</option></sc-for>
+          </select>
+          <div role="radiogroup" aria-label="계절" style="display:flex;background:#F2F0EB;border-radius:10px;padding:4px;height:48px;gap:2px">
+            <sc-for list="{{ seasonSeg }}" as="s" hint-placeholder-count="5">
+              <button role="radio" aria-checked="{{ s.sel }}" onClick="{{ s.onClick }}" style="padding:0 16px;border:none;border-radius:7px;background:{{ s.bg }};color:{{ s.fg }};font-weight:{{ s.fw }};box-shadow:{{ s.sh }};font-size:14px;cursor:pointer;font-family:'DM Sans','IBM Plex Sans KR',sans-serif;transition:background 150ms">{{ s.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <sc-for list="{{ themeChips }}" as="c" hint-placeholder-count="5">
+              <button aria-pressed="{{ c.sel }}" onClick="{{ c.onClick }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans','IBM Plex Sans KR',sans-serif;transition:all 150ms" style-hover="border-color:#45413A">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <button onClick="{{ reset }}" style="height:40px;padding:0 14px;border:none;background:transparent;color:#3B6447;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans','IBM Plex Sans KR',sans-serif" style-hover="text-decoration:underline">필터 초기화</button>
+        </div>
+      </div>
+      <div style="padding:32px 40px 96px">
+        <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px 24px">
+            <sc-for list="{{ skeletons }}" as="k" hint-placeholder-count="8">
+              <div aria-hidden="true" style="display:flex;flex-direction:column;gap:12px"><div style="aspect-ratio:4/5;border-radius:16px;background:#ECE8E1"></div><div style="height:12px;width:45%;border-radius:4px;background:#ECE8E1"></div><div style="height:18px;width:75%;border-radius:4px;background:#ECE8E1"></div></div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:40px 24px">
+            <sc-for list="{{ filtered }}" as="d" hint-placeholder-count="8">
+              <article style="display:flex;flex-direction:column;gap:14px;cursor:pointer">
+                <div style="position:relative;aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0">
+                  <img src="{{ d.img }}" alt="{{ d.name }}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 360ms cubic-bezier(0.2,0.7,0.2,1)" style-hover="transform:scale(1.03)">
+                  <span style="position:absolute;left:12px;top:12px;padding:5px 10px;border-radius:999px;background:#FFFFFF;font-size:12px;font-weight:600;color:#1B1A17">{{ d.season }}</span>
+                  <button onClick="{{ d.toggle }}" aria-label="찜하기" aria-pressed="{{ d.liked }}" style="position:absolute;top:10px;right:10px;width:44px;height:44px;border-radius:999px;border:none;background:rgba(255,255,255,0.94);color:{{ d.heartColor }};font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center">{{ d.heart }}</button>
+                </div>
+                <div>
+                  <div style="font-size:13px;color:#5D584F">{{ d.meta }}</div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+                    <div style="display:flex;align-items:baseline;gap:8px;min-width:0"><span style="font-size:19px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">{{ d.name }}</span><span style="font-family:'Instrument Serif',serif;font-size:19px;color:#5D584F;white-space:nowrap">{{ d.en }}</span></div>
+                    <span style="font-size:13px;color:#2D2A26;white-space:nowrap">★ {{ d.rating }} <span style="color:#5D584F">({{ d.reviews }})</span></span>
+                  </div>
+                </div>
+              </article>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1.5px dashed #D1CBC0;border-radius:24px;padding:96px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px">
+            <div style="width:56px;height:56px;border-radius:999px;background:#F2F0EB;display:grid;place-items:center"><img src="https://unpkg.com/lucide-static@latest/icons/compass.svg" alt="" style="width:26px;height:26px;opacity:0.7"></div>
+            <div style="font-size:22px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">조건에 맞는 여행지가 없어요</div>
+            <div style="font-size:15px;color:#5D584F">계절이나 테마를 조금 넓혀서 다시 찾아볼까요?</div>
+            <button onClick="{{ reset }}" style="margin-top:8px;height:44px;padding:0 20px;border-radius:10px;border:none;background:#3B6447;color:#FFFFFF;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans','IBM Plex Sans KR',sans-serif" style-hover="background:#304F3A">필터 초기화</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4.3–4.5 LAYOUT ONLY -->
+  <h3 style="margin:96px 0 8px;font-size:22px;font-weight:600">4.3 – 4.5 레이아웃 명세</h3>
+  <p style="margin:0 0 28px;font-size:14px;color:#5D584F">하이파이 범위 밖 페이지는 1280 구조 와이어프레임 + 반응형 규칙으로 정의합니다.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:20px">
+    <div style="border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF;padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:18px;font-weight:600">여행지 상세</div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:6px;background:#FAF9F6;border-radius:10px;padding:12px">
+        <div style="grid-column:span 12;height:10px;background:#E5E1D9;border-radius:3px"></div>
+        <div style="grid-column:span 7;grid-row:span 2;height:96px;background:#D1CBC0;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#45413A;padding:6px">gallery</div>
+        <div style="grid-column:span 5;height:45px;background:#E5E1D9;border-radius:6px"></div>
+        <div style="grid-column:span 5;height:45px;background:#E5E1D9;border-radius:6px"></div>
+        <div style="grid-column:span 8;height:120px;background:#F2F0EB;border:1px solid #E5E1D9;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#45413A;padding:6px">소개 · 추천 일정 · 리뷰</div>
+        <div style="grid-column:span 4;height:120px;background:#DDE8DF;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#304F3A;padding:6px">map (sticky)</div>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:#2D2A26">
+        <li>타이틀(한글명 + 영문 세리프) · 국가/테마/평점 · 찜·공유·“일정에 담기”</li>
+        <li>갤러리 7+5 bento, “사진 24장 보기” → 라이트박스</li>
+        <li>본문 8col: 소개 → 추천 일정(Day 탭 + 타임라인) → 리뷰(요약 + 리스트)</li>
+        <li>사이드 4col sticky: 지도 + 여행 정보(시즌·비행·시차·통화)</li>
+        <li>768↓ 단일 컬럼, 갤러리는 스와이프 캐러셀, 하단 고정 CTA</li>
+      </ul>
+    </div>
+    <div style="border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF;padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:18px;font-weight:600">나의 여행</div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:6px;background:#FAF9F6;border-radius:10px;padding:12px">
+        <div style="grid-column:span 12;height:10px;background:#E5E1D9;border-radius:3px"></div>
+        <div style="grid-column:span 12;height:16px;display:flex;gap:6px"><span style="width:60px;background:#1B1A17;border-radius:4px"></span><span style="width:60px;background:#E5E1D9;border-radius:4px"></span></div>
+        <div style="grid-column:span 3;height:200px;background:#F2F0EB;border:1px solid #E5E1D9;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#45413A;padding:6px">trips</div>
+        <div style="grid-column:span 5;height:200px;background:#FFFFFF;border:1px solid #E5E1D9;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#45413A;padding:6px">timeline</div>
+        <div style="grid-column:span 4;height:200px;background:#DDE8DF;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#304F3A;padding:6px">route map</div>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:#2D2A26">
+        <li>탭: 찜 목록 / 일정 플래너 (URL 쿼리 동기화)</li>
+        <li>찜: 여행지 카드 그리드 + 폴더(“가을 후보” 등) 칩 필터</li>
+        <li>플래너: 여행 목록 3col · Day 타임라인 5col(드래그 정렬) · 동선 지도 4col</li>
+        <li>768: 지도는 토글 패널 · 360: Day 탭 + 타임라인 단일, 지도는 풀스크린 시트</li>
+      </ul>
+    </div>
+    <div style="border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF;padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="font-size:18px;font-weight:600">로그인 / 회원가입</div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:6px;background:#FAF9F6;border-radius:10px;padding:12px">
+        <div style="grid-column:span 6;height:226px;background:#D1CBC0;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;color:#45413A;padding:6px">photo + quote</div>
+        <div style="grid-column:span 6;height:226px;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 16px">
+          <span style="height:14px;width:70%;background:#45413A;border-radius:3px"></span>
+          <span style="height:22px;border:1px solid #D1CBC0;background:#FFFFFF;border-radius:4px"></span>
+          <span style="height:22px;border:1px solid #D1CBC0;background:#FFFFFF;border-radius:4px"></span>
+          <span style="height:22px;background:#3B6447;border-radius:4px"></span>
+          <span style="height:22px;background:#FEE500;border-radius:4px"></span>
+          <span style="height:22px;border:1px solid #D1CBC0;background:#FFFFFF;border-radius:4px"></span>
+        </div>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:#2D2A26">
+        <li>6/6 스플릿: 시즌 사진 + 짧은 문구 / 폼 max-width 400</li>
+        <li>이메일 · 비밀번호 → 기본 버튼 → 구분선 → 카카오 · Google 소셜 로그인</li>
+        <li>회원가입은 같은 레이아웃에 이름 · 약관 동의 추가, 인라인 유효성(blur 시점)</li>
+        <li>768↓ 사진 제거, 폼 단일 컬럼 · 입력 높이 48 · 키보드 대응 하단 여백</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 05 COMPONENTS -->
+<section id="components" data-screen-label="05 Components" style="padding-top:120px">
+  <div style="display:flex;align-items:baseline;gap:16px;border-top:1.5px solid #1B1A17;padding-top:18px;margin-bottom:48px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">05</span>
+    <h2 style="margin:0;font-family:'Instrument Serif',serif;font-weight:400;font-size:48px;line-height:1">Components</h2>
+    <span style="font-size:15px;color:#5D584F">컴포넌트 명세 · 상태</span>
+  </div>
+
+  <!-- 5.1 CARD -->
+  <div style="margin-bottom:96px">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap"><h3 style="margin:0;font-size:22px;font-weight:600">5.1 여행지 카드</h3><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">&lt;DestinationCard /&gt; · shadcn Card + AspectRatio</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0;position:relative"><img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=70" alt="" style="width:100%;height:100%;object-fit:cover"><span style="position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,0.94);display:grid;place-items:center;color:#45413A">♡</span></div>
+        <div style="font-size:15px;font-weight:600">교토 <span style="font-family:'Instrument Serif',serif;font-weight:400;color:#5D584F">Kyoto</span></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">default</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0;position:relative;transform:translateY(-4px);box-shadow:0 12px 24px -8px rgba(45,42,38,0.2)"><img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=70" alt="" style="width:100%;height:100%;object-fit:cover;transform:scale(1.04)"><span style="position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,0.94);display:grid;place-items:center;color:#45413A">♡</span></div>
+        <div style="font-size:15px;font-weight:600;text-decoration:underline;text-underline-offset:3px">교토 <span style="font-family:'Instrument Serif',serif;font-weight:400;color:#5D584F">Kyoto</span></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">hover · lift -4 · img 1.04</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0;position:relative;box-shadow:0 0 0 2px #FAF9F6,0 0 0 4px #3B6447"><img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=70" alt="" style="width:100%;height:100%;object-fit:cover"><span style="position:absolute;top:8px;right:8px;width:36px;height:36px;border-radius:999px;background:#FFFFFF;display:grid;place-items:center;color:#D65E42">♥</span></div>
+        <div style="font-size:15px;font-weight:600">교토 <span style="font-family:'Instrument Serif',serif;font-weight:400;color:#5D584F">Kyoto</span></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">active · focus ring · 찜됨</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;opacity:0.55" aria-disabled="true">
+        <div style="aspect-ratio:4/5;border-radius:16px;overflow:hidden;background:#D1CBC0;position:relative"><img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=70" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(1)"><span style="position:absolute;left:8px;bottom:8px;padding:4px 8px;border-radius:6px;background:#1B1A17;color:#FFFFFF;font-size:11px;font-weight:600">현재 여행 제한</span></div>
+        <div style="font-size:15px;font-weight:600">교토 <span style="font-family:'Instrument Serif',serif;font-weight:400;color:#5D584F">Kyoto</span></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1B1A17">disabled</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px" aria-busy="true">
+        <div style="aspect-ratio:4/5;border-radius:16px;background:#ECE8E1"></div>
+        <div style="height:16px;width:70%;border-radius:4px;background:#ECE8E1;margin-top:2px"></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">loading · skeleton</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="aspect-ratio:4/5;border-radius:16px;border:1.5px dashed #D1CBC0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center"><span style="font-size:22px;color:#A8A195">♡</span><span style="font-size:13px;color:#45413A;line-height:1.5">아직 찜한<br>여행지가 없어요</span><span style="font-size:13px;font-weight:600;color:#3B6447">둘러보기 →</span></div>
+        <div style="height:16px"></div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">empty</span>
+      </div>
+    </div>
+    <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:0 32px;border-top:1px solid #E5E1D9">
+      <sc-for list="{{ specCard }}" as="r" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid #F2F0EB;font-size:14px"><span style="color:#5D584F">{{ r.k }}</span><span style="color:#1B1A17;line-height:1.55">{{ r.v }}</span></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 5.2 FILTER BAR -->
+  <div style="margin-bottom:96px">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap"><h3 style="margin:0;font-size:22px;font-weight:600">5.2 필터 바</h3><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">&lt;FilterBar /&gt; · Input, Select, ToggleGroup, Sheet</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px">
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px">칩 (테마) 상태</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #D1CBC0;background:#FFFFFF;display:flex;align-items:center;font-size:14px;color:#45413A">바다</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">default</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #45413A;background:#F2F0EB;display:flex;align-items:center;font-size:14px;color:#1B1A17">바다</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">hover</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #1B1A17;background:#1B1A17;display:flex;align-items:center;font-size:14px;color:#FAF9F6;font-weight:500">바다</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">active</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #D1CBC0;background:#FFFFFF;display:flex;align-items:center;font-size:14px;color:#45413A;box-shadow:0 0 0 3px rgba(59,100,71,0.35)">바다</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">focus-visible</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"><span style="height:40px;padding:0 16px;border-radius:999px;border:1px solid #E5E1D9;background:#F2F0EB;display:flex;align-items:center;font-size:14px;color:#7C766B">빙하 · 0</span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">disabled</span></div>
+        </div>
+      </div>
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px">결과 영역 상태</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px"><span style="height:14px;width:120px;border-radius:4px;background:#ECE8E1"></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">loading · 결과 수 스켈레톤, 이전 결과 opacity .5 유지</span></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px dashed #D1CBC0;border-radius:10px;font-size:14px"><span style="flex:1">조건에 맞는 여행지가 없어요</span><span style="font-weight:600;color:#3B6447">필터 초기화</span></div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">empty · 마지막으로 바꾼 필터 해제 제안</span>
+          <div style="display:flex;align-items:center;gap:8px;font-size:14px"><span style="height:40px;padding:0 14px;border-radius:999px;border:1px solid #D1CBC0;display:flex;align-items:center;gap:8px;background:#FFFFFF">필터 <span style="min-width:20px;height:20px;border-radius:999px;background:#3B6447;color:#FFFFFF;font-size:12px;display:grid;place-items:center">3</span></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F">mobile trigger → Sheet(bottom)</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:0 32px;border-top:1px solid #E5E1D9">
+      <sc-for list="{{ specFilter }}" as="r" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid #F2F0EB;font-size:14px"><span style="color:#5D584F">{{ r.k }}</span><span style="color:#1B1A17;line-height:1.55">{{ r.v }}</span></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 5.3 GALLERY -->
+  <div style="margin-bottom:96px">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap"><h3 style="margin:0;font-size:22px;font-weight:600">5.3 갤러리</h3><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">&lt;Gallery /&gt; · Carousel(embla) + Dialog</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px">
+      <div style="display:grid;grid-template-columns:7fr 5fr;grid-template-rows:150px 150px;gap:8px">
+        <div style="grid-row:span 2;border-radius:16px 4px 4px 16px;overflow:hidden;background:#D1CBC0"><img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=70" alt="" style="width:100%;height:100%;object-fit:cover"></div>
+        <div style="border-radius:4px 16px 4px 4px;overflow:hidden;background:#D1CBC0"><img src="https://images.unsplash.com/photo-1545569341-9eb8b30979d9?auto=format&fit=crop&w=600&q=70" alt="" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.9)"></div>
+        <div style="border-radius:4px 4px 16px 4px;overflow:hidden;background:#D1CBC0;position:relative"><img src="https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=600&q=70" alt="" style="width:100%;height:100%;object-fit:cover"><span style="position:absolute;right:10px;bottom:10px;padding:8px 12px;border-radius:8px;background:#FFFFFF;font-size:13px;font-weight:600">사진 24장 보기</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.6">
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">default</span><span>1280: 7+5 bento(1+2) · 768: 1+2 · 360: 풀폭 캐러셀 + “1 / 24” 카운터</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">hover</span><span>해당 타일 brightness 0.9, cursor zoom-in (예시: 우상단)</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">active</span><span>라이트박스 Dialog: 배경 stone-900/92, ← → 키 · 스와이프, 썸네일 스트립 선택 링</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">disabled</span><span>사진 1장뿐이면 화살표·카운터 숨김, “사진 보기” 버튼 비활성</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">loading</span><span>타일별 muted 배경 + blur-up(LQIP), next/image sizes 지정</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">empty</span><span>“아직 사진이 준비되지 않았어요” 단일 플레이스홀더 16:9</span></div>
+        <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#5D584F">a11y</span><span>모든 이미지 alt 필수, 라이트박스 focus trap, Esc 닫기, aria-live로 “3 / 24” 안내</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5.4 TIMELINE -->
+  <div style="margin-bottom:96px">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap"><h3 style="margin:0;font-size:22px;font-weight:600">5.4 일정 타임라인</h3><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">&lt;ItineraryTimeline /&gt; · Tabs + dnd-kit</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px">
+      <div style="padding:24px;border:1px solid #E5E1D9;border-radius:16px;background:#FFFFFF">
+        <div style="display:flex;gap:4px;background:#F2F0EB;border-radius:10px;padding:4px;margin-bottom:24px">
+          <sc-for list="{{ dayTabs }}" as="t" hint-placeholder-count="3">
+            <button role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.onClick }}" style="flex:1;height:44px;border:none;border-radius:7px;background:{{ t.bg }};color:{{ t.fg }};box-shadow:{{ t.sh }};font-weight:{{ t.fw }};cursor:pointer;font-size:14px;font-family:'DM Sans','IBM Plex Sans KR',sans-serif">{{ t.label }}</button>
+          </sc-for>
+        </div>
+        <sc-for list="{{ timeline }}" as="i" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:52px 20px minmax(0,1fr);gap:12px">
+            <span style="font-size:14px;font-weight:600;padding-top:14px;font-variant-numeric:tabular-nums">{{ i.time }}</span>
+            <div style="display:flex;flex-direction:column;align-items:center"><span style="width:12px;height:12px;border-radius:999px;margin-top:18px;background:{{ i.dot }};box-shadow:0 0 0 4px {{ i.dotRing }};flex:none"></span><span style="flex:1;width:1.5px;background:#E5E1D9;margin-top:6px"></span></div>
+            <div style="margin-bottom:12px;padding:12px 14px;border:1px solid #E5E1D9;border-radius:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;background:#FFFFFF">
+              <div><div style="font-size:15px;font-weight:600;font-family:'IBM Plex Sans KR',sans-serif">{{ i.title }}</div><div style="font-size:13px;color:#5D584F;margin-top:2px">{{ i.note }}</div></div>
+              <span style="padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:{{ i.tagBg }};color:{{ i.tagFg }};white-space:nowrap">{{ i.type }}</span>
+            </div>
+          </div>
+        </sc-for>
+        <div style="margin-left:84px;height:44px;border:1.5px dashed #D1CBC0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#3B6447;font-weight:600">+ 장소 추가</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="padding:14px;border:1px solid #E5E1D9;border-radius:12px;background:#FFFFFF;display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600">default</span><span style="font-size:13px;color:#5D584F">보더 stone-200 · dot stone-300</span></div>
+        <div style="padding:14px;border:1px solid #A8A195;border-radius:12px;background:#FAF9F6;display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600">⋮⋮ hover</span><span style="font-size:13px;color:#5D584F">드래그 핸들·삭제 버튼 노출</span></div>
+        <div style="padding:14px;border:1.5px solid #3B6447;border-radius:12px;background:#F1F5F1;display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600;color:#304F3A">active · 진행 중</span><span style="font-size:13px;color:#304F3A">dot moss-600 + ring moss-100</span></div>
+        <div style="padding:14px;border:1px solid #E5E1D9;border-radius:12px;background:#FFFFFF;box-shadow:0 20px 40px -12px rgba(45,42,38,0.25);transform:rotate(-1deg);display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600">dragging</span><span style="font-size:13px;color:#5D584F">shadow-lg · 원래 자리 점선</span></div>
+        <div style="padding:14px;border:1px solid #E5E1D9;border-radius:12px;background:#F2F0EB;display:flex;justify-content:space-between;align-items:center"><span style="font-size:14px;font-weight:600;color:#5D584F;text-decoration:line-through">disabled · 휴무</span><span style="font-size:13px;color:#B44A33">운영 시간 경고 배지</span></div>
+        <div style="padding:14px;border:1px solid #E5E1D9;border-radius:12px;background:#FFFFFF;display:flex;gap:10px;align-items:center"><span style="height:14px;width:48px;border-radius:4px;background:#ECE8E1"></span><span style="height:14px;flex:1;border-radius:4px;background:#ECE8E1"></span><span style="font-size:13px;color:#5D584F">loading</span></div>
+        <div style="padding:20px;border:1.5px dashed #D1CBC0;border-radius:12px;text-align:center;font-size:14px;color:#45413A">이 날은 아직 비어 있어요 · <b style="color:#3B6447">찜에서 불러오기</b> <span style="display:block;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5D584F;margin-top:6px">empty</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5.5 NAV -->
+  <div>
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:20px;flex-wrap:wrap"><h3 style="margin:0;font-size:22px;font-weight:600">5.5 반응형 네비게이션</h3><span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#5D584F">&lt;SiteNav /&gt; · NavigationMenu, Sheet</span></div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;align-items:center">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px">1280</span>
+        <div style="height:64px;border:1px solid #E5E1D9;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 20px;gap:16px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:28px;font-size:14px"><span style="font-weight:600;font-size:18px">여운</span><span style="font-weight:600;border-bottom:2px solid #3B6447;padding-bottom:3px">여행지 <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5D584F;font-weight:400">active</span></span><span style="color:#1B1A17;text-decoration:underline">테마 컬렉션 <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5D584F">hover</span></span><span style="color:#7C766B">나의 여행 <span style="font-family:'JetBrains Mono',monospace;font-size:10px">disabled·비로그인</span></span></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:36px;height:36px;border-radius:999px;background:#ECE8E1"></span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5D584F">loading avatar</span></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;align-items:center">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px">768</span>
+        <div style="max-width:560px;height:60px;border:1px solid #E5E1D9;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:14px">
+          <div style="display:flex;gap:20px;align-items:center"><span style="font-weight:600;font-size:18px">여운</span><span>여행지</span><span>테마</span><span>나의 여행</span></div>
+          <img src="https://unpkg.com/lucide-static@latest/icons/search.svg" alt="" style="width:20px;height:20px;opacity:0.7">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;align-items:start">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;padding-top:20px">360</span>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+          <div style="width:300px;border:1px solid #E5E1D9;border-radius:16px;background:#FAF9F6;overflow:hidden">
+            <div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;background:#FFFFFF;border-bottom:1px solid #E5E1D9"><span style="font-weight:600;font-size:18px">여운</span><div style="display:flex"><span style="width:44px;height:44px;display:grid;place-items:center"><img src="https://unpkg.com/lucide-static@latest/icons/search.svg" alt="" style="width:20px;height:20px;opacity:0.75"></span><button onClick="{{ toggleDrawer }}" aria-label="메뉴" aria-expanded="{{ drawerOpen }}" style="width:44px;height:44px;border:none;background:transparent;display:grid;place-items:center;cursor:pointer"><img src="https://unpkg.com/lucide-static@latest/icons/menu.svg" alt="" style="width:20px;height:20px;opacity:0.75"></button></div></div>
+            <div style="height:120px;position:relative">
+              <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:#FFFFFF;padding:12px 16px;display:flex;flex-direction:column;gap:4px;font-size:15px"><span style="font-weight:600;color:#3B6447">여행지</span><span>테마 컬렉션</span><span>나의 여행</span><span style="color:#5D584F;font-size:13px">로그인 / 회원가입</span></div>
+              </sc-if>
+            </div>
+            <div style="height:64px;display:grid;grid-template-columns:repeat(4,1fr);background:#FFFFFF;border-top:1px solid #E5E1D9;font-size:11px;text-align:center">
+              <span style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#3B6447;font-weight:600"><img src="https://unpkg.com/lucide-static@latest/icons/house.svg" alt="" style="width:20px;height:20px">홈</span>
+              <span style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#45413A"><img src="https://unpkg.com/lucide-static@latest/icons/compass.svg" alt="" style="width:20px;height:20px;opacity:0.75">탐색</span>
+              <span style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#45413A"><img src="https://unpkg.com/lucide-static@latest/icons/heart.svg" alt="" style="width:20px;height:20px;opacity:0.75">찜</span>
+              <span style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#45413A"><img src="https://unpkg.com/lucide-static@latest/icons/calendar-days.svg" alt="" style="width:20px;height:20px;opacity:0.75">일정</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:0;border-top:1px solid #E5E1D9">
+            <sc-for list="{{ specNav }}" as="r" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;padding:11px 0;border-bottom:1px solid #F2F0EB;font-size:14px"><span style="color:#5D584F">{{ r.k }}</span><span style="color:#1B1A17;line-height:1.55">{{ r.v }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showGrid&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;시안&quot;},&quot;forceLoading&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;목록 상태&quot;},&quot;forceEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;목록 상태&quot;}}">
+const U = id => 'https://images.unsplash.com/' + id + '?auto=format&fit=crop&w=800&q=70';
+const DEST = [
+  { id: 1, name: '교토', en: 'Kyoto', country: '일본', theme: '문화·미식', season: '가을', img: U('photo-1493976040374-85c8e12f0c0e'), rating: '4.9', reviews: '2,184' },
+  { id: 2, name: '산토리니', en: 'Santorini', country: '그리스', theme: '바다', season: '여름', img: U('photo-1570077188670-e3a8d69ac5ff'), rating: '4.8', reviews: '1,532' },
+  { id: 3, name: '돌로미티', en: 'Dolomites', country: '이탈리아', theme: '자연·트레킹', season: '여름', img: U('photo-1506905925346-21bda4d32df4'), rating: '4.9', reviews: '864' },
+  { id: 4, name: '파리', en: 'Paris', country: '프랑스', theme: '도시·예술', season: '봄', img: U('photo-1502602898657-3e91760cbb34'), rating: '4.7', reviews: '3,410' },
+  { id: 5, name: '하롱베이', en: 'Ha Long Bay', country: '베트남', theme: '바다', season: '봄', img: U('photo-1528127269322-539801943592'), rating: '4.6', reviews: '1,127' },
+  { id: 6, name: '도쿄', en: 'Tokyo', country: '일본', theme: '도시·예술', season: '봄', img: U('photo-1540959733332-eab4deabeeaf'), rating: '4.8', reviews: '4,022' },
+  { id: 7, name: '아이슬란드 서부', en: 'West Iceland', country: '아이슬란드', theme: '자연·트레킹', season: '겨울', img: U('photo-1476610182048-b716b8518aae'), rating: '4.9', reviews: '642' },
+  { id: 8, name: '로드트립 1번 국도', en: 'Highway One', country: '미국', theme: '자연·트레킹', season: '가을', img: U('photo-1469854523086-cc02fe5d8800'), rating: '4.7', reviews: '935' }
+];
+const SCALES = [
+  { name: 'moss', role: 'Primary', use: 'CTA, 링크, 선택·활성 상태, 포커스 링', def: '600', h: ['#F1F5F1','#DDE8DF','#BBD1C0','#93B59B','#6B9776','#4C7B59','#3B6447','#304F3A','#283F30','#1F3126'] },
+  { name: 'lake', role: 'Secondary', use: '지도·이동 정보, 보조 버튼, 정보 배지', def: '600', h: ['#EEF4F7','#D6E5EC','#AECBD9','#80ABC1','#5A8DA8','#42738F','#355D75','#2C4C5F','#243E4D','#1C303C'] },
+  { name: 'glow', role: 'Accent', use: '찜(♥), 시즌·특가 배지, 설렘 포인트 (화면당 1–2회)', def: '400', h: ['#FDF2EE','#FBE0D7','#F6BFAE','#F09A82','#E7785D','#D65E42','#B44A33','#8F3B2A','#6E2F23','#50231B'] },
+  { name: 'stone', role: 'Neutral', use: '배경·표면·보더·텍스트. 본문 텍스트는 600 이상', def: '', h: ['#FAF9F6','#F2F0EB','#E5E1D9','#D1CBC0','#A8A195','#7C766B','#5D584F','#45413A','#2D2A26','#1B1A17'] }
+];
+const KEYS = ['50','100','200','300','400','500','600','700','800','900'];
+const SEM = [
+  ['background','#FAF9F6','#141513','페이지 배경'],
+  ['foreground','#1B1A17','#F2F0EB','기본 텍스트'],
+  ['card','#FFFFFF','#1D1F1B','카드·패널 표면'],
+  ['card-foreground','#1B1A17','#F2F0EB','카드 텍스트'],
+  ['popover','#FFFFFF','#1D1F1B','드롭다운·팝오버'],
+  ['popover-foreground','#1B1A17','#F2F0EB','팝오버 텍스트'],
+  ['primary','#3B6447','#8FBF9C','기본 버튼, 링크, 활성 탭'],
+  ['primary-foreground','#FFFFFF','#14201A','primary 위 텍스트'],
+  ['secondary','#355D75','#8DB6CC','보조 버튼, 지도·이동 정보'],
+  ['secondary-foreground','#FFFFFF','#13222B','secondary 위 텍스트'],
+  ['muted','#F2F0EB','#262823','비활성 배경, 세그먼트 트랙'],
+  ['muted-foreground','#5D584F','#ADA89D','보조 텍스트, 메타 정보'],
+  ['accent','#F1F5F1','#263029','메뉴 hover 배경 (shadcn 규약)'],
+  ['accent-foreground','#304F3A','#DDE8DF','accent 위 텍스트'],
+  ['highlight','#E7785D','#F09A82','찜·시즌 배지 (브랜드 Glow)'],
+  ['highlight-foreground','#1B1A17','#1B1A17','highlight 위 텍스트'],
+  ['destructive','#B3261E','#F2867E','삭제, 오류'],
+  ['destructive-foreground','#FFFFFF','#1B1A17','destructive 위 텍스트'],
+  ['success','#2F7A4F','#7FCB9B','저장 완료, 예약 가능'],
+  ['warning','#8F5B0E','#F2C46B','운영 시간·휴무 경고'],
+  ['border','#E5E1D9','#34372F','구분선, 카드 보더'],
+  ['input','#D1CBC0','#45483F','입력 필드 보더'],
+  ['ring','#3B6447','#8FBF9C','포커스 링']
+];
+const lum = h => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0); };
+const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const grade = r => r >= 7 ? 'AAA' : r >= 4.5 ? 'AA' : r >= 3 ? 'AA Large' : 'Fail';
+const rgb = h => { const n = parseInt(h.slice(1), 16); return (n >> 16 & 255) + ' ' + (n >> 8 & 255) + ' ' + (n & 255); };
+const DAYS = [
+  { label: 'Day 1 · 11.2', items: [
+    { time: '11:00', title: '간사이공항 → 교토역', note: '하루카 특급 · 75분', type: '이동', state: 'done' },
+    { time: '14:00', title: '기온 · 하나미코지 산책', note: '골목 걷기 · 2시간', type: '관광', state: 'current' },
+    { time: '18:30', title: '폰토초 저녁', note: '가모강 테라스석 예약', type: '식사', state: 'default' } ] },
+  { label: 'Day 2 · 11.3', items: [
+    { time: '07:30', title: '후시미 이나리 신사', note: '이른 아침 추천 · 센본도리이', type: '관광', state: 'default' },
+    { time: '12:00', title: '니시키 시장', note: '점심 · 길거리 음식', type: '식사', state: 'default' },
+    { time: '16:00', title: '기요미즈데라', note: '노을 시간대 · 1.5시간', type: '관광', state: 'default' } ] },
+  { label: 'Day 3 · 11.4', items: [
+    { time: '08:00', title: '아라시야마 대나무숲', note: 'JR 사가노선 · 25분', type: '이동', state: 'default' },
+    { time: '10:30', title: '덴류지 정원', note: '단풍 절정 · 1시간', type: '관광', state: 'default' },
+    { time: '17:00', title: '가모강 산책', note: '자유 일정', type: '관광', state: 'default' } ] }
+];
+const TAG = { '이동': ['#D6E5EC', '#2C4C5F'], '관광': ['#DDE8DF', '#304F3A'], '식사': ['#FBE0D7', '#8F3B2A'] };
+
+class Component extends DCLogic {
+  state = { liked: { 1: true, 7: true }, country: '전체', theme: '전체', season: '전체', q: '', day: 0, codeTab: 0, copied: false, drawerOpen: false };
+
+  buildCode() {
+    const sem = SEM.map(r => r[0]);
+    const v = k => '"rgb(var(--' + k + ') / <alpha-value>)"';
+    const lines = [];
+    sem.forEach(k => {
+      if (k.endsWith('-foreground')) return;
+      if (sem.includes(k + '-foreground')) lines.push('        ' + (k.includes('-') ? '"' + k + '"' : k) + ': { DEFAULT: ' + v(k) + ', foreground: ' + v(k + '-foreground') + ' },');
+      else lines.push('        ' + k + ': ' + v(k) + ',');
+    });
+    const scales = SCALES.map(s => '        ' + s.name + ': {\n' + s.h.map((h, i) => '          ' + KEYS[i] + ': "' + h + '",').join('\n') + '\n        },').join('\n');
+    const tw = `import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
+import animate from "tailwindcss-animate";
+
+// 여운 Yeoun — Design Tokens v1.0 (shadcn/ui compatible)
+const config = {
+  darkMode: ["class"],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  theme: {
+    // mobile-first: 기본 = 360, md = 768, xl = 1280
+    screens: { sm: "360px", md: "768px", lg: "1024px", xl: "1280px" },
+    container: {
+      center: true,
+      padding: { DEFAULT: "20px", md: "32px", xl: "40px" },
+      screens: { xl: "1280px" },
+    },
+    extend: {
+      colors: {
+        // semantic (globals.css 변수 참조)
+${lines.join('\n')}
+        // brand scales
+${scales}
+      },
+      fontFamily: {
+        display: ["var(--font-instrument-serif)", "var(--font-plex-kr)", ...fontFamily.serif],
+        sans: ["var(--font-dm-sans)", "var(--font-plex-kr)", ...fontFamily.sans],
+        kr: ["var(--font-plex-kr)", ...fontFamily.sans],
+      },
+      fontSize: {
+        xs: ["0.75rem", { lineHeight: "1.125rem" }],     // 12 / 18
+        sm: ["0.875rem", { lineHeight: "1.375rem" }],    // 14 / 22
+        base: ["1rem", { lineHeight: "1.625rem" }],      // 16 / 26
+        lg: ["1.125rem", { lineHeight: "1.75rem" }],     // 18 / 28
+        xl: ["1.25rem", { lineHeight: "1.875rem", letterSpacing: "-0.01em" }],  // 20 / 30
+        "2xl": ["1.5rem", { lineHeight: "2.125rem", letterSpacing: "-0.015em" }], // 24 / 34
+        "3xl": ["1.875rem", { lineHeight: "2.5rem", letterSpacing: "-0.02em" }],  // 30 / 40
+        "4xl": ["2.5rem", { lineHeight: "3.125rem", letterSpacing: "-0.025em" }], // 40 / 50
+        "5xl": ["3.5rem", { lineHeight: "4rem", letterSpacing: "-0.03em" }],      // 56 / 64
+      },
+      spacing: {
+        "4.5": "1.125rem",
+        "section-sm": "3rem",   // 48 — 모바일 섹션 간격
+        section: "5rem",        // 80 — 태블릿 / 기본
+        "section-lg": "7.5rem", // 120 — 데스크톱 섹션 간격
+      },
+      borderRadius: {
+        sm: "calc(var(--radius) - 4px)", // 6  칩 내부, 배지
+        md: "var(--radius)",             // 10 버튼, 입력
+        lg: "calc(var(--radius) + 6px)", // 16 카드, 이미지
+        xl: "24px",                      // 컬렉션 타일, 시트
+      },
+      boxShadow: {
+        xs: "0 1px 2px rgb(45 42 38 / 0.06)",
+        sm: "0 2px 6px -1px rgb(45 42 38 / 0.08), 0 1px 2px rgb(45 42 38 / 0.04)",
+        md: "0 12px 24px -8px rgb(45 42 38 / 0.18)",
+        lg: "0 20px 40px -12px rgb(45 42 38 / 0.25)",
+        focus: "0 0 0 3px rgb(var(--ring) / 0.35)",
+      },
+      transitionDuration: { fast: "150ms", base: "220ms", slow: "360ms" },
+      transitionTimingFunction: { "out-soft": "cubic-bezier(0.2, 0.7, 0.2, 1)" },
+      aspectRatio: { card: "4 / 5", tile: "3 / 2", hero: "16 / 7" },
+      keyframes: {
+        "fade-up": { from: { opacity: "0", transform: "translateY(8px)" }, to: { opacity: "1", transform: "none" } },
+        "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
+        "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
+      },
+      animation: {
+        "fade-up": "fade-up 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        "accordion-down": "accordion-down 220ms ease-out",
+        "accordion-up": "accordion-up 220ms ease-out",
+      },
+    },
+  },
+  plugins: [animate],
+} satisfies Config;
+
+export default config;
+`;
+    const css = `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+${SEM.map(r => '    --' + r[0] + ': ' + rgb(r[1]) + ';  /* ' + r[1] + ' */').join('\n')}
+    --radius: 10px;
+  }
+
+  .dark {
+${SEM.map(r => '    --' + r[0] + ': ' + rgb(r[2]) + ';  /* ' + r[2] + ' */').join('\n')}
+  }
+
+  * { @apply border-border; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    word-break: keep-all;          /* 한글 단어 단위 줄바꿈 */
+    font-feature-settings: "tnum" 0;
+  }
+  :focus-visible { @apply outline-none shadow-focus; }
+}
+
+/* 과하지 않은 인터랙션: 모션 최소화 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+`;
+    const layout = [
+      'import { Instrument_Serif, DM_Sans, IBM_Plex_Sans_KR } from "next/font/google";',
+      'import "./globals.css";',
+      '',
+      'const display = Instrument_Serif({',
+      '  subsets: ["latin"], weight: "400", style: ["normal", "italic"],',
+      '  variable: "--font-instrument-serif", display: "swap",',
+      '});',
+      'const sans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans", display: "swap" });',
+      'const kr = IBM_Plex_Sans_KR({',
+      '  weight: ["400", "500", "600", "700"], subsets: ["latin"],',
+      '  variable: "--font-plex-kr", display: "swap", preload: false,',
+      '});',
+      '',
+      'export default function RootLayout({ children }: { children: React.ReactNode }) {',
+      '  return (',
+      '    <html lang="ko" className={[display.variable, sans.variable, kr.variable].join(" ")} suppressHydrationWarning>',
+      '      <body>{children}</body>',
+      '    </html>',
+      '  );',
+      '}',
+      '',
+      '// next.config: images.remotePatterns = [{ protocol: "https", hostname: "images.unsplash.com" }]'
+    ].join('\n');
+    return [tw, css, layout];
+  }
+
+  toggle(id) { this.setState(s => ({ liked: { ...s.liked, [id]: !s.liked[id] } })); }
+
+  renderVals() {
+    const s = this.state, p = this.props;
+    const card = d => {
+      const on = !!s.liked[d.id];
+      return { ...d, liked: on, heart: on ? '♥' : '♡', heartColor: on ? '#D65E42' : '#45413A', toggle: e => { e.stopPropagation(); this.toggle(d.id); }, meta: d.country + ' · ' + d.theme };
+    };
+    const cards = DEST.map(card);
+    const q = s.q.trim();
+    const filtered = cards.filter(d => (s.country === '전체' || d.country === s.country) && (s.theme === '전체' || d.theme === s.theme) && (s.season === '전체' || d.season === s.season) && (!q || d.name.includes(q) || d.en.toLowerCase().includes(q.toLowerCase())));
+    const isLoading = !!p.forceLoading;
+    const isEmpty = !isLoading && (!!p.forceEmpty || filtered.length === 0);
+    const chip = (label, sel, fn) => ({ label, sel, onClick: fn, bg: sel ? '#1B1A17' : '#FFFFFF', fg: sel ? '#FAF9F6' : '#45413A', bd: sel ? '#1B1A17' : '#D1CBC0' });
+    const seg = (label, sel, fn) => ({ label, sel, onClick: fn, bg: sel ? '#FFFFFF' : 'transparent', fg: sel ? '#1B1A17' : '#5D584F', fw: sel ? 600 : 500, sh: sel ? '0 1px 2px rgba(45,42,38,0.12)' : 'none' });
+    const countries = ['전체', ...new Set(DEST.map(d => d.country))];
+    const code = this.buildCode();
+    const tl = DAYS[s.day].items.map(i => ({ ...i, dot: i.state === 'current' ? '#3B6447' : i.state === 'done' ? '#A8A195' : '#FFFFFF', dotRing: i.state === 'current' ? '#DDE8DF' : 'transparent', tagBg: TAG[i.type][0], tagFg: TAG[i.type][1] }));
+    const tlFixed = tl.map(i => i.dot === '#FFFFFF' ? { ...i, dot: '#D1CBC0' } : i);
+
+    return {
+      showGrid: !!p.showGrid,
+      cols: Array.from({ length: 12 }, (_, i) => i),
+      featured: cards.slice(0, 4),
+      filtered,
+      isLoading, isEmpty, hasResults: !isLoading && !isEmpty,
+      resultLabel: isLoading ? '불러오는 중…' : (isEmpty ? 0 : filtered.length) + '곳',
+      skeletons: [1, 2, 3, 4, 5, 6, 7, 8],
+      q: s.q, country: s.country,
+      onSearch: e => this.setState({ q: e.target.value }),
+      onCountry: e => this.setState({ country: e.target.value }),
+      countries: countries.map(c => ({ value: c, label: c === '전체' ? '국가 · 전체' : c })),
+      themeChips: ['전체', '바다', '도시·예술', '자연·트레킹', '문화·미식'].map(t => chip(t, s.theme === t, () => this.setState({ theme: t }))),
+      seasonSeg: ['전체', '봄', '여름', '가을', '겨울'].map(t => seg(t, s.season === t, () => this.setState({ season: t }))),
+      reset: () => this.setState({ country: '전체', theme: '전체', season: '전체', q: '' }),
+      scales: SCALES.map(sc => ({ ...sc, role: sc.role + (sc.def ? ' · DEFAULT ' + sc.def : ''), sw: sc.h.map((h, i) => { const w = cr(h, '#FFFFFF'), b = cr(h, '#1B1A17'); const useW = w >= b; return { k: KEYS[i], hex: h, fg: useW ? '#FFFFFF' : '#1B1A17', ratio: (useW ? w : b).toFixed(1) + ':1', outline: KEYS[i] === sc.def ? '2px solid #1B1A17' : 'none' }; }) })),
+      semRows: SEM.map(r => ({ k: r[0], light: r[1], dark: r[2], use: r[3] })),
+      pairs: [['Light', 'foreground / background', '#1B1A17', '#FAF9F6'], ['Light', 'muted-fg / muted', '#5D584F', '#F2F0EB'], ['Light', 'primary-fg / primary', '#FFFFFF', '#3B6447'], ['Light', 'secondary-fg / secondary', '#FFFFFF', '#355D75'], ['Light', 'highlight-fg / highlight', '#1B1A17', '#E7785D'], ['Light', 'primary (링크) / background', '#3B6447', '#FAF9F6'], ['Dark', 'foreground / background', '#F2F0EB', '#141513'], ['Dark', 'muted-fg / card', '#ADA89D', '#1D1F1B'], ['Dark', 'primary-fg / primary', '#14201A', '#8FBF9C'], ['Dark', 'primary (링크) / background', '#8FBF9C', '#141513'], ['Dark', 'highlight-fg / highlight', '#1B1A17', '#F09A82'], ['Light', 'white / 히어로 스크림 하단', '#FFFFFF', '#4A4844']].map(x => { const r = cr(x[2], x[3]); return { mode: x[0], label: x[1], fg: x[2], bg: x[3], ratio: r.toFixed(2) + ':1', grade: grade(r) }; }),
+      typeScale: [['5xl', '56 / 64', 56, 64, 600, '-0.03em', '히어로 헤드라인 (md: 40)'], ['4xl', '40 / 50', 40, 50, 600, '-0.025em', '페이지 타이틀 (모바일 히어로)'], ['3xl', '30 / 40', 30, 40, 600, '-0.02em', '섹션 타이틀'], ['2xl', '24 / 34', 24, 34, 600, '-0.015em', '컬렉션 타일, 모달 타이틀'], ['xl', '20 / 30', 20, 30, 600, '-0.01em', '카드 여행지명 (1280)'], ['lg', '18 / 28', 18, 28, 500, '0', '리드 문단, 탭'], ['base', '16 / 26', 16, 26, 400, '0', '본문, 입력 (iOS 줌 방지 16↑)'], ['sm', '14 / 22', 14, 22, 400, '0', '메타 정보, 버튼, 칩'], ['xs', '12 / 18', 12, 18, 500, '0', '배지, 캡션 (최소 크기)']].map(t => ({ k: t[0], spec: t[1], px: t[2], lh: t[3], fw: t[4], ls: t[5], use: t[6] })),
+      spacing: [['1', 4, '아이콘-텍스트'], ['2', 8, '칩 간격'], ['3', 12, '카드 메타 간격'], ['4', 16, '입력 내부 패딩'], ['5', 20, '모바일 좌우 여백'], ['6', 24, '그리드 gutter'], ['8', 32, '태블릿 좌우 여백'], ['10', 40, '데스크톱 좌우 여백'], ['12', 48, '블록 간격'], ['section-sm', 48, '모바일 섹션'], ['section', 80, '태블릿 섹션'], ['section-lg', 120, '데스크톱 섹션']].map(x => ({ k: x[0], px: x[1], w: x[1], use: x[2] })),
+      radii: [['sm', '6px', '배지'], ['md', '10px', '버튼·입력'], ['lg', '16px', '카드·이미지'], ['xl', '24px', '타일·시트'], ['full', '999px', '칩·아바타']].map(x => ({ k: x[0], v: x[1], label: x[1] + ' ' + x[2] })),
+      shadows: [['xs', '0 1px 2px rgba(45,42,38,.06)', '입력'], ['sm', '0 2px 6px -1px rgba(45,42,38,.08), 0 1px 2px rgba(45,42,38,.04)', '세그먼트'], ['md', '0 12px 24px -8px rgba(45,42,38,.18)', '카드 hover'], ['lg', '0 20px 40px -12px rgba(45,42,38,.25)', '팝오버·드래그'], ['focus', '0 0 0 3px rgba(59,100,71,.35)', '포커스']].map(x => ({ k: x[0], v: x[1], use: x[2] })),
+      codeTabs: ['tailwind.config.ts', 'app/globals.css', 'app/layout.tsx'].map((l, i) => ({ label: l, onClick: () => this.setState({ codeTab: i }), bg: s.codeTab === i ? '#2D2A26' : 'transparent', fg: s.codeTab === i ? '#FAF9F6' : '#A8A195' })),
+      codeText: code[s.codeTab],
+      copyLabel: s.copied ? '복사됨 ✓' : '코드 복사',
+      copy: () => { navigator.clipboard && navigator.clipboard.writeText(code[s.codeTab]); this.setState({ copied: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ copied: false }), 1500); },
+      dayTabs: DAYS.map((d, i) => ({ ...seg(d.label, s.day === i, () => this.setState({ day: i })) })),
+      timeline: tlFixed,
+      drawerOpen: s.drawerOpen,
+      toggleDrawer: () => this.setState(x => ({ drawerOpen: !x.drawerOpen })),
+      specCard: [
+        { k: 'Anatomy', v: '이미지(4:5, radius lg) · 시즌 배지 · 찜 버튼(44×44) · 메타(국가·테마) · 한글명 + 영문 세리프 · 평점' },
+        { k: 'Grid', v: '360: 1열 또는 2열 compact · 768: 2열 · 1280: 4열 (gap 24, row-gap 40)' },
+        { k: 'Tokens', v: 'bg-card · text-muted-foreground · rounded-lg · hover:shadow-md · ring-ring' },
+        { k: 'Hover', v: 'translate-y -4px + shadow-md (220ms), 이미지 scale 1.04 (360ms). reduced-motion에선 shadow만' },
+        { k: 'Active', v: 'focus-visible ring 2px + offset 2px · 찜 토글 시 ♥ highlight 컬러, aria-pressed' },
+        { k: 'Disabled', v: 'opacity 55%, 이미지 grayscale, 사유 배지 텍스트 필수, aria-disabled + 링크 제거' },
+        { k: 'Loading', v: 'Skeleton(muted) 동일 비율 유지 → CLS 0, aria-busy' },
+        { k: 'Empty', v: '점선 보더 + 안내 문구 + 다음 행동 링크 1개' }
+      ],
+      specFilter: [
+        { k: 'Anatomy', v: '검색 Input · 국가 Select · 테마 ToggleGroup(multiple 가능) · 계절 Segmented · 초기화' },
+        { k: 'Size', v: '높이 48(입력·셀렉트), 칩 40 + 터치 영역 44 확보 (padding-block 2)' },
+        { k: 'Behavior', v: '변경 즉시 반영 + URL 쿼리 동기화(?theme=sea&season=fall), 검색 300ms 디바운스' },
+        { k: 'Sticky', v: 'nav 아래 top-[72px], 스크롤 시 border-b + bg-background/95 backdrop-blur' },
+        { k: 'Mobile', v: '검색 + 필터 버튼(적용 개수 배지) → Sheet(bottom), 하단 “n곳 보기” 고정 버튼' },
+        { k: 'a11y', v: '칩 aria-pressed, 계절 role=radiogroup, 결과 수 aria-live=polite' }
+      ],
+      specNav: [
+        { k: '1280', v: '로고 · 주 메뉴 3개 · 찜 아이콘 · 로그인/아바타. 높이 72, 히어로 위에서는 투명 → 스크롤 시 bg-background' },
+        { k: '768', v: '높이 64, 메뉴 라벨 축약, 검색은 아이콘 → Command 팔레트' },
+        { k: '360', v: '상단 56(로고·검색·메뉴 Sheet) + 하단 탭 4개 64 + safe-area-inset-bottom' },
+        { k: 'States', v: 'active: 2px 밑줄 primary · hover: underline · disabled: muted-fg + 로그인 유도 툴팁 · loading: 아바타 스켈레톤' },
+        { k: 'a11y', v: '건너뛰기 링크, aria-current="page", 메뉴 버튼 aria-expanded, Sheet focus trap' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,26 +1,129 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* 디자인 토큰(색·폰트·간격·radius·shadow·motion)은 명세의 tailwind.config.ts에서 불러온다 */
+@config "../../tailwind.config.ts";
+
+/* Tailwind 기본 팔레트(blue-500 등)를 제거해 디자인 토큰 외 색은 클래스 자체가 생성되지 않게 한다 */
+@theme {
+  --color-*: initial;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@custom-variant dark (&:is(.dark *));
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * 디자인 QA용 상태 미리보기 변형.
+ * /dev/components에서 hover·focus 같은 "순간 상태"를 정지 화면으로 보여주기 위해
+ * data-preview="hover|focus|dragging" 속성이 붙은 요소(와 그 자손)에 같은 스타일을 적용한다.
+ * 실제 페이지에서는 이 속성을 쓰지 않으므로 영향이 없다.
+ */
+@custom-variant preview-hover (&:where([data-preview="hover"], [data-preview="hover"] *));
+@custom-variant preview-focus (&:where([data-preview="focus"], [data-preview="focus"] *));
+
+/* 명세 container: 가운데 정렬, 좌우 여백 20(기본) / 32(md) / 40(xl), 최대 폭 1280 */
+@utility container {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 20px;
+  @media (width >= 768px) {
+    padding-inline: 32px;
+  }
+  @media (width >= 1280px) {
+    padding-inline: 40px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * 시맨틱 토큰 (명세 2.2 · shadcn/ui 매핑)
+ * 컴포넌트는 스케일(moss-600 등)이 아니라 이 변수들만 참조한다.
+ * 다크 모드는 .dark 클래스(next-themes)에서 같은 이름의 변수를 교체한다.
+ */
+:root {
+  --background: #faf9f6;
+  --foreground: #1b1a17;
+  --card: #ffffff;
+  --card-foreground: #1b1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1b1a17;
+  --primary: #3b6447;
+  --primary-foreground: #ffffff;
+  --secondary: #355d75;
+  --secondary-foreground: #ffffff;
+  --muted: #f2f0eb;
+  --muted-foreground: #5d584f;
+  --accent: #f1f5f1;
+  --accent-foreground: #304f3a;
+  --highlight: #e7785d;
+  --highlight-foreground: #1b1a17;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --success: #2f7a4f;
+  --warning: #8f5b0e;
+  --border: #e5e1d9;
+  --input: #d1cbc0;
+  --ring: #3b6447;
+  --radius: 10px;
+  /* shadcn 컴포넌트가 var(--radius-md)를 직접 참조하므로 명세 md(= --radius)와 같은 값으로 노출 */
+  --radius-md: var(--radius);
+}
+
+.dark {
+  --background: #141513;
+  --foreground: #f2f0eb;
+  --card: #1d1f1b;
+  --card-foreground: #f2f0eb;
+  --popover: #1d1f1b;
+  --popover-foreground: #f2f0eb;
+  --primary: #8fbf9c;
+  --primary-foreground: #14201a;
+  --secondary: #8db6cc;
+  --secondary-foreground: #13222b;
+  --muted: #262823;
+  --muted-foreground: #ada89d;
+  --accent: #263029;
+  --accent-foreground: #dde8df;
+  --highlight: #f09a82;
+  --highlight-foreground: #1b1a17;
+  --destructive: #f2867e;
+  --destructive-foreground: #1b1a17;
+  --success: #7fcb9b;
+  --warning: #f2c46b;
+  --border: #34372f;
+  --input: #45483f;
+  --ring: #8fbf9c;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    word-break: keep-all; /* 한글 단어 단위 줄바꿈 */
+    font-feature-settings: "tnum" 0;
+  }
+  :focus-visible {
+    @apply shadow-focus outline-none;
+  }
+  /* 명세 헤더: 링크 기본색 primary, hover 시 밑줄 */
+  a:where(:not([class])) {
+    @apply text-primary hover:underline;
+  }
+}
+
+/* 과하지 않은 인터랙션: 모션 최소화 설정 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
