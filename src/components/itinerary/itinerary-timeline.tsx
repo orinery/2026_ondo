@@ -32,6 +32,8 @@ import type { ItineraryDay, ItineraryItem, ItineraryItemType } from "@/types/iti
 type ItineraryTimelineProps = {
   days: ItineraryDay[];
   isLoading?: boolean;
+  // 읽기 전용(상세 페이지 "추천 일정"): 드래그·삭제·추가 없이 보여주기만 한다
+  readOnly?: boolean;
   // 아래 콜백은 7단계에서 Server Action과 연결한다. 2단계에서는 로컬 상태만 바뀐다.
   onReorder?: (dayId: string, orderedItemIds: string[]) => void;
   onRemove?: (dayId: string, itemId: string) => void;
@@ -48,6 +50,7 @@ type ItineraryTimelineProps = {
 export function ItineraryTimeline({
   days: initialDays,
   isLoading = false,
+  readOnly = false,
   onReorder,
   onRemove,
   onAdd,
@@ -80,7 +83,22 @@ export function ItineraryTimeline({
       {days.map((day) => (
         <TabsContent key={day.id} value={day.id} className="flex flex-col">
           {day.items.length === 0 ? (
-            <TimelineEmpty onImport={() => onImportFromLikes?.(day.id)} />
+            <TimelineEmpty onImport={readOnly ? undefined : () => onImportFromLikes?.(day.id)} />
+          ) : readOnly ? (
+            <ol aria-label={`${day.label} 일정`}>
+              {day.items.map((item, index) => (
+                <li
+                  key={item.id}
+                  className="grid grid-cols-[--spacing(13)_--spacing(5)_minmax(0,1fr)] gap-3"
+                >
+                  <span className="pt-3.5 text-sm font-semibold tabular-nums">
+                    {item.time ?? <span className="text-muted-foreground">--:--</span>}
+                  </span>
+                  <TimelineDot status={item.status} isLast={index === day.items.length - 1} />
+                  <TimelineCard item={item} showActions={false} />
+                </li>
+              ))}
+            </ol>
           ) : (
             <SortableDay
               day={day}
@@ -98,15 +116,17 @@ export function ItineraryTimeline({
               }}
             />
           )}
-          <button
-            type="button"
-            onClick={() => onAdd?.(day.id)}
-            // 왼쪽 여백 = 시간(52) + dot(20) + gap(12) → 카드 시작선에 맞춘다
-            className="mt-1 ml-21 flex h-11 items-center justify-center gap-1 rounded-md border-[1.5px] border-dashed border-input text-sm font-semibold text-primary transition-colors duration-fast hover:bg-accent"
-          >
-            <PlusIcon aria-hidden className="size-4" />
-            장소 추가
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => onAdd?.(day.id)}
+              // 왼쪽 여백 = 시간(52) + dot(20) + gap(12) → 카드 시작선에 맞춘다
+              className="mt-1 ml-21 flex h-11 items-center justify-center gap-1 rounded-md border-[1.5px] border-dashed border-input text-sm font-semibold text-primary transition-colors duration-fast hover:bg-accent"
+            >
+              <PlusIcon aria-hidden className="size-4" />
+              장소 추가
+            </button>
+          )}
         </TabsContent>
       ))}
     </Tabs>
@@ -281,8 +301,10 @@ function TimelineCard({
   placeholder = false,
   dragging = false,
   previewHover = false,
+  showActions = true,
 }: {
   item: ItineraryItem;
+  showActions?: boolean;
   handle?: React.ReactNode;
   onRemove?: () => void;
   placeholder?: boolean;
@@ -298,7 +320,8 @@ function TimelineCard({
       className={cn(
         "group mb-3 flex items-start gap-2 rounded-md border bg-card py-3 pr-2 pl-3.5 transition-colors duration-fast",
         // hover: 보더 진하게 + 핸들·삭제 노출
-        "hover:border-stone-400 hover:bg-background dark:hover:border-stone-600 preview-hover:border-stone-400 preview-hover:bg-background",
+        showActions &&
+          "hover:border-stone-400 hover:bg-background dark:hover:border-stone-600 preview-hover:border-stone-400 preview-hover:bg-background",
         current && "border-[1.5px] border-primary bg-accent hover:border-primary hover:bg-accent",
         closed && "bg-muted",
         placeholder && "border-dashed border-input bg-transparent opacity-60",
@@ -343,44 +366,48 @@ function TimelineCard({
       </span>
 
       {/* 핸들·삭제: 마우스는 hover/포커스 시, 터치 기기는 항상 표시 (명세 5.4 hover) */}
-      <div
-        className={cn(
-          "flex items-center opacity-0 transition-opacity duration-fast group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 preview-hover:opacity-100",
-          dragging && "opacity-100",
-        )}
-      >
-        {onRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`${item.title} 삭제`}
-            className="grid size-8 place-items-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2Icon aria-hidden className="size-4" />
-          </button>
-        )}
-        {handle ?? (
-          <span className="grid size-8 place-items-center text-muted-foreground">
-            <GripVerticalIcon aria-hidden className="size-4" />
-          </span>
-        )}
-      </div>
+      {showActions && (
+        <div
+          className={cn(
+            "flex items-center opacity-0 transition-opacity duration-fast group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 preview-hover:opacity-100",
+            dragging && "opacity-100",
+          )}
+        >
+          {onRemove && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={`${item.title} 삭제`}
+              className="grid size-8 place-items-center rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2Icon aria-hidden className="size-4" />
+            </button>
+          )}
+          {handle ?? (
+            <span className="grid size-8 place-items-center text-muted-foreground">
+              <GripVerticalIcon aria-hidden className="size-4" />
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /** Empty: "이 날은 아직 비어 있어요 · 찜에서 불러오기" (명세 5.4 empty) */
-function TimelineEmpty({ onImport }: { onImport: () => void }) {
+function TimelineEmpty({ onImport }: { onImport?: () => void }) {
   return (
     <div className="ml-21 rounded-md border-[1.5px] border-dashed border-input p-5 text-center text-sm text-foreground">
-      이 날은 아직 비어 있어요 ·{" "}
-      <button
-        type="button"
-        onClick={onImport}
-        className="font-semibold text-primary hover:underline"
-      >
-        찜에서 불러오기
-      </button>
+      이 날은 아직 비어 있어요{onImport && " · "}
+      {onImport && (
+        <button
+          type="button"
+          onClick={onImport}
+          className="font-semibold text-primary hover:underline"
+        >
+          찜에서 불러오기
+        </button>
+      )}
     </div>
   );
 }
