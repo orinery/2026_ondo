@@ -25,20 +25,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SEASONS, THEMES, type SeasonSlug, type ThemeSlug } from "@/lib/constants/taxonomy";
 import { debounce, type Debounced } from "@/lib/debounce";
 import { cn } from "@/lib/utils";
+import { EMPTY_FILTERS, type DestinationFilters } from "@/lib/validation/destination-filters";
 
-export type DestinationFilters = {
-  q: string;
-  country: string | null;
-  theme: ThemeSlug | null;
-  season: SeasonSlug | null;
-};
-
-export const EMPTY_FILTERS: DestinationFilters = {
-  q: "",
-  country: null,
-  theme: null,
-  season: null,
-};
+// 필터 타입과 빈 값은 서버(URL 파싱)와 함께 쓰므로 lib에 둔다
+export { EMPTY_FILTERS, type DestinationFilters } from "@/lib/validation/destination-filters";
 
 export type FilterKey = keyof DestinationFilters;
 // "reset": 초기화 버튼으로 여러 값을 한꺼번에 바꾼 경우
@@ -264,7 +254,8 @@ function CountrySelect({
         aria-label="국가"
         className={cn("h-12! min-w-45 rounded-md bg-card px-3.5 text-base dark:bg-card", className)}
       >
-        <SelectValue />
+        {/* 라벨을 직접 넘겨 hydration 전(서버 렌더링)에도 선택값이 보이게 한다 */}
+        <SelectValue>{value ?? "국가 · 전체"}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>국가 · 전체</SelectItem>
