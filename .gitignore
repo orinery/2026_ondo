@@ -22,7 +22,18 @@
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
+*.log
+
+# editors / 로컬 도구 설정 (개인 환경)
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/
+
+# supabase CLI 임시 파일 (db:types 실행 시 생길 수 있음)
+/supabase/.temp/
 
 # debug
 npm-debug.log*
@@ -39,3 +50,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# env 예시 파일은 커밋한다 (실제 값은 .env.local에만)
+!.env.example
