@@ -34,8 +34,12 @@ type ItineraryTimelineProps = {
   isLoading?: boolean;
   // 읽기 전용(상세 페이지 "추천 일정"): 드래그·삭제·추가 없이 보여주기만 한다
   readOnly?: boolean;
-  // 아래 콜백은 7단계에서 Server Action과 연결한다. 2단계에서는 로컬 상태만 바뀐다.
+  // 선택한 Day를 부모가 관리할 때 (일정 플래너: 동선 지도가 같은 Day를 보여줘야 함)
+  activeDayId?: string;
+  onActiveDayChange?: (dayId: string) => void;
+  // 아래 콜백이 없으면 로컬 상태만 바뀐다 (/dev/components 데모)
   onReorder?: (dayId: string, orderedItemIds: string[]) => void;
+  onEditItem?: (dayId: string, itemId: string) => void;
   onRemove?: (dayId: string, itemId: string) => void;
   onAdd?: (dayId: string) => void;
   onImportFromLikes?: (dayId: string) => void;
@@ -51,14 +55,30 @@ export function ItineraryTimeline({
   days: initialDays,
   isLoading = false,
   readOnly = false,
+  activeDayId: controlledDayId,
+  onActiveDayChange,
   onReorder,
+  onEditItem,
   onRemove,
   onAdd,
   onImportFromLikes,
   previewHoverItemId,
 }: ItineraryTimelineProps) {
   const [days, setDays] = useState(initialDays);
-  const [activeDayId, setActiveDayId] = useState(initialDays[0]?.id ?? "");
+  const [prevDays, setPrevDays] = useState(initialDays);
+  const [localDayId, setLocalDayId] = useState(initialDays[0]?.id ?? "");
+  const activeDayId = controlledDayId ?? localDayId;
+  const setActiveDayId = (id: string) => {
+    setLocalDayId(id);
+    onActiveDayChange?.(id);
+  };
+
+  // 서버에서 새 데이터가 오면(저장 후 다시 그리기) 화면 상태를 맞춘다.
+  // 드래그 직후에는 로컬 상태로 먼저 바꿔 두고(즉시 반영), 서버 응답이 오면 여기서 확정값으로 덮어쓴다.
+  if (initialDays !== prevDays) {
+    setPrevDays(initialDays);
+    setDays(initialDays);
+  }
 
   const updateItems = (dayId: string, updater: (items: ItineraryItem[]) => ItineraryItem[]) =>
     setDays((prev) => prev.map((d) => (d.id === dayId ? { ...d, items: updater(d.items) } : d)));
@@ -68,12 +88,13 @@ export function ItineraryTimeline({
   return (
     <Tabs value={activeDayId} onValueChange={setActiveDayId} className="gap-6">
       {/* Day 탭: 세그먼트 스타일 (명세 5.4) */}
-      <TabsList className="h-auto w-full rounded-md bg-muted p-1">
+      {/* 여행이 길면 Day 탭이 많아지므로 가로 스크롤 */}
+      <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-md bg-muted p-1">
         {days.map((day) => (
           <TabsTrigger
             key={day.id}
             value={day.id}
-            className="h-11 flex-1 rounded-sm text-sm font-medium text-muted-foreground data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            className="h-11 min-w-24 flex-1 shrink-0 rounded-sm text-sm font-medium text-muted-foreground data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-sm"
           >
             {day.label}
           </TabsTrigger>
@@ -103,6 +124,7 @@ export function ItineraryTimeline({
             <SortableDay
               day={day}
               previewHoverItemId={previewHoverItemId}
+              onEdit={onEditItem ? (itemId) => onEditItem(day.id, itemId) : undefined}
               onReorder={(nextItems) => {
                 updateItems(day.id, () => nextItems);
                 onReorder?.(
@@ -138,11 +160,13 @@ function SortableDay({
   previewHoverItemId,
   onReorder,
   onRemove,
+  onEdit,
 }: {
   day: ItineraryDay;
   previewHoverItemId?: string;
   onReorder: (items: ItineraryItem[]) => void;
   onRemove: (itemId: string) => void;
+  onEdit?: (itemId: string) => void;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   // dnd-kit은 접근성용 요소 ID를 전역 카운터로 만들어 서버·클라이언트 값이 달라진다(hydration 불일치).
@@ -204,6 +228,7 @@ function SortableDay({
               isLast={index === day.items.length - 1}
               previewHover={previewHoverItemId === item.id}
               onRemove={() => onRemove(item.id)}
+              onEdit={onEdit ? () => onEdit(item.id) : undefined}
             />
           ))}
         </ol>
@@ -221,11 +246,13 @@ function SortableTimelineRow({
   isLast,
   previewHover,
   onRemove,
+  onEdit,
 }: {
   item: ItineraryItem;
   isLast: boolean;
   previewHover: boolean;
   onRemove: () => void;
+  onEdit?: () => void;
 }) {
   const {
     attributes,
@@ -253,6 +280,7 @@ function SortableTimelineRow({
         placeholder={isDragging}
         previewHover={previewHover}
         onRemove={onRemove}
+        onEdit={onEdit}
         handle={
           <button
             type="button"
@@ -302,11 +330,13 @@ function TimelineCard({
   dragging = false,
   previewHover = false,
   showActions = true,
+  onEdit,
 }: {
   item: ItineraryItem;
   showActions?: boolean;
   handle?: React.ReactNode;
   onRemove?: () => void;
+  onEdit?: () => void;
   placeholder?: boolean;
   dragging?: boolean;
   previewHover?: boolean;
@@ -336,7 +366,19 @@ function TimelineCard({
             closed && "text-muted-foreground line-through",
           )}
         >
-          {item.title}
+          {onEdit ? (
+            // 제목을 누르면 수정 창 (시간·메모·다른 날로 옮기기)
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`${item.title} 수정`}
+              className="text-left underline-offset-3 hover:underline"
+            >
+              {item.title}
+            </button>
+          ) : (
+            item.title
+          )}
         </p>
         {item.note && (
           <p

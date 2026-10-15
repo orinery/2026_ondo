@@ -1,16 +1,19 @@
-import { CalendarPlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { AddToTripDialog } from "@/components/destination/add-to-trip-dialog";
 import { DestinationMap } from "@/components/destination/destination-map";
 import { Gallery } from "@/components/destination/gallery";
 import { LikeButton } from "@/components/destination/like-button";
+import { ReviewDialog } from "@/components/destination/review-dialog";
 import { ReviewSection } from "@/components/destination/review-section";
 import { ShareButton } from "@/components/destination/share-button";
 import { ItineraryTimeline } from "@/components/itinerary/itinerary-timeline";
-import { Button } from "@/components/ui/button";
 import { seasonLabel, themeLabel } from "@/lib/constants/taxonomy";
+import { getCurrentUser } from "@/lib/auth";
 import { getDestinationBySlug, getReviews, type DestinationDetail } from "@/lib/data/destinations";
+import { getLikedIds } from "@/lib/data/likes";
+import { getMyTrips } from "@/lib/data/trips";
 import type { ItineraryDay } from "@/types/itinerary";
 
 export async function generateMetadata({
@@ -37,7 +40,16 @@ export default async function DestinationDetailPage({ params }: PageProps<"/dest
   const destination = await getDestinationBySlug(slug);
   if (!destination) notFound();
 
-  const { items: reviews, distribution } = await getReviews(destination.id);
+  const [{ items: reviews, distribution }, likedIds, user, trips] = await Promise.all([
+    getReviews(destination.id),
+    getLikedIds(),
+    getCurrentUser(),
+    // "일정에 담기"에서 고를 내 여행 목록 (비로그인이면 빈 배열)
+    getMyTrips(),
+  ]);
+  // 여행지당 리뷰 1개(사용자 확정) → 이미 쓴 리뷰가 있으면 다이얼로그가 수정 모드가 된다
+  const myReview = user ? (reviews.find((r) => r.userId === user.id) ?? null) : null;
+  const liked = likedIds.includes(destination.id);
   const days = toItineraryDays(destination);
 
   return (
@@ -62,9 +74,20 @@ export default async function DestinationDetailPage({ params }: PageProps<"/dest
           </h1>
         </div>
         <div className="hidden items-center gap-2 lg:flex">
-          <LikeButton destinationName={destination.name} variant="outline" />
+          <LikeButton
+            destinationId={destination.id}
+            destinationName={destination.name}
+            initialLiked={liked}
+            variant="outline"
+          />
           <ShareButton title={`${destination.name} · 여운`} />
-          <AddToTripButton />
+          <AddToTripDialog
+            destinationId={destination.id}
+            destinationName={destination.name}
+            slug={destination.slug}
+            trips={trips}
+            isLoggedIn={Boolean(user)}
+          />
         </div>
       </header>
 
@@ -102,6 +125,25 @@ export default async function DestinationDetailPage({ params }: PageProps<"/dest
             reviewCount={destination.reviewCount}
             reviews={reviews}
             distribution={distribution}
+            currentUserId={user?.id}
+            action={
+              <ReviewDialog
+                destinationId={destination.id}
+                slug={destination.slug}
+                destinationName={destination.name}
+                userId={user?.id ?? null}
+                myReview={
+                  myReview
+                    ? {
+                        id: myReview.id,
+                        rating: myReview.rating,
+                        content: myReview.content,
+                        photoUrl: myReview.photoUrl,
+                      }
+                    : null
+                }
+              />
+            }
           />
         </div>
 
@@ -129,26 +171,24 @@ export default async function DestinationDetailPage({ params }: PageProps<"/dest
       {/* ── 1023 이하: 하단 고정 CTA (360에서는 하단 탭 위에 놓인다) ── */}
       <div className="fixed inset-x-0 bottom-[calc(--spacing(16)+env(safe-area-inset-bottom))] z-20 border-t bg-background/95 backdrop-blur md:bottom-0 md:pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="container flex items-center gap-2 py-3">
-          <LikeButton destinationName={destination.name} variant="outline" />
+          <LikeButton
+            destinationId={destination.id}
+            destinationName={destination.name}
+            initialLiked={liked}
+            variant="outline"
+          />
           <ShareButton title={`${destination.name} · 여운`} className="shrink-0" />
-          <AddToTripButton className="flex-1" />
+          <AddToTripDialog
+            destinationId={destination.id}
+            destinationName={destination.name}
+            slug={destination.slug}
+            trips={trips}
+            isLoggedIn={Boolean(user)}
+            className="flex-1"
+          />
         </div>
       </div>
     </div>
-  );
-}
-
-/** "일정에 담기" — 7단계(일정 플래너)에서 연결한다. 그 전까지는 비활성 */
-function AddToTripButton({ className }: { className?: string }) {
-  return (
-    <Button
-      disabled
-      title="일정 플래너 준비 중"
-      className={`h-11 gap-1.5 rounded-md px-5 text-base ${className ?? ""}`}
-    >
-      <CalendarPlusIcon aria-hidden className="size-4" />
-      일정에 담기
-    </Button>
   );
 }
 
