@@ -204,9 +204,11 @@ export const getDestinationBySlug = cache(
 
 export type ReviewItem = {
   id: string;
+  userId: string; // "내 리뷰" 표시·수정 버튼 노출에 쓴다
   rating: number;
   content: string;
   photoUrl: string | null;
+  photoPath: string | null;
   createdAt: string;
   author: { name: string; avatarUrl: string | null };
 };
@@ -216,7 +218,9 @@ export async function getReviews(destinationId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("reviews")
-    .select("id, rating, content, photo_path, created_at, profiles ( display_name, avatar_url )")
+    .select(
+      "id, user_id, rating, content, photo_path, created_at, profiles ( display_name, avatar_url )",
+    )
     .eq("destination_id", destinationId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -224,11 +228,13 @@ export async function getReviews(destinationId: string) {
 
   const items: ReviewItem[] = (data ?? []).map((r) => ({
     id: r.id,
+    userId: r.user_id,
     rating: r.rating,
     content: r.content,
     photoUrl: r.photo_path
       ? supabase.storage.from("review-photos").getPublicUrl(r.photo_path).data.publicUrl
       : null,
+    photoPath: r.photo_path,
     createdAt: r.created_at,
     author: {
       name: r.profiles?.display_name ?? "여행자",

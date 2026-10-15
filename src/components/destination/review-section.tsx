@@ -9,8 +9,9 @@ type ReviewSectionProps = {
   reviewCount: number;
   reviews: ReviewItem[];
   distribution: { star: number; count: number }[];
-  // 6단계: 리뷰 작성 버튼·폼이 들어갈 자리
+  // 리뷰 쓰기/수정 버튼 (ReviewDialog)
   action?: React.ReactNode;
+  currentUserId?: string | null; // 내 리뷰에 "내 리뷰" 표시
 };
 
 const dateFormat = new Intl.DateTimeFormat("ko-KR", {
@@ -26,6 +27,7 @@ export function ReviewSection({
   reviews,
   distribution,
   action,
+  currentUserId,
 }: ReviewSectionProps) {
   return (
     <section aria-labelledby="reviews-title" className="flex flex-col gap-6">
@@ -82,7 +84,14 @@ export function ReviewSection({
                     <AvatarFallback>{r.author.name.slice(0, 1)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-semibold">{r.author.name}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      {r.author.name}
+                      {r.userId === currentUserId && (
+                        <span className="rounded-sm bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
+                          내 리뷰
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       <time dateTime={r.createdAt}>{dateFormat.format(new Date(r.createdAt))}</time>
                     </p>
