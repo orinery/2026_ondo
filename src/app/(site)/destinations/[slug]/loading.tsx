@@ -1,5 +1,5 @@
 import { GallerySkeleton } from "@/components/destination/gallery";
-import { TimelineSkeleton } from "@/components/itinerary/itinerary-timeline";
+import { TimelineSkeleton } from "@/components/itinerary/timeline-parts";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /** 상세 로딩: 실제 레이아웃과 같은 자리에 스켈레톤을 둬서 레이아웃 이동(CLS)을 줄인다 */
@@ -7,6 +7,7 @@ export default function Loading() {
   return (
     <div
       aria-busy="true"
+      role="status"
       aria-label="여행지 불러오는 중"
       className="container pt-8 pb-section md:pt-10"
     >

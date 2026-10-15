@@ -8,7 +8,7 @@ import { LikeButton } from "@/components/destination/like-button";
 import { ReviewDialog } from "@/components/destination/review-dialog";
 import { ReviewSection } from "@/components/destination/review-section";
 import { ShareButton } from "@/components/destination/share-button";
-import { ItineraryTimeline } from "@/components/itinerary/itinerary-timeline";
+import { ReadonlyTimeline } from "@/components/itinerary/readonly-timeline";
 import { seasonLabel, themeLabel } from "@/lib/constants/taxonomy";
 import { getCurrentUser } from "@/lib/auth";
 import { getDestinationBySlug, getReviews, type DestinationDetail } from "@/lib/data/destinations";
@@ -116,7 +116,7 @@ export default async function DestinationDetailPage({ params }: PageProps<"/dest
                 추천 일정을 준비하고 있어요.
               </p>
             ) : (
-              <ItineraryTimeline days={days} readOnly />
+              <ReadonlyTimeline days={days} />
             )}
           </section>
 
