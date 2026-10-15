@@ -219,7 +219,7 @@ function SearchField({ value, onCommit }: { value: string; onCommit: (q: string)
   }, []);
 
   return (
-    <label className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-md border border-input bg-card px-4 transition-[border-color,box-shadow] duration-fast focus-within:border-ring focus-within:shadow-focus">
+    <label className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-md border border-stone-500 bg-card px-4 transition-[border-color,box-shadow] duration-fast focus-within:border-ring focus-within:shadow-focus">
       <SearchIcon aria-hidden className="size-4.5 shrink-0 text-muted-foreground" />
       <input
         type="search"

@@ -266,7 +266,13 @@ function UserArea({
   transparent: boolean;
 }) {
   if (isLoading)
-    return <Skeleton aria-label="사용자 정보 불러오는 중" className="size-9 rounded-full" />;
+    return (
+      <Skeleton
+        role="status"
+        aria-label="사용자 정보 불러오는 중"
+        className="size-9 rounded-full"
+      />
+    );
 
   if (!user) {
     return (

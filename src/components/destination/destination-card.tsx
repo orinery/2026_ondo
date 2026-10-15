@@ -48,7 +48,9 @@ export function DestinationCard({
   return (
     <article
       data-preview={previewState}
-      className={cn("group relative flex flex-col gap-3.5", disabled && "opacity-55")}
+      // 비활성(명세 5.1 Disabled): 명세는 카드 전체 opacity 55%지만, 글자 대비가 2.47로 떨어져
+      // 사진에만 opacity·흑백을 주고 글자는 muted-foreground로 읽을 수 있게 둔다 (8단계 점검, 사용자 확정)
+      className="group relative flex flex-col gap-3.5"
     >
       <div
         className={cn(
@@ -70,7 +72,7 @@ export function DestinationCard({
             className={cn(
               "object-cover transition-transform duration-slow ease-out-soft",
               !disabled && "motion-safe:group-hover:scale-104 motion-safe:preview-hover:scale-104",
-              disabled && "grayscale",
+              disabled && "opacity-55 grayscale",
             )}
           />
         </AspectRatio>
@@ -102,7 +104,9 @@ export function DestinationCard({
         <div className="mt-1 flex items-baseline justify-between gap-2">
           <h3 className="flex min-w-0 items-baseline gap-2">
             {disabled ? (
-              <span className="truncate font-kr text-lg font-semibold xl:text-xl">{d.name}</span>
+              <span className="truncate font-kr text-lg font-semibold text-muted-foreground xl:text-xl">
+                {d.name}
+              </span>
             ) : (
               <Link
                 href={`/destinations/${d.slug}`}

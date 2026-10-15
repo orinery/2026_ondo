@@ -187,7 +187,7 @@ export function TripItemDialog({
                       "flex h-11 items-center justify-center rounded-md border text-sm font-medium transition-colors duration-fast peer-focus-visible:shadow-focus",
                       type === t.value
                         ? "border-foreground bg-foreground text-background"
-                        : "border-input bg-card",
+                        : "border-stone-500 bg-card",
                     )}
                   >
                     {t.label}

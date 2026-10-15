@@ -33,7 +33,7 @@ export function DestinationResults({
 }: DestinationResultsProps) {
   if (isLoading) {
     return (
-      <DestinationGrid aria-busy="true" aria-label="여행지 불러오는 중">
+      <DestinationGrid role="status" aria-busy="true" aria-label="여행지 불러오는 중">
         {Array.from({ length: SKELETON_COUNT }, (_, i) => (
           <DestinationCardSkeleton key={i} />
         ))}

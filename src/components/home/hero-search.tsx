@@ -140,7 +140,7 @@ function Field({
       className={cn(
         layout === "bar"
           ? "min-w-0 flex-1 border-r px-6 py-2 first:flex-[1.3] last-of-type:border-r-0"
-          : "rounded-md border border-input bg-card px-4 py-2.5",
+          : "rounded-md border border-stone-500 bg-card px-4 py-2.5",
       )}
     >
       {htmlFor ? (
