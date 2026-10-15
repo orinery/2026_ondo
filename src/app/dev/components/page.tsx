@@ -210,13 +210,19 @@ export default function DevComponentsPage() {
         <Section id="card" title="2. 여행지 카드 <DestinationCard />">
           <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-6">
             <State label="default">
-              <DestinationCard destination={kyoto} showReviewCount={false} />
+              <DestinationCard likeMode="local" destination={kyoto} showReviewCount={false} />
             </State>
             <State label="hover · lift -4 · img 1.04">
-              <DestinationCard destination={kyoto} showReviewCount={false} previewState="hover" />
+              <DestinationCard
+                likeMode="local"
+                destination={kyoto}
+                showReviewCount={false}
+                previewState="hover"
+              />
             </State>
             <State label="active · focus ring · 찜됨">
               <DestinationCard
+                likeMode="local"
                 destination={kyoto}
                 showReviewCount={false}
                 previewState="focus"
@@ -225,6 +231,7 @@ export default function DevComponentsPage() {
             </State>
             <State label="disabled">
               <DestinationCard
+                likeMode="local"
                 destination={{ ...kyoto, unavailableReason: "현재 여행 제한" }}
                 showReviewCount={false}
               />
@@ -239,7 +246,12 @@ export default function DevComponentsPage() {
           <h3 className="mt-4 text-lg font-semibold">그리드 (360 1열 · 768 2열 · 1280 4열)</h3>
           <DestinationGrid>
             {[kyoto, santorini, dolomites, paris].map((d) => (
-              <DestinationCard key={d.id} destination={d} initialLiked={d.id === "1"} />
+              <DestinationCard
+                likeMode="local"
+                key={d.id}
+                destination={d}
+                initialLiked={d.id === "1"}
+              />
             ))}
           </DestinationGrid>
         </Section>

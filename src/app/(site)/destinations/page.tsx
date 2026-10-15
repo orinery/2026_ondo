@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { DestinationExplorer } from "@/components/destination/destination-explorer";
 import { seasonLabel, themeLabel } from "@/lib/constants/taxonomy";
 import { getCountries, getDestinations, getThemeCounts } from "@/lib/data/destinations";
+import { getLikedIds } from "@/lib/data/likes";
 import { parseDestinationSearchParams } from "@/lib/validation/destination-filters";
 
 /** 필터가 걸린 목록은 제목에도 반영해 공유했을 때 무엇인지 알 수 있게 한다 */
@@ -25,10 +26,11 @@ export async function generateMetadata({
 export default async function DestinationsPage({ searchParams }: PageProps<"/destinations">) {
   const { filters, page } = parseDestinationSearchParams(await searchParams);
 
-  const [{ items, total }, themeCounts, countries] = await Promise.all([
+  const [{ items, total }, themeCounts, countries, likedIds] = await Promise.all([
     getDestinations(filters, page),
     getThemeCounts(filters),
     getCountries(),
+    getLikedIds(),
   ]);
 
   return (
@@ -40,6 +42,7 @@ export default async function DestinationsPage({ searchParams }: PageProps<"/des
       hasMore={items.length < total}
       countries={countries}
       themeCounts={themeCounts}
+      likedIds={likedIds}
     />
   );
 }

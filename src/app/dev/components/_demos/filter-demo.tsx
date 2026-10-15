@@ -70,6 +70,7 @@ export function FilterDemo() {
           <DestinationResults
             items={items}
             likedIds={new Set(["1", "7"])}
+            likeMode="local"
             isLoading={forced === "loading"}
             isPending={forced === "pending"}
             onReset={() => setFilters(EMPTY_FILTERS)}

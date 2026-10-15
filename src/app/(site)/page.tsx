@@ -6,6 +6,7 @@ import { DestinationCard } from "@/components/destination/destination-card";
 import { HeroSearch } from "@/components/home/hero-search";
 import { COLLECTIONS, SEASON_EDITS } from "@/lib/constants/season-edits";
 import { getFeaturedDestinations, getThemeTotals } from "@/lib/data/destinations";
+import { getLikedIds } from "@/lib/data/likes";
 import { englishMonth, seasonOf, seoulYear } from "@/lib/season";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +21,10 @@ export default async function HomePage() {
   const now = new Date();
   const season = seasonOf(now);
   const edit = SEASON_EDITS[season];
-  const [featured, themeTotals] = await Promise.all([
+  const [featured, themeTotals, likedIds] = await Promise.all([
     getFeaturedDestinations(season),
     getThemeTotals(),
+    getLikedIds(),
   ]);
 
   return (
@@ -82,6 +84,7 @@ export default async function HomePage() {
               <li key={d.id} className="w-[76%] shrink-0 snap-start md:w-[38%] xl:w-auto">
                 <DestinationCard
                   destination={d}
+                  initialLiked={likedIds.includes(d.id)}
                   showReviewCount={false}
                   priority={i < 2}
                   sizes="(min-width: 1280px) 300px, (min-width: 768px) 38vw, 76vw"

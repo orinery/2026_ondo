@@ -23,6 +23,7 @@ type DestinationExplorerProps = {
   hasMore: boolean;
   countries: string[];
   themeCounts: Partial<Record<ThemeSlug, number>>;
+  likedIds: string[]; // 서버→클라이언트로는 Set을 넘길 수 없어 배열로 받는다
 };
 
 /**
@@ -40,6 +41,7 @@ export function DestinationExplorer({
   hasMore,
   countries,
   themeCounts,
+  likedIds,
 }: DestinationExplorerProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,6 +87,7 @@ export function DestinationExplorer({
       <div className="container pt-8 pb-section-sm md:pb-24">
         <DestinationResults
           items={items}
+          likedIds={new Set(likedIds)}
           isPending={isPending}
           onReset={() => navigate(EMPTY_FILTERS)}
           lastFilter={lastFilter}

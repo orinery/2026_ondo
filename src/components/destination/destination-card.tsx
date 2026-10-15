@@ -18,6 +18,10 @@ type DestinationCardProps = {
   sizes?: string;
   // 디자인 QA 전용 (/dev/components): hover·focus 상태를 정지 화면으로 보여준다
   previewState?: "hover" | "focus";
+  // "local": 찜을 서버에 저장하지 않는 데모 모드 (/dev/components)
+  likeMode?: "server" | "local";
+  // 카드 하단 추가 영역 (예: 나의 여행의 "폴더 이동" 메뉴)
+  footer?: React.ReactNode;
 };
 
 const numberFormat = new Intl.NumberFormat("ko-KR");
@@ -36,6 +40,8 @@ export function DestinationCard({
   priority = false,
   sizes = "(min-width: 1280px) 300px, (min-width: 768px) 50vw, 100vw",
   previewState,
+  likeMode = "server",
+  footer,
 }: DestinationCardProps) {
   const disabled = Boolean(d.unavailableReason);
 
@@ -80,8 +86,10 @@ export function DestinationCard({
         ) : (
           // z-10: stretched link(::after)보다 위에 있어야 클릭된다
           <LikeButton
+            destinationId={d.id}
             destinationName={d.name}
             initialLiked={initialLiked}
+            mode={likeMode}
             className="absolute top-2.5 right-2.5 z-10"
           />
         )}
@@ -121,6 +129,8 @@ export function DestinationCard({
             )}
           </span>
         </div>
+        {/* z-10: stretched link 위에 있어야 클릭된다 */}
+        {footer && <div className="relative z-10 mt-2">{footer}</div>}
       </div>
     </article>
   );

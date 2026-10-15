@@ -9,6 +9,7 @@ import { DestinationCard, DestinationCardSkeleton, DestinationGrid } from "./des
 type DestinationResultsProps = {
   items: DestinationSummary[];
   likedIds?: ReadonlySet<string>;
+  likeMode?: "server" | "local";
   // 첫 로딩(이전 결과 없음) → 스켈레톤 8개
   isLoading?: boolean;
   // 필터 변경 중(이전 결과 있음) → 이전 결과를 opacity .5로 유지 (명세 5.2 결과 영역 loading)
@@ -24,6 +25,7 @@ const SKELETON_COUNT = 8;
 export function DestinationResults({
   items,
   likedIds,
+  likeMode = "server",
   isLoading = false,
   isPending = false,
   onReset,
@@ -53,6 +55,7 @@ export function DestinationResults({
           key={d.id}
           destination={d}
           initialLiked={likedIds?.has(d.id)}
+          likeMode={likeMode}
           priority={i < 4}
         />
       ))}
