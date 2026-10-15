@@ -5,7 +5,7 @@ import { safeNextPath } from "@/lib/safe-redirect";
 
 export const metadata: Metadata = {
   title: "로그인",
-  description: "여운에 로그인하고 찜한 여행지와 여행 일정을 이어서 관리하세요.",
+  description: "여운에 로그인하고 예약 내역과 찜, 여행 일정을 이어서 관리하세요.",
 };
 
 const NOTICES: Record<string, string> = {
@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <>
       <h1 className="font-kr text-3xl font-semibold">로그인</h1>
-      <p className="mt-2 mb-8 text-muted-foreground">찜한 여행지와 일정을 이어서 볼 수 있어요.</p>
+      <p className="mt-2 mb-8 text-muted-foreground">예약 내역과 찜, 일정을 이어서 볼 수 있어요.</p>
       <LoginForm next={safeNextPath(next)} notice={noticeKey ? NOTICES[noticeKey] : undefined} />
     </>
   );

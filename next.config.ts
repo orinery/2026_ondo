@@ -17,9 +17,20 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // 쇼핑몰 전환 전의 여행지 주소(/destinations)로 들어오면 상품 목록으로 보낸다.
+  // 예전 여행지 slug는 상품과 1:1로 대응하지 않으므로 상세 주소도 목록으로 보낸다 (영구 이동 308)
+  async redirects() {
+    return [
+      { source: "/destinations", destination: "/products", permanent: true },
+      // 예전 여행지 중 일본 도시(교토·도쿄)는 그 도시의 상품 목록으로
+      { source: "/destinations/kyoto", destination: "/products?city=kyoto", permanent: true },
+      { source: "/destinations/tokyo", destination: "/products?city=tokyo", permanent: true },
+      { source: "/destinations/:slug", destination: "/products", permanent: true },
+    ];
+  },
   images: {
     remotePatterns: [
-      // 여행지 이미지(Unsplash 무료 이미지)
+      // 상품·도시 이미지(Unsplash 무료 이미지)
       { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
       ...(supabaseHost
         ? [

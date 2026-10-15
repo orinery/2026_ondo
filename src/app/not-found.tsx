@@ -13,8 +13,8 @@ export default function NotFound() {
       <p className="font-display text-2xl text-muted-foreground italic">404</p>
       <h1 className="font-kr text-2xl font-semibold">길을 잃은 것 같아요</h1>
       <p className="text-muted-foreground">주소가 바뀌었거나 사라진 페이지예요.</p>
-      <Link href="/destinations" className="mt-2 font-semibold text-primary hover:underline">
-        여행지 둘러보기 →
+      <Link href="/products" className="mt-2 font-semibold text-primary hover:underline">
+        상품 둘러보기 →
       </Link>
     </main>
   );

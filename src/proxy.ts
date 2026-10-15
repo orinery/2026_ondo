@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
 // 로그인이 필요한 경로
-const PROTECTED_PREFIXES = ["/my"];
+const PROTECTED_PREFIXES = ["/my", "/cart", "/checkout"];
 // 로그인한 사용자가 들어올 필요가 없는 경로
 const AUTH_PAGES = ["/login", "/signup"];
 

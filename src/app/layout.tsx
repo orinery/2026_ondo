@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s | 여운",
   },
   description:
-    "떠나기 전의 설렘이 돌아온 뒤의 여운으로. 여행지를 찾고, 찜하고, 일정을 짜는 여행 웹사이트",
+    "떠나기 전의 설렘이 돌아온 뒤의 여운으로. 일본 여행 투어·액티비티와 입장권을 예약하는 여행 쇼핑몰",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

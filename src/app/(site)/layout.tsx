@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNav } from "@/components/layout/site-nav";
 import { getCurrentUser } from "@/lib/auth";
+import { getCities, getSearchItems } from "@/lib/data/products";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -28,24 +29,26 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
 }
 
 async function SiteNavWithUser() {
-  const supabase = await createClient();
-  const [user, { data: destinations }] = await Promise.all([
+  const [user, searchItems, cities] = await Promise.all([
     getCurrentUser(),
-    // 검색 팔레트(Command)에 쓸 여행지 목록 — 12곳이라 한 번에 가져온다
-    supabase.from("destinations").select("slug, name, name_en, country").order("name"),
+    // 검색 팔레트(Command)에 쓸 상품·도시 목록 — 24개·6곳이라 한 번에 가져온다
+    getSearchItems(),
+    getCities(),
   ]);
-
-  const searchItems = (destinations ?? []).map((d) => ({
-    slug: d.slug,
-    name: d.name,
-    nameEn: d.name_en,
-    country: d.country,
-  }));
 
   return (
     <SiteNav
       user={user ? { name: user.displayName, avatarUrl: user.avatarUrl } : null}
       searchItems={searchItems}
+      searchCities={cities.map((c) => ({ slug: c.slug, name: c.name, nameEn: c.nameEn }))}
+      cartCount={user ? await getCartCount() : 0}
     />
   );
+}
+
+/** 장바구니 배지 숫자 — 행 수만 센다(head: true → 데이터는 받지 않음). RLS로 본인 것만 */
+async function getCartCount() {
+  const supabase = await createClient();
+  const { count } = await supabase.from("cart_items").select("id", { count: "exact", head: true });
+  return count ?? 0;
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import {
-  CalendarDaysIcon,
   CompassIcon,
   HeartIcon,
   HouseIcon,
   MenuIcon,
   SearchIcon,
+  ShoppingBagIcon,
+  UserRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,7 +41,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { SearchCommand, type SearchItem } from "./search-command";
+import { SearchCommand, type SearchCity, type SearchItem } from "./search-command";
 import { ThemeToggle } from "./theme-toggle";
 
 export type NavUser = { name: string; avatarUrl: string | null };
@@ -51,6 +52,8 @@ type SiteNavProps = {
   // 히어로 위에서는 투명 → 스크롤하면 bg-background (명세 5.5 1280)
   overHero?: boolean;
   searchItems?: SearchItem[];
+  searchCities?: SearchCity[];
+  cartCount?: number; // 장바구니 배지 (비로그인 0)
   // 디자인 QA 전용(/dev/components): 고정 위치·하단 탭·건너뛰기 링크 없이 박스 안에 그린다
   preview?: boolean;
 };
@@ -59,16 +62,23 @@ type MenuItem = {
   href: string;
   label: string; // 1280
   shortLabel: string; // 768 (명세: 메뉴 라벨 축약)
-  isActive: (pathname: string) => boolean;
+  // category: 목록 URL의 ?category= (투어·티켓 메뉴를 구분해 표시)
+  isActive: (pathname: string, category: string | null) => boolean;
   requiresAuth?: boolean;
 };
 
 const MENU: MenuItem[] = [
   {
-    href: "/destinations",
-    label: "여행지",
-    shortLabel: "여행지",
-    isActive: (p) => p.startsWith("/destinations"),
+    href: "/products?category=tour",
+    label: "투어·액티비티",
+    shortLabel: "투어",
+    isActive: (p, c) => p === "/products" && c === "tour",
+  },
+  {
+    href: "/products?category=ticket",
+    label: "티켓·패스",
+    shortLabel: "티켓",
+    isActive: (p, c) => p === "/products" && c === "ticket",
   },
   // 사용자 확정: 별도 페이지 없이 메인의 컬렉션 섹션으로 이동
   { href: "/#collections", label: "테마 컬렉션", shortLabel: "테마", isActive: () => false },
@@ -83,15 +93,17 @@ const MENU: MenuItem[] = [
 
 /**
  * 반응형 내비게이션 (명세 5.5 · NavigationMenu, Sheet)
- * - 1280: 높이 72 · 로고(+Yeoun) · 메뉴 3개 · 찜 · 테마 토글 · 로그인/아바타
+ * - 1280: 높이 72 · 로고(+Yeoun) · 메뉴 4개 · 찜 · 장바구니(개수) · 테마 토글 · 로그인/아바타
  * - 768: 높이 64 · 라벨 축약 · 검색 아이콘 → Command 팔레트
- * - 360: 상단 56(로고·검색·메뉴 Sheet) + 하단 탭 4개(64 + safe-area)
+ * - 360: 상단 56(로고·검색·메뉴 Sheet) + 하단 탭 4개(홈·탐색·장바구니·나의 여행, 사용자 확정)
  */
 export function SiteNav({
   user,
   isUserLoading = false,
   overHero: overHeroProp,
   searchItems = [],
+  searchCities = [],
+  cartCount = 0,
   preview = false,
 }: SiteNavProps) {
   const pathname = usePathname();
@@ -139,16 +151,20 @@ export function SiteNav({
 
             <NavigationMenu viewport={false} className="hidden md:flex" aria-label="주 메뉴">
               <NavigationMenuList className="gap-5 xl:gap-8">
-                {MENU.map((item) => (
-                  <NavigationMenuItem key={item.href}>
-                    <MenuLink
-                      item={item}
-                      pathname={pathname}
-                      disabled={item.requiresAuth && !user}
-                      transparent={transparent}
-                    />
-                  </NavigationMenuItem>
-                ))}
+                <WithCategory>
+                  {(category) =>
+                    MENU.map((item) => (
+                      <NavigationMenuItem key={item.href}>
+                        <MenuLink
+                          item={item}
+                          active={item.isActive(pathname, category)}
+                          disabled={item.requiresAuth && !user}
+                          transparent={transparent}
+                        />
+                      </NavigationMenuItem>
+                    ))
+                  }
+                </WithCategory>
               </NavigationMenuList>
             </NavigationMenu>
           </div>
@@ -156,7 +172,7 @@ export function SiteNav({
           <div className="flex items-center gap-2.5">
             {/* 1280에서는 검색 아이콘을 두지 않는다 (명세 5.5) */}
             <IconButton
-              label="여행지 검색"
+              label="상품 검색"
               onClick={() => setSearchOpen(true)}
               transparent={transparent}
               className="xl:hidden"
@@ -175,6 +191,8 @@ export function SiteNav({
               <HeartIcon aria-hidden className="size-4.5" />
             </Link>
 
+            <CartLink count={cartCount} transparent={transparent} />
+
             <ThemeToggle onDark={transparent} className="hidden md:grid" />
 
             <div className="hidden md:block">
@@ -187,29 +205,82 @@ export function SiteNav({
       </header>
 
       {/* 360: 하단 탭 (useSearchParams를 쓰므로 Suspense로 감싼다 — 정적 페이지 빌드 요구사항) */}
-      {!preview && (
-        <Suspense fallback={<BottomTabs pathname={pathname} tab={null} />}>
-          <BottomTabsWithParams pathname={pathname} />
-        </Suspense>
-      )}
+      {!preview && <BottomTabs pathname={pathname} cartCount={cartCount} />}
 
-      <SearchCommand items={searchItems} open={searchOpen} onOpenChange={setSearchOpen} />
+      <SearchCommand
+        items={searchItems}
+        cities={searchCities}
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+      />
     </>
+  );
+}
+
+/**
+ * URL의 ?category=를 읽어 children에 넘긴다.
+ * useSearchParams는 정적 페이지 빌드에서 Suspense 경계가 필요하므로 여기서 감싸고,
+ * 그동안(fallback)은 category 없이 그린다.
+ */
+function WithCategory({ children }: { children: (category: string | null) => React.ReactNode }) {
+  return (
+    <Suspense fallback={children(null)}>
+      <WithCategoryInner>{children}</WithCategoryInner>
+    </Suspense>
+  );
+}
+
+function WithCategoryInner({
+  children,
+}: {
+  children: (category: string | null) => React.ReactNode;
+}) {
+  const searchParams = useSearchParams();
+  return children(searchParams.get("category"));
+}
+
+/** 장바구니 아이콘 + 개수 배지 (768 이상 상단, 360은 하단 탭) */
+function CartLink({ count, transparent }: { count: number; transparent: boolean }) {
+  return (
+    <Link
+      href="/cart"
+      aria-label={count > 0 ? `장바구니, ${count}개 담김` : "장바구니"}
+      className={cn(
+        "relative hidden size-10 place-items-center rounded-full border transition-colors duration-fast md:grid",
+        transparent ? "border-white/50 hover:bg-white/10" : "border-input hover:bg-muted",
+      )}
+    >
+      <ShoppingBagIcon aria-hidden className="size-4.5" />
+      {count > 0 && <CountBadge count={count} className="-top-1 -right-1" />}
+    </Link>
+  );
+}
+
+function CountBadge({ count, className }: { count: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground tabular-nums",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
 
 function MenuLink({
   item,
-  pathname,
+  active,
   disabled,
   transparent,
 }: {
   item: MenuItem;
-  pathname: string;
+  active: boolean;
   disabled?: boolean;
   transparent: boolean;
 }) {
-  const active = item.isActive(pathname);
   const base = "border-b-2 border-transparent pt-1 pb-1 text-sm font-medium xl:text-base";
 
   // disabled (비로그인 + 로그인 필요 메뉴): muted + 로그인 유도 툴팁 (명세 5.5 States)
@@ -230,7 +301,7 @@ function MenuLink({
             <span className="hidden md:inline xl:hidden">{item.shortLabel}</span>
           </button>
         </TooltipTrigger>
-        <TooltipContent>로그인하면 찜과 일정을 볼 수 있어요</TooltipContent>
+        <TooltipContent>로그인하면 예약 내역과 찜·일정을 볼 수 있어요</TooltipContent>
       </Tooltip>
     );
   }
@@ -348,33 +419,37 @@ function MobileMenu({
         <SheetTitle className="sr-only">메뉴</SheetTitle>
         <SheetDescription className="sr-only">사이트 메뉴</SheetDescription>
         <nav aria-label="모바일 메뉴" className="flex flex-col">
-          {MENU.map((item) => {
-            const active = item.isActive(pathname);
-            const disabled = item.requiresAuth && !user;
-            return disabled ? (
-              <span
-                key={item.href}
-                aria-disabled="true"
-                className="py-2.5 text-base text-muted-foreground"
-              >
-                {item.label}
-                <span className="ml-2 text-xs">로그인 필요</span>
-              </span>
-            ) : (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "py-2.5 text-base",
-                  active ? "font-semibold text-primary" : "text-foreground",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          <WithCategory>
+            {(category) =>
+              MENU.map((item) => {
+                const active = item.isActive(pathname, category);
+                const disabled = item.requiresAuth && !user;
+                return disabled ? (
+                  <span
+                    key={item.href}
+                    aria-disabled="true"
+                    className="py-2.5 text-base text-muted-foreground"
+                  >
+                    {item.label}
+                    <span className="ml-2 text-xs">로그인 필요</span>
+                  </span>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "py-2.5 text-base",
+                      active ? "font-semibold text-primary" : "text-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })
+            }
+          </WithCategory>
         </nav>
         <div className="mt-4 flex items-center justify-between border-t pt-4">
           {user ? (
@@ -429,29 +504,26 @@ function IconButton({
   );
 }
 
-type TabKey = "home" | "explore" | "likes" | "planner";
+type TabKey = "home" | "explore" | "cart" | "my";
 
+// 사용자 확정: 홈 · 탐색 · 장바구니 · 나의 여행 (찜·일정은 나의 여행 안의 탭)
 const BOTTOM_TABS: { key: TabKey; href: string; label: string; icon: LucideIcon }[] = [
   { key: "home", href: "/", label: "홈", icon: HouseIcon },
-  { key: "explore", href: "/destinations", label: "탐색", icon: CompassIcon },
-  { key: "likes", href: "/my?tab=likes", label: "찜", icon: HeartIcon },
-  { key: "planner", href: "/my?tab=planner", label: "일정", icon: CalendarDaysIcon },
+  { key: "explore", href: "/products", label: "탐색", icon: CompassIcon },
+  { key: "cart", href: "/cart", label: "장바구니", icon: ShoppingBagIcon },
+  { key: "my", href: "/my", label: "나의 여행", icon: UserRoundIcon },
 ];
 
-function activeTabOf(pathname: string, tab: string | null): TabKey | null {
+function activeTabOf(pathname: string): TabKey | null {
   if (pathname === "/") return "home";
-  if (pathname.startsWith("/destinations")) return "explore";
-  if (pathname.startsWith("/my")) return tab === "planner" ? "planner" : "likes";
+  if (pathname.startsWith("/products")) return "explore";
+  if (pathname.startsWith("/cart") || pathname.startsWith("/checkout")) return "cart";
+  if (pathname.startsWith("/my")) return "my";
   return null;
 }
 
-function BottomTabsWithParams({ pathname }: { pathname: string }) {
-  const searchParams = useSearchParams();
-  return <BottomTabs pathname={pathname} tab={searchParams.get("tab")} />;
-}
-
-function BottomTabs({ pathname, tab }: { pathname: string; tab: string | null }) {
-  const active = activeTabOf(pathname, tab);
+function BottomTabs({ pathname, cartCount }: { pathname: string; cartCount: number }) {
+  const active = activeTabOf(pathname);
 
   return (
     <nav
@@ -471,8 +543,16 @@ function BottomTabs({ pathname, tab }: { pathname: string; tab: string | null })
                   isActive ? "font-semibold text-primary" : "text-muted-foreground",
                 )}
               >
-                <Icon aria-hidden className="size-5" />
+                <span className="relative">
+                  <Icon aria-hidden className="size-5" />
+                  {key === "cart" && cartCount > 0 && (
+                    <CountBadge count={cartCount} className="-top-2 -right-3" />
+                  )}
+                </span>
                 {label}
+                {key === "cart" && cartCount > 0 && (
+                  <span className="sr-only">, {cartCount}개 담김</span>
+                )}
               </Link>
             </li>
           );

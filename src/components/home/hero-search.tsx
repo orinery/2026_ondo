@@ -3,8 +3,11 @@
 import { SearchIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ko } from "react-day-picker/locale/ko";
 
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -20,57 +23,63 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SEASONS, THEMES, type SeasonSlug, type ThemeSlug } from "@/lib/constants/taxonomy";
+import { addDays, MAX_DAYS_AHEAD } from "@/lib/booking";
+import { CATEGORIES, type CategorySlug } from "@/lib/constants/taxonomy";
+import { formatUseDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { toSearchParams } from "@/lib/validation/destination-filters";
+import { toSearchParams } from "@/lib/validation/product-filters";
 
 const ALL = "all";
 
+type CityOption = { slug: string; name: string };
+
+/** "YYYY-MM-DD" ↔ 달력의 Date(브라우저 현지 자정) */
+const toDate = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+};
+const toYmd = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 /**
- * 히어로 검색 바 (명세 4.1)
- * - 768 이상: 어디로 / 언제 / 테마 3필드 + 검색 버튼 (알약 모양)
+ * 히어로 검색 바 (명세 4.1 "어디로 / 언제 / 테마"를 쇼핑몰용으로: 어디로=도시, 언제=이용일, 종류=카테고리)
+ * - 768 이상: 3필드 + 검색 버튼 (알약 모양)
  * - 767 이하: 단일 필드 → 하단 시트에서 3필드 입력
- * 검색하면 /destinations 목록으로 이동하며 같은 쿼리를 쓴다 (언제 = 계절, 사용자 확정)
+ * 검색하면 /products 목록으로 이동한다. 이용일을 고르면 그날 예약 가능한 상품만 보인다.
  */
-export function HeroSearch() {
+export function HeroSearch({ cities, today }: { cities: CityOption[]; today: string }) {
   const router = useRouter();
-  const [q, setQ] = useState("");
-  const [season, setSeason] = useState<SeasonSlug | null>(null);
-  const [theme, setTheme] = useState<ThemeSlug | null>(null);
+  const [city, setCity] = useState<string | null>(null);
+  const [date, setDate] = useState<string | null>(null);
+  const [category, setCategory] = useState<CategorySlug | null>(null);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = toSearchParams({ q, country: null, season, theme });
-    router.push(`/destinations${query ? `?${query}` : ""}`);
+    const query = toSearchParams({ city, date, category });
+    router.push(`/products${query ? `?${query}` : ""}`);
   };
 
   const fields = (layout: "bar" | "sheet") => (
     <>
-      <Field label="어디로" layout={layout} htmlFor={`hero-q-${layout}`}>
-        <input
-          id={`hero-q-${layout}`}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="도시, 나라, 여행지 검색"
-          className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
+      <Field label="어디로" layout={layout}>
+        <OptionSelect
+          label="어디로"
+          value={city}
+          allLabel="일본 전체"
+          options={cities.map((c) => ({ value: c.slug, label: c.name }))}
+          onChange={setCity}
         />
       </Field>
       <Field label="언제" layout={layout}>
-        <OptionSelect
-          label="언제"
-          value={season}
-          placeholder="계절 선택"
-          options={SEASONS}
-          onChange={(v) => setSeason(v as SeasonSlug | null)}
-        />
+        <DateField value={date} today={today} onChange={setDate} />
       </Field>
-      <Field label="테마" layout={layout}>
+      <Field label="무엇을" layout={layout}>
         <OptionSelect
-          label="테마"
-          value={theme}
-          placeholder="전체"
-          options={THEMES}
-          onChange={(v) => setTheme(v as ThemeSlug | null)}
+          label="무엇을"
+          value={category}
+          allLabel="전체"
+          options={CATEGORIES}
+          onChange={(v) => setCategory(v as CategorySlug | null)}
         />
       </Field>
     </>
@@ -102,14 +111,14 @@ export function HeroSearch() {
             className="mt-7 flex h-14 w-full items-center gap-3 rounded-full bg-card px-5 text-left text-base text-muted-foreground shadow-lg md:hidden"
           >
             <SearchIcon aria-hidden className="size-5 text-foreground" />
-            어디로 떠날까요?
+            어디로, 언제 떠날까요?
           </button>
         </SheetTrigger>
         <SheetContent side="bottom" className="gap-0 rounded-t-xl pb-[env(safe-area-inset-bottom)]">
           <SheetHeader>
-            <SheetTitle className="text-lg">여행지 찾기</SheetTitle>
+            <SheetTitle className="text-lg">상품 찾기</SheetTitle>
             <SheetDescription className="sr-only">
-              어디로, 언제, 어떤 테마로 떠날지 골라 보세요.
+              도시, 이용일, 상품 종류를 골라 보세요.
             </SheetDescription>
           </SheetHeader>
           <form onSubmit={submit} role="search" className="flex flex-col gap-3 px-4 pb-4">
@@ -127,50 +136,84 @@ export function HeroSearch() {
 function Field({
   label,
   layout,
-  htmlFor,
   children,
 }: {
   label: string;
   layout: "bar" | "sheet";
-  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
         layout === "bar"
-          ? "min-w-0 flex-1 border-r px-6 py-2 first:flex-[1.3] last-of-type:border-r-0"
+          ? "min-w-0 flex-1 border-r px-6 py-2 last-of-type:border-r-0"
           : "rounded-md border border-stone-500 bg-card px-4 py-2.5",
       )}
     >
-      {htmlFor ? (
-        <label htmlFor={htmlFor} className="block text-xs font-semibold">
-          {label}
-        </label>
-      ) : (
-        <span aria-hidden className="block text-xs font-semibold">
-          {label}
-        </span>
-      )}
+      {/* 컨트롤마다 aria-label이 있어 시각용 라벨은 스크린리더에서 숨긴다 */}
+      <span aria-hidden className="block text-xs font-semibold">
+        {label}
+      </span>
       <div className="mt-0.5">{children}</div>
     </div>
+  );
+}
+
+/** 이용일 — 오늘부터 180일 안에서 고른다 (상품별 운영 요일은 목록에서 걸러진다) */
+function DateField({
+  value,
+  today,
+  onChange,
+}: {
+  value: string | null;
+  today: string;
+  onChange: (date: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const last = addDays(today, MAX_DAYS_AHEAD);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        aria-label={value ? `이용일 ${formatUseDate(value)}, 바꾸기` : "이용일 선택"}
+        className={cn(
+          "w-full text-left text-base focus-visible:shadow-none",
+          !value && "text-muted-foreground",
+        )}
+      >
+        {value ? formatUseDate(value) : "날짜 선택"}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          locale={ko}
+          selected={value ? toDate(value) : undefined}
+          onSelect={(d) => {
+            onChange(d ? toYmd(d) : null);
+            setOpen(false);
+          }}
+          startMonth={toDate(today)}
+          endMonth={toDate(last)}
+          disabled={[{ before: toDate(today) }, { after: toDate(last) }]}
+          className="[--cell-size:--spacing(10)]"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
 function OptionSelect({
   label,
   value,
-  placeholder,
+  allLabel,
   options,
   onChange,
 }: {
   label: string;
   value: string | null;
-  placeholder: string;
+  allLabel: string;
   options: readonly { value: string; label: string }[];
   onChange: (value: string | null) => void;
 }) {
-  const allLabel = placeholder === "전체" ? "전체" : "언제든";
   const selectedLabel = options.find((o) => o.value === value)?.label ?? allLabel;
   return (
     <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? null : v)}>
@@ -180,7 +223,7 @@ function OptionSelect({
         className="h-auto! w-full border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 data-placeholder:text-muted-foreground dark:bg-transparent"
       >
         {/* 라벨을 직접 넘겨 hydration 전(서버 렌더링)에도 선택값이 보이게 한다 */}
-        <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
+        <SelectValue>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>{allLabel}</SelectItem>
