@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
-import {
-  DestinationCard,
-  DestinationCardEmpty,
-  DestinationCardSkeleton,
-  DestinationGrid,
-} from "@/components/destination/destination-card";
-import { FilterChip } from "@/components/destination/filter-bar";
-import { Gallery, GalleryEmpty, GallerySkeleton } from "@/components/destination/gallery";
 import { ItineraryTimeline, TimelineSkeleton } from "@/components/itinerary/itinerary-timeline";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNav } from "@/components/layout/site-nav";
-import { MOCK_DESTINATIONS, MOCK_GALLERY, unsplash } from "@/lib/mock/destinations";
+import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
+import { FilterChip } from "@/components/product/filter-bar";
+import { Gallery, GalleryEmpty, GallerySkeleton } from "@/components/product/gallery";
+import {
+  ProductCard,
+  ProductCardEmpty,
+  ProductCardSkeleton,
+  ProductGrid,
+} from "@/components/product/product-card";
 import { MOCK_ITINERARY } from "@/lib/mock/itinerary";
+import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
+import { seoulNow } from "@/lib/trip-dates";
 
+import { BookingDemo } from "./_demos/booking-demo";
 import { FilterDemo } from "./_demos/filter-demo";
 
 export const metadata: Metadata = {
@@ -23,18 +26,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const [kyoto, santorini, dolomites, paris] = MOCK_DESTINATIONS as [
-  (typeof MOCK_DESTINATIONS)[number],
-  (typeof MOCK_DESTINATIONS)[number],
-  (typeof MOCK_DESTINATIONS)[number],
-  (typeof MOCK_DESTINATIONS)[number],
-];
+const [fuji] = MOCK_PRODUCTS as [(typeof MOCK_PRODUCTS)[number]];
 
-const SEARCH_ITEMS = MOCK_DESTINATIONS.map(({ slug, name, nameEn, country }) => ({
+const SEARCH_ITEMS = MOCK_PRODUCTS.map(({ slug, title, city }) => ({
   slug,
-  name,
-  nameEn,
-  country,
+  title,
+  cityName: city.name,
+  cityNameEn: city.nameEn,
 }));
 
 const SEMANTIC_TOKENS = [
@@ -207,53 +205,48 @@ export default function DevComponentsPage() {
           </div>
         </Section>
 
-        <Section id="card" title="2. 여행지 카드 <DestinationCard />">
+        <Section id="card" title="2. 상품 카드 <ProductCard />">
           <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-6">
-            <State label="default">
-              <DestinationCard likeMode="local" destination={kyoto} showReviewCount={false} />
+            <State label="default · 할인">
+              <ProductCard likeMode="local" product={fuji} showReviewCount={false} />
             </State>
             <State label="hover · lift -4 · img 1.04">
-              <DestinationCard
+              <ProductCard
                 likeMode="local"
-                destination={kyoto}
+                product={fuji}
                 showReviewCount={false}
                 previewState="hover"
               />
             </State>
             <State label="active · focus ring · 찜됨">
-              <DestinationCard
+              <ProductCard
                 likeMode="local"
-                destination={kyoto}
+                product={fuji}
                 showReviewCount={false}
                 previewState="focus"
                 initialLiked
               />
             </State>
-            <State label="disabled">
-              <DestinationCard
+            <State label="disabled · 판매 중지">
+              <ProductCard
                 likeMode="local"
-                destination={{ ...kyoto, unavailableReason: "현재 여행 제한" }}
+                product={{ ...fuji, unavailableReason: "판매 준비 중" }}
                 showReviewCount={false}
               />
             </State>
             <State label="loading · skeleton">
-              <DestinationCardSkeleton />
+              <ProductCardSkeleton />
             </State>
             <State label="empty">
-              <DestinationCardEmpty />
+              <ProductCardEmpty />
             </State>
           </div>
           <h3 className="mt-4 text-lg font-semibold">그리드 (360 1열 · 768 2열 · 1280 4열)</h3>
-          <DestinationGrid>
-            {[kyoto, santorini, dolomites, paris].map((d) => (
-              <DestinationCard
-                likeMode="local"
-                key={d.id}
-                destination={d}
-                initialLiked={d.id === "1"}
-              />
+          <ProductGrid>
+            {MOCK_PRODUCTS.slice(0, 4).map((p) => (
+              <ProductCard likeMode="local" key={p.id} product={p} initialLiked={p.id === "1"} />
             ))}
-          </DestinationGrid>
+          </ProductGrid>
         </Section>
 
         <Section id="filter" title="3. 필터 바 <FilterBar />">
@@ -289,14 +282,14 @@ export default function DevComponentsPage() {
 
         <Section id="gallery" title="4. 갤러리 <Gallery />">
           <State label="default · 타일 클릭 → 라이트박스 (← → 키, 스와이프)">
-            <Gallery images={MOCK_GALLERY} title="교토" />
+            <Gallery images={MOCK_GALLERY} title="후지산 투어" />
           </State>
           <State label="hover (오른쪽 위 타일)">
-            <Gallery images={MOCK_GALLERY} title="교토" previewHoverTile />
+            <Gallery images={MOCK_GALLERY} title="후지산 투어" previewHoverTile />
           </State>
           <div className="grid gap-6 md:grid-cols-2">
             <State label="disabled · 사진 1장">
-              <Gallery images={MOCK_GALLERY.slice(0, 1)} title="교토" />
+              <Gallery images={MOCK_GALLERY.slice(0, 1)} title="후지산 투어" />
             </State>
             <State label="empty">
               <GalleryEmpty />
@@ -350,6 +343,7 @@ export default function DevComponentsPage() {
                 user={{ name: "여운", avatarUrl: null }}
                 preview
                 searchItems={SEARCH_ITEMS}
+                cartCount={2}
               />
             </NavFrame>
           </State>
@@ -366,6 +360,37 @@ export default function DevComponentsPage() {
               <SiteNav user={null} overHero preview searchItems={SEARCH_ITEMS} />
             </NavFrame>
           </State>
+        </Section>
+
+        <Section id="booking" title="7. 예약 위젯 <BookingPanel /> · 취소 규정">
+          <p className="text-sm text-muted-foreground">
+            명세 밖 쇼핑몰 화면이라 기존 토큰·컴포넌트(Calendar, Button, 카드 보더)로 구성했다. 1023
+            이하 상세에서는 하단 고정 바 → 하단 시트에 같은 내용이 열린다.
+          </p>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <BookingDemo today={seoulNow().today} />
+            <div className="flex flex-col gap-6">
+              <CancellationPolicyTable
+                name="일반 취소"
+                summary="7일 전까지 100% · 3일 전까지 50% · 1일 전까지 20% 환불"
+                tiers={[
+                  { daysBefore: 7, refundRate: 100 },
+                  { daysBefore: 3, refundRate: 50 },
+                  { daysBefore: 1, refundRate: 20 },
+                ]}
+              />
+              <CancellationPolicyTable
+                name="무료 취소"
+                summary="이용일 1일 전까지 전액 환불"
+                tiers={[{ daysBefore: 1, refundRate: 100 }]}
+              />
+              <CancellationPolicyTable
+                name="환불 불가"
+                summary="특가 상품으로 결제 후에는 환불되지 않아요"
+                tiers={[{ daysBefore: 0, refundRate: 0 }]}
+              />
+            </div>
+          </div>
         </Section>
       </main>
 
