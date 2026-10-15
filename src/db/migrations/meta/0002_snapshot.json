@@ -1,0 +1,1180 @@
+{
+  "id": "ff14a836-3385-4b2a-9b5e-adcebd2da3a6",
+  "prevId": "8aa5c0fd-bf51-4e8a-9fce-7815c6c62aba",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.destination_images": {
+      "name": "destination_images",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alt": {
+          "name": "alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "destination_images_destination_id_destinations_id_fk": {
+          "name": "destination_images_destination_id_destinations_id_fk",
+          "tableFrom": "destination_images",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "tableTo": "destinations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "destination_images_position_unique": {
+          "name": "destination_images_position_unique",
+          "columns": [
+            "destination_id",
+            "position"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "destination_images_select_public": {
+          "name": "destination_images_select_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "anon",
+            "authenticated"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.destination_itinerary_items": {
+      "name": "destination_itinerary_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_number": {
+          "name": "day_number",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "time": {
+          "name": "time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "itinerary_item_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caution": {
+          "name": "caution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "destination_itinerary_items_destination_id_destinations_id_fk": {
+          "name": "destination_itinerary_items_destination_id_destinations_id_fk",
+          "tableFrom": "destination_itinerary_items",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "tableTo": "destinations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "destination_itinerary_items_order_unique": {
+          "name": "destination_itinerary_items_order_unique",
+          "columns": [
+            "destination_id",
+            "day_number",
+            "position"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "destination_itinerary_items_select_public": {
+          "name": "destination_itinerary_items_select_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "anon",
+            "authenticated"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {
+        "destination_itinerary_items_day": {
+          "name": "destination_itinerary_items_day",
+          "value": "\"destination_itinerary_items\".\"day_number\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.destinations": {
+      "name": "destinations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name_en": {
+          "name": "name_en",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "theme": {
+          "name": "theme",
+          "type": "destination_theme",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season": {
+          "name": "season",
+          "type": "season",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "best_seasons": {
+          "name": "best_seasons",
+          "type": "season[]",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_alt": {
+          "name": "image_alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "flight_info": {
+          "name": "flight_info",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_difference": {
+          "name": "time_difference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unavailable_reason": {
+          "name": "unavailable_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating_avg": {
+          "name": "rating_avg",
+          "type": "numeric(2, 1)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "review_count": {
+          "name": "review_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "destinations_theme_idx": {
+          "name": "destinations_theme_idx",
+          "columns": [
+            {
+              "expression": "theme",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "destinations_best_seasons_idx": {
+          "name": "destinations_best_seasons_idx",
+          "columns": [
+            {
+              "expression": "best_seasons",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "gin",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "destinations_slug_unique": {
+          "name": "destinations_slug_unique",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "destinations_select_public": {
+          "name": "destinations_select_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "anon",
+            "authenticated"
+          ],
+          "using": "true"
+        }
+      },
+      "checkConstraints": {
+        "destinations_season_in_best": {
+          "name": "destinations_season_in_best",
+          "value": "\"destinations\".\"season\" = any(\"destinations\".\"best_seasons\")"
+        },
+        "destinations_latitude": {
+          "name": "destinations_latitude",
+          "value": "\"destinations\".\"latitude\" between -90 and 90"
+        },
+        "destinations_longitude": {
+          "name": "destinations_longitude",
+          "value": "\"destinations\".\"longitude\" between -180 and 180"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.like_folders": {
+      "name": "like_folders",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "auth.uid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "like_folders_user_id_profiles_id_fk": {
+          "name": "like_folders_user_id_profiles_id_fk",
+          "tableFrom": "like_folders",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "like_folders_user_name_unique": {
+          "name": "like_folders_user_name_unique",
+          "columns": [
+            "user_id",
+            "name"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "like_folders_owner_all": {
+          "name": "like_folders_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"like_folders\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"like_folders\".\"user_id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {
+        "like_folders_name_length": {
+          "name": "like_folders_name_length",
+          "value": "char_length(\"like_folders\".\"name\") between 1 and 20"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.likes": {
+      "name": "likes",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "auth.uid()"
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "folder_id": {
+          "name": "folder_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "likes_folder_idx": {
+          "name": "likes_folder_idx",
+          "columns": [
+            {
+              "expression": "folder_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "likes_user_id_profiles_id_fk": {
+          "name": "likes_user_id_profiles_id_fk",
+          "tableFrom": "likes",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "likes_destination_id_destinations_id_fk": {
+          "name": "likes_destination_id_destinations_id_fk",
+          "tableFrom": "likes",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "tableTo": "destinations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "likes_folder_id_like_folders_id_fk": {
+          "name": "likes_folder_id_like_folders_id_fk",
+          "tableFrom": "likes",
+          "columnsFrom": [
+            "folder_id"
+          ],
+          "tableTo": "like_folders",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {
+        "likes_pkey": {
+          "name": "likes_pkey",
+          "columns": [
+            "user_id",
+            "destination_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "likes_owner_all": {
+          "name": "likes_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"likes\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"likes\".\"user_id\" = (select auth.uid()) and (\"likes\".\"folder_id\" is null or exists (\n        select 1 from public.like_folders f where f.id = \"likes\".\"folder_id\" and f.user_id = (select auth.uid())\n      ))"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profiles": {
+      "name": "profiles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terms_agreed_at": {
+          "name": "terms_agreed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "profiles_id_users_id_fk": {
+          "name": "profiles_id_users_id_fk",
+          "tableFrom": "profiles",
+          "columnsFrom": [
+            "id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "profiles_select_public": {
+          "name": "profiles_select_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "anon",
+            "authenticated"
+          ],
+          "using": "true"
+        },
+        "profiles_update_own": {
+          "name": "profiles_update_own",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"profiles\".\"id\" = (select auth.uid())",
+          "withCheck": "\"profiles\".\"id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {
+        "profiles_display_name_length": {
+          "name": "profiles_display_name_length",
+          "value": "char_length(\"profiles\".\"display_name\") between 1 and 30"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.reviews": {
+      "name": "reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "auth.uid()"
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating": {
+          "name": "rating",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "photo_path": {
+          "name": "photo_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reviews_destination_created_idx": {
+          "name": "reviews_destination_created_idx",
+          "columns": [
+            {
+              "expression": "destination_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "reviews_user_id_profiles_id_fk": {
+          "name": "reviews_user_id_profiles_id_fk",
+          "tableFrom": "reviews",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "reviews_destination_id_destinations_id_fk": {
+          "name": "reviews_destination_id_destinations_id_fk",
+          "tableFrom": "reviews",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "tableTo": "destinations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "reviews_user_destination_unique": {
+          "name": "reviews_user_destination_unique",
+          "columns": [
+            "user_id",
+            "destination_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {
+        "reviews_select_public": {
+          "name": "reviews_select_public",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "anon",
+            "authenticated"
+          ],
+          "using": "true"
+        },
+        "reviews_insert_own": {
+          "name": "reviews_insert_own",
+          "as": "PERMISSIVE",
+          "for": "INSERT",
+          "to": [
+            "authenticated"
+          ],
+          "withCheck": "\"reviews\".\"user_id\" = (select auth.uid())"
+        },
+        "reviews_update_own": {
+          "name": "reviews_update_own",
+          "as": "PERMISSIVE",
+          "for": "UPDATE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"reviews\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"reviews\".\"user_id\" = (select auth.uid())"
+        },
+        "reviews_delete_own": {
+          "name": "reviews_delete_own",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"reviews\".\"user_id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {
+        "reviews_rating_range": {
+          "name": "reviews_rating_range",
+          "value": "\"reviews\".\"rating\" between 1 and 5"
+        },
+        "reviews_content_length": {
+          "name": "reviews_content_length",
+          "value": "char_length(\"reviews\".\"content\") between 10 and 1000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.trip_items": {
+      "name": "trip_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "trip_id": {
+          "name": "trip_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_index": {
+          "name": "day_index",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "time": {
+          "name": "time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "itinerary_item_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sight'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caution": {
+          "name": "caution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "destination_id": {
+          "name": "destination_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "trip_items_order_idx": {
+          "name": "trip_items_order_idx",
+          "columns": [
+            {
+              "expression": "trip_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "day_index",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "trip_items_trip_id_trips_id_fk": {
+          "name": "trip_items_trip_id_trips_id_fk",
+          "tableFrom": "trip_items",
+          "columnsFrom": [
+            "trip_id"
+          ],
+          "tableTo": "trips",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "trip_items_destination_id_destinations_id_fk": {
+          "name": "trip_items_destination_id_destinations_id_fk",
+          "tableFrom": "trip_items",
+          "columnsFrom": [
+            "destination_id"
+          ],
+          "tableTo": "destinations",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "trip_items_owner_all": {
+          "name": "trip_items_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "exists (select 1 from public.trips tr where tr.id = \"trip_items\".\"trip_id\" and tr.user_id = (select auth.uid()))",
+          "withCheck": "exists (select 1 from public.trips tr where tr.id = \"trip_items\".\"trip_id\" and tr.user_id = (select auth.uid()))"
+        }
+      },
+      "checkConstraints": {
+        "trip_items_day_index": {
+          "name": "trip_items_day_index",
+          "value": "\"trip_items\".\"day_index\" between 0 and 29"
+        },
+        "trip_items_title_length": {
+          "name": "trip_items_title_length",
+          "value": "char_length(\"trip_items\".\"title\") between 1 and 60"
+        },
+        "trip_items_note_length": {
+          "name": "trip_items_note_length",
+          "value": "\"trip_items\".\"note\" is null or char_length(\"trip_items\".\"note\") <= 200"
+        },
+        "trip_items_caution_length": {
+          "name": "trip_items_caution_length",
+          "value": "\"trip_items\".\"caution\" is null or char_length(\"trip_items\".\"caution\") <= 60"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.trips": {
+      "name": "trips",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "auth.uid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "trips_user_idx": {
+          "name": "trips_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "trips_user_id_profiles_id_fk": {
+          "name": "trips_user_id_profiles_id_fk",
+          "tableFrom": "trips",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {
+        "trips_owner_all": {
+          "name": "trips_owner_all",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "authenticated"
+          ],
+          "using": "\"trips\".\"user_id\" = (select auth.uid())",
+          "withCheck": "\"trips\".\"user_id\" = (select auth.uid())"
+        }
+      },
+      "checkConstraints": {
+        "trips_title_length": {
+          "name": "trips_title_length",
+          "value": "char_length(\"trips\".\"title\") between 1 and 50"
+        },
+        "trips_date_order": {
+          "name": "trips_date_order",
+          "value": "\"trips\".\"end_date\" >= \"trips\".\"start_date\""
+        },
+        "trips_max_days": {
+          "name": "trips_max_days",
+          "value": "\"trips\".\"end_date\" - \"trips\".\"start_date\" <= 29"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.itinerary_item_type": {
+      "name": "itinerary_item_type",
+      "schema": "public",
+      "values": [
+        "move",
+        "sight",
+        "food"
+      ]
+    },
+    "public.season": {
+      "name": "season",
+      "schema": "public",
+      "values": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ]
+    },
+    "public.destination_theme": {
+      "name": "destination_theme",
+      "schema": "public",
+      "values": [
+        "sea",
+        "city",
+        "nature",
+        "culture"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

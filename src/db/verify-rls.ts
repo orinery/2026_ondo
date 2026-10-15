@@ -160,6 +160,59 @@ async function main() {
           await sp`insert into public.trip_items (trip_id, day_index, position, title) values (${tripA.id}, 0, 0, '기온 산책')`;
         return `${r.count}행`;
       });
+
+      // 7단계 순서 변경 함수(reorder_trip_items): security invoker라 RLS가 적용돼야 한다
+      const [second] = await as(
+        tx,
+        A,
+        (sp) => sp<{ id: string }[]>`
+        insert into public.trip_items (trip_id, day_index, position, title) values (${tripA.id}, 0, 1, '폰토초 저녁') returning id`,
+      );
+      const order = async () =>
+        (
+          await tx<{ title: string }[]>`
+          select title from public.trip_items where trip_id = ${tripA.id} and day_index = 0 order by position`
+        )
+          .map((r) => r.title)
+          .join(" → ");
+      const allIds = (
+        await tx<{ id: string }[]>`
+        select id from public.trip_items where trip_id = ${tripA.id} and day_index = 0 order by position`
+      ).map((r) => r.id);
+      const reversed = [...allIds].reverse();
+
+      const beforeOrder = await order();
+      await as(
+        tx,
+        B,
+        (sp) => sp`select public.reorder_trip_items(${tripA.id}, 0::smallint, ${reversed}::uuid[])`,
+      );
+      const afterB = await order();
+      results.push({
+        name: "B: A의 일정 순서 바꾸기 (RPC)",
+        ok: afterB === beforeOrder,
+        detail: afterB === beforeOrder ? `변화 없음 (${afterB})` : `✗ 바뀜: ${afterB}`,
+      });
+      await as(
+        tx,
+        A,
+        (sp) => sp`select public.reorder_trip_items(${tripA.id}, 0::smallint, ${reversed}::uuid[])`,
+      );
+      const afterA = await order();
+      results.push({
+        name: "A: 본인 일정 순서 바꾸기 (RPC)",
+        ok: Boolean(second) && afterA !== beforeOrder,
+        detail: `${beforeOrder} ⇒ ${afterA}`,
+      });
+      await expectBlocked(
+        tx,
+        "anon: 순서 변경 함수 실행",
+        anon,
+        async (sp) =>
+          (
+            await sp`select public.reorder_trip_items(${tripA.id}, 0::smallint, ${reversed}::uuid[])`
+          ).count,
+      );
       await expectBlocked(
         tx,
         "A: user_id를 B로 지정해 여행 생성",
@@ -196,6 +249,51 @@ async function main() {
         "A: B의 찜 읽기",
         A,
         async (sp) => (await sp`select 1 from public.likes where user_id = ${userB}`).length,
+      );
+      // 6단계 "폴더 이동": 본인 찜이라도 남의 폴더로는 옮길 수 없어야 한다
+      await expectBlocked(
+        tx,
+        "B: 내 찜을 A의 폴더로 이동",
+        B,
+        async (sp) =>
+          (
+            await sp`update public.likes set folder_id = ${folderA.id} where destination_id = ${dest.id}`
+          ).count,
+      );
+
+      // ── Storage (리뷰 사진): 경로 첫 폴더가 본인 id여야 업로드 가능
+      // (실제 앱은 Storage API로 올리지만, 같은 RLS 정책이 storage.objects 테이블에 걸려 있다)
+      await expectOk(tx, "A: 내 폴더에 리뷰 사진 업로드", A, async (sp) => {
+        const r =
+          await sp`insert into storage.objects (bucket_id, name) values ('review-photos', ${`${userA}/rls-test.jpg`})`;
+        return `${r.count}행`;
+      });
+      await expectBlocked(
+        tx,
+        "A: B의 폴더에 리뷰 사진 업로드",
+        A,
+        async (sp) =>
+          (
+            await sp`insert into storage.objects (bucket_id, name) values ('review-photos', ${`${userB}/rls-test.jpg`})`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "anon: 리뷰 사진 업로드",
+        anon,
+        async (sp) =>
+          (
+            await sp`insert into storage.objects (bucket_id, name) values ('review-photos', ${`${userA}/anon.jpg`})`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "B: A의 사진 덮어쓰기",
+        B,
+        async (sp) =>
+          (
+            await sp`update storage.objects set metadata = '{}'::jsonb where bucket_id = 'review-photos' and name = ${`${userA}/rls-test.jpg`}`
+          ).count,
       );
 
       // ── 리뷰

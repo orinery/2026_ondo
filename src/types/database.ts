@@ -409,7 +409,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      reorder_trip_items: {
+        Args: { p_day_index: number; p_item_ids: string[]; p_trip_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       destination_theme: "sea" | "city" | "nature" | "culture";

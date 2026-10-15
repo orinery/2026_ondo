@@ -15,6 +15,13 @@
       "when": 1791963487057,
       "tag": "0001_triggers_grants_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792042282356,
+      "tag": "0002_reorder_trip_items",
+      "breakpoints": true
     }
   ]
 }
