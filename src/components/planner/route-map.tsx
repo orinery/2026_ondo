@@ -17,7 +17,7 @@ export type { RoutePoint };
 
 /**
  * 동선 지도 (명세 4.4: 플래너 동선 지도)
- * 선택한 Day에서 여행지와 연결된 항목만 순서대로 번호를 붙여 선으로 잇는다 (사용자 확정: 자유 장소는 좌표 없음)
+ * 선택한 Day에서 상품과 연결된 항목만 순서대로 번호를 붙여 선으로 잇는다 (사용자 확정: 자유 장소는 좌표 없음)
  */
 export function RouteMap({ points, className }: { points: RoutePoint[]; className?: string }) {
   return (
@@ -26,7 +26,7 @@ export function RouteMap({ points, className }: { points: RoutePoint[]; classNam
         <div className="flex size-full flex-col items-center justify-center gap-2 p-6 text-center">
           <MapIcon aria-hidden className="size-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            여행지와 연결된 일정이 있으면
+            상품과 연결된 일정이 있으면
             <br />
             동선이 지도에 표시돼요
           </p>

@@ -19,13 +19,13 @@ const NONE = "none";
 
 /** 찜 카드 하단 "폴더 이동" 메뉴 — 고르는 즉시 표시를 바꾸고(낙관적) 서버에 저장한다 */
 export function MoveToFolderMenu({
-  destinationId,
-  destinationName,
+  productId,
+  productTitle,
   folderId,
   folders,
 }: {
-  destinationId: string;
-  destinationName: string;
+  productId: string;
+  productTitle: string;
   folderId: string | null;
   folders: LikeFolder[];
 }) {
@@ -36,7 +36,7 @@ export function MoveToFolderMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`${destinationName} 폴더 이동, 현재 ${currentName}`}
+        aria-label={`${productTitle} 폴더 이동, 현재 ${currentName}`}
         className="inline-flex h-9 items-center gap-1.5 rounded-full border border-input bg-card px-3 text-sm hover:bg-muted"
       >
         <FolderIcon aria-hidden className="size-3.5 text-muted-foreground" />
@@ -52,7 +52,7 @@ export function MoveToFolderMenu({
             const next = value === NONE ? null : value;
             startTransition(async () => {
               setCurrent(next);
-              await moveLike(destinationId, next);
+              await moveLike(productId, next);
             });
           }}
         >

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { addDestinationsToTrip } from "@/actions/trips";
+import { addProductsToTrip } from "@/actions/trips";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,14 +19,13 @@ import { cn } from "@/lib/utils";
 
 export type LikeOption = {
   id: string;
-  name: string;
-  nameEn: string;
-  country: string;
+  title: string;
+  cityName: string;
   imageUrl: string;
   imageAlt: string;
 };
 
-/** "찜에서 불러오기" — 찜한 여행지를 골라 그날 일정 끝에 담는다 (명세 5.4 empty의 동작) */
+/** "찜에서 불러오기" — 찜한 상품을 골라 그날 일정 끝에 담는다 (명세 5.4 empty의 동작) */
 export function ImportLikesDialog({
   tripId,
   dayIndex,
@@ -51,7 +50,7 @@ export function ImportLikesDialog({
     if (dayIndex === null || selected.length === 0) return;
     startTransition(async () => {
       // 고른 순서대로 그날 끝에 붙는다
-      const result = await addDestinationsToTrip(tripId, dayIndex, selected);
+      const result = await addProductsToTrip(tripId, dayIndex, selected);
       if (!result.ok) return setError(result.message ?? "담지 못했어요. 다시 시도해 주세요");
       setSelected([]);
       onOpenChange(false);
@@ -70,23 +69,20 @@ export function ImportLikesDialog({
         <DialogHeader>
           <DialogTitle>찜에서 불러오기</DialogTitle>
           <DialogDescription>
-            {dayLabel}에 담을 여행지를 골라 주세요. 고른 순서대로 추가돼요.
+            {dayLabel}에 담을 상품을 골라 주세요. 고른 순서대로 추가돼요.
           </DialogDescription>
         </DialogHeader>
 
         {likes.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <HeartIcon aria-hidden className="size-6 text-muted-foreground" />
-            <p className="font-semibold">아직 찜한 여행지가 없어요</p>
-            <Link
-              href="/destinations"
-              className="text-sm font-semibold text-primary hover:underline"
-            >
-              여행지 둘러보기 →
+            <p className="font-semibold">아직 찜한 상품이 없어요</p>
+            <Link href="/products" className="text-sm font-semibold text-primary hover:underline">
+              상품 둘러보기 →
             </Link>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2" aria-label="찜한 여행지">
+          <ul className="flex flex-col gap-2" aria-label="찜한 상품">
             {likes.map((d) => {
               const order = selected.indexOf(d.id);
               return (
@@ -107,8 +103,8 @@ export function ImportLikesDialog({
                       <Image src={d.imageUrl} alt="" fill sizes="48px" className="object-cover" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{d.name}</span>
-                      <span className="block text-sm text-muted-foreground">{d.country}</span>
+                      <span className="block truncate font-semibold">{d.title}</span>
+                      <span className="block text-sm text-muted-foreground">{d.cityName}</span>
                     </span>
                     {/* 고른 순서 번호 */}
                     <span

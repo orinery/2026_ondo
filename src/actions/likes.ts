@@ -26,17 +26,17 @@ const folderName = z
 // 찜 상태가 바뀌면 카드의 하트(목록·메인·상세)와 나의 여행이 모두 바뀌어야 하므로 레이아웃 단위로 다시 그린다
 const refresh = () => revalidatePath("/", "layout");
 
-export async function toggleLike(destinationId: string, liked: boolean): Promise<ActionResult> {
+export async function toggleLike(productId: string, liked: boolean): Promise<ActionResult> {
   if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
-  if (!uuid.safeParse(destinationId).success) return { ok: false, reason: "invalid" };
+  if (!uuid.safeParse(productId).success) return { ok: false, reason: "invalid" };
 
   const supabase = await createClient();
   if (liked) {
-    const { error } = await supabase.from("likes").insert({ destination_id: destinationId });
+    const { error } = await supabase.from("likes").insert({ product_id: productId });
     // 23505(unique 위반) = 이미 찜한 상태 → 목표 상태와 같으므로 성공으로 본다 (중복 클릭·다른 탭)
     if (error && error.code !== "23505") return { ok: false, reason: "error" };
   } else {
-    const { error } = await supabase.from("likes").delete().eq("destination_id", destinationId);
+    const { error } = await supabase.from("likes").delete().eq("product_id", productId);
     if (error) return { ok: false, reason: "error" };
   }
 
@@ -95,12 +95,9 @@ export async function deleteFolder(folderId: string): Promise<ActionResult> {
 }
 
 /** 찜을 다른 폴더로 옮긴다. folderId = null 이면 폴더에서 뺀다. 남의 폴더는 RLS가 막는다 */
-export async function moveLike(
-  destinationId: string,
-  folderId: string | null,
-): Promise<ActionResult> {
+export async function moveLike(productId: string, folderId: string | null): Promise<ActionResult> {
   if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
-  if (!uuid.safeParse(destinationId).success || (folderId && !uuid.safeParse(folderId).success)) {
+  if (!uuid.safeParse(productId).success || (folderId && !uuid.safeParse(folderId).success)) {
     return { ok: false, reason: "invalid" };
   }
 
@@ -108,7 +105,7 @@ export async function moveLike(
   const { error } = await supabase
     .from("likes")
     .update({ folder_id: folderId })
-    .eq("destination_id", destinationId);
+    .eq("product_id", productId);
   if (error) return { ok: false, reason: "error" };
   refresh();
   return { ok: true };

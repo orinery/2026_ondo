@@ -28,14 +28,16 @@ export type TripItem = {
   type: ItineraryItemType;
   note: string | null;
   caution: string | null;
-  // 여행지와 연결된 항목만 좌표가 있어 동선 지도에 표시된다 (사용자 확정)
-  destination: {
+  // 상품과 연결된 항목만 좌표(만나는 장소)가 있어 동선 지도에 표시된다
+  product: {
     id: string;
     slug: string;
-    name: string;
+    title: string;
     latitude: number;
     longitude: number;
   } | null;
+  // 주문으로 자동 추가된 예약 항목 — 날짜 이동·삭제는 DB가 막는다 (예약 취소로만 지워짐)
+  isBooking: boolean;
 };
 
 export type TripDetail = TripSummary & { items: TripItem[] };
@@ -67,8 +69,8 @@ export async function getTrip(tripId: string): Promise<TripDetail | null> {
     .from("trips")
     .select(
       `id, title, start_date, end_date,
-       trip_items ( id, day_index, position, title, time, type, note, caution,
-                    destinations ( id, slug, name, latitude, longitude ) )`,
+       trip_items ( id, day_index, position, title, time, type, note, caution, order_item_id,
+                    products ( id, slug, title, latitude, longitude ) )`,
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -85,7 +87,8 @@ export async function getTrip(tripId: string): Promise<TripDetail | null> {
       type: i.type,
       note: i.note,
       caution: i.caution,
-      destination: i.destinations,
+      product: i.products,
+      isBooking: i.order_item_id !== null,
     }))
     .sort((a, b) => a.dayIndex - b.dayIndex || a.position - b.position);
 

@@ -123,15 +123,15 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
   const points = useMemo<RoutePoint[]>(
     () =>
       (trip?.items ?? [])
-        .filter((i) => i.dayIndex === activeIndex && i.destination)
+        .filter((i) => i.dayIndex === activeIndex && i.product)
         .flatMap((i) =>
-          i.destination
+          i.product
             ? [
                 {
                   id: i.id,
                   label: i.title,
-                  latitude: i.destination.latitude,
-                  longitude: i.destination.longitude,
+                  latitude: i.product.latitude,
+                  longitude: i.product.longitude,
                 },
               ]
             : [],
@@ -253,7 +253,7 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
               <SheetContent side="bottom" className="h-dvh gap-0 p-0">
                 <SheetTitle className="px-4 pt-4">{dayLabels[activeIndex]} 동선</SheetTitle>
                 <SheetDescription className="sr-only">
-                  선택한 날의 여행지를 순서대로 보여주는 지도
+                  선택한 날의 장소를 순서대로 보여주는 지도
                 </SheetDescription>
                 <RouteMap points={points} className="m-4 flex-1 rounded-lg" />
               </SheetContent>

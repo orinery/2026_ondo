@@ -10,7 +10,7 @@ import { REVIEW_PHOTO, reviewSchema } from "@/lib/validation/review";
 import type { ActionResult } from "@/lib/action-result";
 
 type SaveReviewInput = {
-  destinationId: string;
+  productId: string;
   slug: string;
   rating: number;
   content: string;
@@ -19,21 +19,22 @@ type SaveReviewInput = {
 };
 
 const metaSchema = z.object({
-  destinationId: z.uuid(),
+  productId: z.uuid(),
   slug: z.string().regex(/^[a-z0-9-]{1,60}$/),
 });
 
 // 리뷰가 바뀌면 상세(목록·평점)와 평점이 보이는 목록·메인을 다시 그린다
 function refresh(slug: string) {
-  revalidatePath(`/destinations/${slug}`);
-  revalidatePath("/destinations");
+  revalidatePath(`/products/${slug}`);
+  revalidatePath("/products");
   revalidatePath("/");
+  revalidatePath("/my");
 }
 
 /**
- * 리뷰 저장 (작성·수정 겸용). 여행지당 1개(사용자 확정)라서 기존 리뷰가 있으면 수정한다.
- * upsert를 쓰지 않는 이유: 충돌 시 UPDATE 대상에 destination_id가 포함되는데,
- * 컬럼 권한상 destination_id는 수정할 수 없게 막아 두었기 때문.
+ * 리뷰 저장 (작성·수정 겸용). 상품당 1개(사용자 확정)라서 기존 리뷰가 있으면 수정한다.
+ * upsert를 쓰지 않는 이유: 충돌 시 UPDATE 대상에 product_id가 포함되는데,
+ * 컬럼 권한상 product_id는 수정할 수 없게 막아 두었기 때문.
  */
 export async function saveReview(input: SaveReviewInput): Promise<ActionResult> {
   const user = await getCurrentUser();
@@ -53,7 +54,7 @@ export async function saveReview(input: SaveReviewInput): Promise<ActionResult> 
   const { data: existing } = await supabase
     .from("reviews")
     .select("id, photo_path")
-    .eq("destination_id", meta.data.destinationId)
+    .eq("product_id", meta.data.productId)
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -66,8 +67,13 @@ export async function saveReview(input: SaveReviewInput): Promise<ActionResult> 
 
   const { error } = existing
     ? await supabase.from("reviews").update(values).eq("id", existing.id)
-    : await supabase.from("reviews").insert({ ...values, destination_id: meta.data.destinationId });
-  if (error) return { ok: false, reason: "error" };
+    : await supabase.from("reviews").insert({ ...values, product_id: meta.data.productId });
+  if (error) {
+    // 42501(RLS 위반) = 이용일이 지난 구매 내역이 없음 (reviews_insert_own 정책의 has_used_product)
+    return error.code === "42501"
+      ? { ok: false, reason: "invalid", message: "이용을 마친 상품에만 리뷰를 쓸 수 있어요" }
+      : { ok: false, reason: "error" };
+  }
 
   // 사진을 바꾸거나 지웠다면 이전 파일을 지운다 (Storage에 고아 파일이 남지 않게)
   if (photoChanged && existing?.photo_path && existing.photo_path !== input.photoPath) {

@@ -145,42 +145,43 @@ export async function addTripItem(tripId: string, input: unknown): Promise<Actio
 }
 
 /**
- * 여행지를 일정에 담는다 — "찜에서 불러오기"(여러 곳)와 상세의 "일정에 담기"(한 곳)가 같이 쓴다.
- * 제목은 여행지 이름, 유형은 관광으로 넣고, 여행지와 연결되므로 동선 지도에 표시된다.
+ * 찜한 상품을 일정에 담는다 ("찜에서 불러오기").
+ * 제목은 상품명, 유형은 관광으로 넣고, 상품과 연결되므로 만나는 장소가 동선 지도에 표시된다.
+ * (구매한 상품은 주문할 때 place_order가 "예약" 항목으로 자동으로 넣는다)
  */
-export async function addDestinationsToTrip(
+export async function addProductsToTrip(
   tripId: string,
   dayIndex: number,
-  destinationIds: string[],
+  productIds: string[],
 ): Promise<ActionResult> {
   if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
-  const ids = z.array(uuid).min(1).max(30).safeParse(destinationIds);
+  const ids = z.array(uuid).min(1).max(30).safeParse(productIds);
   const day = z.number().int().min(0).safeParse(dayIndex);
   if (!uuid.safeParse(tripId).success || !ids.success || !day.success) {
-    return invalid("담을 여행지를 골라 주세요");
+    return invalid("담을 상품을 골라 주세요");
   }
 
   const supabase = await createClient();
   const days = await getTripDays(supabase, tripId);
   if (days === null || day.data >= days) return invalid("여행 기간 안의 날을 골라 주세요");
 
-  const { data: destinations, error: destError } = await supabase
-    .from("destinations")
-    .select("id, name")
+  const { data: products, error: productError } = await supabase
+    .from("products")
+    .select("id, title")
     .in("id", ids.data);
-  if (destError || !destinations?.length) return invalid("여행지를 찾을 수 없어요");
+  if (productError || !products?.length) return invalid("상품을 찾을 수 없어요");
 
   // 요청한 순서를 유지한다
-  const ordered = ids.data.flatMap((id) => destinations.filter((d) => d.id === id));
+  const ordered = ids.data.flatMap((id) => products.filter((p) => p.id === id));
   const start = await nextPosition(supabase, tripId, day.data);
   const { error } = await supabase.from("trip_items").insert(
     ordered.map((d, i) => ({
       trip_id: tripId,
       day_index: day.data,
       position: start + i,
-      title: d.name,
+      title: d.title.slice(0, 60),
       type: "sight" as const,
-      destination_id: d.id,
+      product_id: d.id,
     })),
   );
   if (error) return failed;

@@ -3,11 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { signOut } from "@/actions/auth";
-import {
-  DestinationCard,
-  DestinationCardEmpty,
-  DestinationGrid,
-} from "@/components/destination/destination-card";
+import { ProductCard, ProductCardEmpty, ProductGrid } from "@/components/product/product-card";
 import { FolderChips } from "@/components/my/folder-chips";
 import { MoveToFolderMenu } from "@/components/my/move-to-folder-menu";
 import { PlannerView } from "@/components/planner/planner-view";
@@ -100,36 +96,36 @@ async function LikesTab({ folderParam }: { folderParam: string | null }) {
 
       {likes.length === 0 ? (
         // 찜이 하나도 없을 때 (명세 5.1 Empty)
-        <DestinationGrid>
-          <DestinationCardEmpty />
-        </DestinationGrid>
+        <ProductGrid>
+          <ProductCardEmpty />
+        </ProductGrid>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border-[1.5px] border-dashed border-input px-6 py-16 text-center">
           <FolderOpenIcon aria-hidden className="size-6 text-muted-foreground" />
           <p className="font-semibold">‘{activeFolder?.name}’ 폴더가 비어 있어요</p>
           <p className="text-sm text-muted-foreground">
-            ‘전체’에서 카드 아래 폴더 버튼으로 여행지를 옮겨 보세요.
+            ‘전체’에서 카드 아래 폴더 버튼으로 상품을 옮겨 보세요.
           </p>
         </div>
       ) : (
-        <DestinationGrid>
-          {visible.map((d, i) => (
-            <DestinationCard
-              key={d.id}
-              destination={d}
+        <ProductGrid>
+          {visible.map((p, i) => (
+            <ProductCard
+              key={p.id}
+              product={p}
               initialLiked
               priority={i < 4}
               footer={
                 <MoveToFolderMenu
-                  destinationId={d.id}
-                  destinationName={d.name}
-                  folderId={d.folderId}
+                  productId={p.id}
+                  productTitle={p.title}
+                  folderId={p.folderId}
                   folders={folders}
                 />
               }
             />
           ))}
-        </DestinationGrid>
+        </ProductGrid>
       )}
     </section>
   );
@@ -149,9 +145,8 @@ async function PlannerTab({ tripParam }: { tripParam: string | null }) {
         trip={trip}
         likes={likes.map((l) => ({
           id: l.id,
-          name: l.name,
-          nameEn: l.nameEn,
-          country: l.country,
+          title: l.title,
+          cityName: l.city.name,
           imageUrl: l.imageUrl,
           imageAlt: l.imageAlt,
         }))}

@@ -55,7 +55,10 @@ export default function RouteMapInner({ points }: { points: RoutePoint[] }) {
           key={p.id}
           position={[p.latitude, p.longitude]}
           icon={numberedIcon(i + 1)}
-          alt={`${i + 1}. ${p.label}`}
+          // 표시용 마커 — 이름 없는 버튼이 탭 순서에 끼지 않게 상호작용을 끈다 (axe aria-command-name)
+          title={`${i + 1}. ${p.label}`}
+          interactive={false}
+          keyboard={false}
         />
       ))}
       <FitBounds points={points} />

@@ -116,13 +116,13 @@ export function TripItemDialog({
           <DialogHeader>
             <DialogTitle>{item ? "일정 수정" : "장소 추가"}</DialogTitle>
             <DialogDescription>
-              {item?.destination ? (
+              {item?.product ? (
                 <span className="inline-flex items-center gap-1">
                   <MapPinIcon aria-hidden className="size-3.5" />
-                  {item.destination.name}과(와) 연결된 일정이에요 (동선 지도에 표시)
+                  {item.product.title}과(와) 연결된 일정이에요 (동선 지도에 표시)
                 </span>
               ) : (
-                "여행지와 연결되지 않은 장소는 동선 지도에 표시되지 않아요."
+                "상품과 연결되지 않은 장소는 동선 지도에 표시되지 않아요."
               )}
             </DialogDescription>
           </DialogHeader>
