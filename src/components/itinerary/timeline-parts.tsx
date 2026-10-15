@@ -70,6 +70,8 @@ const TYPE_TAG_CLASS: Record<ItineraryItemType, string> = {
   move: "bg-lake-100 text-lake-700 dark:bg-lake-900 dark:text-lake-100",
   sight: "bg-moss-100 text-moss-700 dark:bg-moss-900 dark:text-moss-100",
   food: "bg-glow-100 text-glow-700 dark:bg-glow-900 dark:text-glow-100",
+  // 주문으로 자동 추가된 예약 항목: 다른 유형과 한눈에 구분되도록 채운 primary
+  booking: "bg-primary text-primary-foreground",
 };
 
 export function TimelineCard({

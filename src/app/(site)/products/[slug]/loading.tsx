@@ -1,4 +1,4 @@
-import { GallerySkeleton } from "@/components/destination/gallery";
+import { GallerySkeleton } from "@/components/product/gallery";
 import { TimelineSkeleton } from "@/components/itinerary/timeline-parts";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -8,7 +8,7 @@ export default function Loading() {
     <div
       aria-busy="true"
       role="status"
-      aria-label="여행지 불러오는 중"
+      aria-label="상품 불러오는 중"
       className="container pt-8 pb-section md:pt-10"
     >
       <Skeleton className="h-4 w-48 rounded-sm" />

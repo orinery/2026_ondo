@@ -1,6 +1,6 @@
 "use client";
 
-import { SearchIcon, SlidersHorizontalIcon } from "lucide-react";
+import { CalendarIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -22,23 +22,31 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { SEASONS, THEMES, type SeasonSlug, type ThemeSlug } from "@/lib/constants/taxonomy";
+import { CATEGORIES, THEMES, type CategorySlug, type ThemeSlug } from "@/lib/constants/taxonomy";
 import { debounce, type Debounced } from "@/lib/debounce";
+import { formatUseDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { EMPTY_FILTERS, type DestinationFilters } from "@/lib/validation/destination-filters";
+import {
+  EMPTY_FILTERS,
+  SORTS,
+  type ProductFilters,
+  type SortKey,
+} from "@/lib/validation/product-filters";
 
 // 필터 타입과 빈 값은 서버(URL 파싱)와 함께 쓰므로 lib에 둔다
-export { EMPTY_FILTERS, type DestinationFilters } from "@/lib/validation/destination-filters";
+export { EMPTY_FILTERS, type ProductFilters } from "@/lib/validation/product-filters";
 
-export type FilterKey = keyof DestinationFilters;
+export type FilterKey = keyof ProductFilters;
 // "reset": 초기화 버튼으로 여러 값을 한꺼번에 바꾼 경우
 export type FilterChange = FilterKey | "reset";
 
+export type CityOption = { slug: string; name: string };
+
 type FilterBarProps = {
-  value: DestinationFilters;
+  value: ProductFilters;
   // changedKey: 빈 결과일 때 "마지막으로 바꾼 필터 해제"를 제안하기 위해 함께 넘긴다
-  onChange: (next: DestinationFilters, changedKey: FilterChange) => void;
-  countries: string[];
+  onChange: (next: ProductFilters, changedKey: FilterChange) => void;
+  cities: CityOption[];
   // 테마별 결과 수. 0이면 칩을 disabled로 표시한다 (명세 5.2 칩 disabled "빙하 · 0")
   themeCounts?: Partial<Record<ThemeSlug, number>>;
   resultCount: number | null; // null = 불러오는 중
@@ -50,24 +58,25 @@ type FilterBarProps = {
 const ALL = "all"; // Select/ToggleGroup은 null을 값으로 못 쓰므로 "전체"를 문자열로 표현
 
 /**
- * 여행지 필터 바 (명세 5.2)
- * - 1024 이상: 검색 · 국가 Select · 계절 Segmented / 테마 칩 · 초기화 (2줄)
- * - 1023 이하(명세 "768 이하"를 포함하는 구간): 검색 + "필터" 버튼 → 하단 Sheet
- * 이 컴포넌트는 값을 직접 갖지 않는 controlled 컴포넌트다. URL 동기화는 페이지(5단계)가 맡는다.
+ * 상품 필터 바 (명세 5.2 여행지 필터 바를 상품용으로: 국가 → 도시, 계절 → 카테고리, 정렬 추가)
+ * - 1024 이상: 검색 · 도시 Select · 카테고리 Segmented / 테마 칩 · 정렬 · 초기화 (2줄)
+ * - 1023 이하: 검색 + "필터" 버튼 → 하단 Sheet
+ * - 이용일(메인 히어로에서 고른 날짜)이 있으면 지울 수 있는 칩으로 보여준다
+ * 이 컴포넌트는 값을 직접 갖지 않는 controlled 컴포넌트다. URL 동기화는 ProductExplorer가 맡는다.
  */
 export function FilterBar({
   value,
   onChange,
-  countries,
+  cities,
   themeCounts,
   resultCount,
   className,
   previewChipState,
 }: FilterBarProps) {
-  const update = <K extends FilterKey>(key: K, next: DestinationFilters[K]) =>
+  const update = <K extends FilterKey>(key: K, next: ProductFilters[K]) =>
     onChange({ ...value, [key]: next }, key);
 
-  const activeCount = [value.country, value.theme, value.season].filter(Boolean).length;
+  const activeCount = [value.city, value.theme, value.category].filter(Boolean).length;
 
   return (
     <div
@@ -81,14 +90,10 @@ export function FilterBar({
         <div className="flex items-center gap-3">
           <SearchField value={value.q} onCommit={(q) => update("q", q)} />
 
-          {/* 1024 이상: 국가·계절을 한 줄에 */}
+          {/* 1024 이상: 도시·카테고리를 한 줄에 */}
           <div className="hidden items-center gap-3 lg:flex">
-            <CountrySelect
-              value={value.country}
-              countries={countries}
-              onChange={(c) => update("country", c)}
-            />
-            <SeasonSegment value={value.season} onChange={(s) => update("season", s)} />
+            <CitySelect value={value.city} cities={cities} onChange={(c) => update("city", c)} />
+            <CategorySegment value={value.category} onChange={(c) => update("category", c)} />
           </div>
 
           {/* 1023 이하: 필터 버튼 → 하단 Sheet */}
@@ -112,15 +117,22 @@ export function FilterBar({
               <SheetHeader>
                 <SheetTitle className="text-lg">필터</SheetTitle>
                 <SheetDescription className="sr-only">
-                  국가, 테마, 계절로 여행지를 좁혀요.
+                  도시, 상품 종류, 테마로 상품을 좁히고 정렬을 바꿔요.
                 </SheetDescription>
               </SheetHeader>
               <div className="flex flex-col gap-6 overflow-y-auto px-4 pb-4">
-                <FilterSection title="국가">
-                  <CountrySelect
-                    value={value.country}
-                    countries={countries}
-                    onChange={(c) => update("country", c)}
+                <FilterSection title="도시">
+                  <CitySelect
+                    value={value.city}
+                    cities={cities}
+                    onChange={(c) => update("city", c)}
+                    className="w-full"
+                  />
+                </FilterSection>
+                <FilterSection title="상품 종류">
+                  <CategorySegment
+                    value={value.category}
+                    onChange={(c) => update("category", c)}
                     className="w-full"
                   />
                 </FilterSection>
@@ -131,15 +143,15 @@ export function FilterBar({
                     onChange={(t) => update("theme", t)}
                   />
                 </FilterSection>
-                <FilterSection title="계절">
-                  <SeasonSegment
-                    value={value.season}
-                    onChange={(s) => update("season", s)}
+                <FilterSection title="정렬">
+                  <SortSelect
+                    value={value.sort}
+                    onChange={(s) => update("sort", s)}
                     className="w-full"
                   />
                 </FilterSection>
               </div>
-              {/* 하단 고정: "n곳 보기" (명세 5.2 Mobile) */}
+              {/* 하단 고정: "n개 보기" (명세 5.2 Mobile) */}
               <SheetFooter className="flex-row border-t pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 <Button
                   variant="ghost"
@@ -150,7 +162,7 @@ export function FilterBar({
                 </Button>
                 <SheetClose asChild>
                   <Button className="h-12 flex-1 rounded-md text-base font-semibold">
-                    {resultCount === null ? "불러오는 중…" : `${resultCount}곳 보기`}
+                    {resultCount === null ? "불러오는 중…" : `${resultCount}개 보기`}
                   </Button>
                 </SheetClose>
               </SheetFooter>
@@ -158,7 +170,9 @@ export function FilterBar({
           </Sheet>
         </div>
 
-        {/* 1024 이상: 테마 칩 + 초기화 */}
+        {value.date && <DateChip date={value.date} onClear={() => update("date", null)} />}
+
+        {/* 1024 이상: 테마 칩 + 정렬 + 초기화 */}
         <div className="hidden items-center justify-between gap-4 lg:flex">
           <ThemeChips
             value={value.theme}
@@ -166,13 +180,16 @@ export function FilterBar({
             onChange={(t) => update("theme", t)}
             previewChipState={previewChipState}
           />
-          <button
-            type="button"
-            onClick={() => onChange(EMPTY_FILTERS, "reset")}
-            className="h-10 shrink-0 px-3.5 text-sm font-semibold text-primary hover:underline"
-          >
-            필터 초기화
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <SortSelect value={value.sort} onChange={(s) => update("sort", s)} />
+            <button
+              type="button"
+              onClick={() => onChange(EMPTY_FILTERS, "reset")}
+              className="h-10 shrink-0 px-3.5 text-sm font-semibold text-primary hover:underline"
+            >
+              필터 초기화
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -185,6 +202,26 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
       <h3 className="text-sm font-semibold">{title}</h3>
       {children}
     </section>
+  );
+}
+
+/** 이용일 칩 — 그날 예약 가능한 상품만 보는 중임을 알리고, 한 번에 해제할 수 있게 한다 */
+function DateChip({ date, onClear }: { date: string; onClear: () => void }) {
+  return (
+    <div className="flex">
+      <span className="flex h-9 items-center gap-2 rounded-full bg-accent pr-1 pl-3.5 text-sm font-medium text-accent-foreground">
+        <CalendarIcon aria-hidden className="size-4" />
+        {formatUseDate(date)} 예약 가능
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="이용일 조건 해제"
+          className="grid size-7 place-items-center rounded-full hover:bg-background/60"
+        >
+          <XIcon aria-hidden className="size-4" />
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -228,8 +265,8 @@ function SearchField({ value, onCommit }: { value: string; onCommit: (q: string)
           setText(e.target.value);
           commitRef.current?.(e.target.value);
         }}
-        placeholder="여행지 이름으로 검색 (예: 교토)"
-        aria-label="여행지 검색"
+        placeholder="상품·도시 검색"
+        aria-label="상품 검색"
         // 입력 16px: iOS 확대 방지 (명세 타입 스케일 base)
         className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
       />
@@ -237,31 +274,61 @@ function SearchField({ value, onCommit }: { value: string; onCommit: (q: string)
   );
 }
 
-function CountrySelect({
+function CitySelect({
   value,
-  countries,
+  cities,
   onChange,
   className,
 }: {
   value: string | null;
-  countries: string[];
-  onChange: (country: string | null) => void;
+  cities: CityOption[];
+  onChange: (city: string | null) => void;
   className?: string;
 }) {
+  const label = cities.find((c) => c.slug === value)?.name ?? "도시 · 전체";
   return (
     <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? null : v)}>
       <SelectTrigger
-        aria-label="국가"
-        className={cn("h-12! min-w-45 rounded-md bg-card px-3.5 text-base dark:bg-card", className)}
+        aria-label="도시"
+        className={cn("h-12! min-w-40 rounded-md bg-card px-3.5 text-base dark:bg-card", className)}
       >
         {/* 라벨을 직접 넘겨 hydration 전(서버 렌더링)에도 선택값이 보이게 한다 */}
-        <SelectValue>{value ?? "국가 · 전체"}</SelectValue>
+        <SelectValue>{label}</SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL}>국가 · 전체</SelectItem>
-        {countries.map((c) => (
-          <SelectItem key={c} value={c}>
-            {c}
+        <SelectItem value={ALL}>도시 · 전체</SelectItem>
+        {cities.map((c) => (
+          <SelectItem key={c.slug} value={c.slug}>
+            {c.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function SortSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: SortKey;
+  onChange: (sort: SortKey) => void;
+  className?: string;
+}) {
+  const label = SORTS.find((s) => s.value === value)?.label ?? "추천순";
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as SortKey)}>
+      <SelectTrigger
+        aria-label="정렬"
+        className={cn("h-10! min-w-34 rounded-md bg-card px-3.5 text-sm dark:bg-card", className)}
+      >
+        <SelectValue>{label}</SelectValue>
+      </SelectTrigger>
+      <SelectContent align="end">
+        {SORTS.map((s) => (
+          <SelectItem key={s.value} value={s.value}>
+            {s.label}
           </SelectItem>
         ))}
       </SelectContent>
@@ -270,42 +337,42 @@ function CountrySelect({
 }
 
 /**
- * 계절 Segmented — Radix ToggleGroup(single)은 role="radiogroup"/"radio"와
+ * 카테고리 Segmented — Radix ToggleGroup(single)은 role="radiogroup"/"radio"와
  * 화살표 키 이동(roving focus)을 기본 제공하므로 명세 a11y(role=radiogroup)를 그대로 만족한다.
  */
-function SeasonSegment({
+function CategorySegment({
   value,
   onChange,
   className,
 }: {
-  value: SeasonSlug | null;
-  onChange: (season: SeasonSlug | null) => void;
+  value: CategorySlug | null;
+  onChange: (category: CategorySlug | null) => void;
   className?: string;
 }) {
-  const items = [{ value: ALL, label: "전체" }, ...SEASONS];
+  const items = [{ value: ALL, label: "전체" }, ...CATEGORIES];
   return (
     <ToggleGroup
       type="single"
-      aria-label="계절"
+      aria-label="상품 종류"
       spacing={0.5}
       value={value ?? ALL}
       // 이미 선택된 항목을 다시 누르면 Radix는 ""를 준다 → 선택 유지
       onValueChange={(v) => {
         if (!v) return;
-        onChange(v === ALL ? null : (v as SeasonSlug));
+        onChange(v === ALL ? null : (v as CategorySlug));
       }}
       className={cn("h-12 rounded-md bg-muted p-1", className)}
     >
-      {items.map((s) => (
+      {items.map((c) => (
         <ToggleGroupItem
-          key={s.value}
-          value={s.value}
+          key={c.value}
+          value={c.value}
           className={cn(
-            "h-full flex-1 rounded-sm px-4 text-sm font-medium text-muted-foreground transition-colors duration-fast hover:bg-transparent hover:text-foreground",
+            "h-full flex-1 rounded-sm px-4 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-fast hover:bg-transparent hover:text-foreground",
             "data-[state=on]:bg-card data-[state=on]:font-semibold data-[state=on]:text-foreground data-[state=on]:shadow-sm",
           )}
         >
-          {s.label}
+          {c.label}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -336,9 +403,9 @@ function ThemeChips({
     <div role="group" aria-label="테마" className="flex flex-wrap gap-2">
       {chips.map((chip, index) => {
         const selected = value === chip.value;
-        const count = chip.value ? counts?.[chip.value] : undefined;
-        // 선택된 칩은 0곳이어도 해제할 수 있어야 하므로 비활성화하지 않는다
-        const disabled = count === 0 && !selected;
+        const count = chip.value ? (counts?.[chip.value] ?? 0) : undefined;
+        // 선택된 칩은 0개여도 해제할 수 있어야 하므로 비활성화하지 않는다
+        const disabled = counts !== undefined && count === 0 && !selected;
         return (
           <FilterChip
             key={chip.label}

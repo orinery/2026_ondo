@@ -1,8 +1,8 @@
-import { MessageSquareTextIcon } from "lucide-react";
+import { BadgeCheckIcon, MessageSquareTextIcon } from "lucide-react";
 import Image from "next/image";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { ReviewItem } from "@/lib/data/destinations";
+import type { ReviewItem } from "@/lib/data/products";
 
 type ReviewSectionProps = {
   rating: number;
@@ -42,7 +42,7 @@ export function ReviewSection({
         <div className="flex flex-col items-center gap-2 rounded-lg border-[1.5px] border-dashed border-input px-6 py-12 text-center">
           <MessageSquareTextIcon aria-hidden className="size-6 text-muted-foreground" />
           <p className="font-semibold">아직 리뷰가 없어요</p>
-          <p className="text-sm text-muted-foreground">다녀오셨다면 첫 리뷰를 남겨 주세요.</p>
+          <p className="text-sm text-muted-foreground">이용을 마치셨다면 첫 리뷰를 남겨 주세요.</p>
         </div>
       ) : (
         <>
@@ -86,6 +86,11 @@ export function ReviewSection({
                   <div>
                     <p className="flex items-center gap-1.5 text-sm font-semibold">
                       {r.author.name}
+                      {/* 리뷰는 이용을 마친 구매 고객만 쓸 수 있다 (DB 정책) → 모든 리뷰가 구매 인증 */}
+                      <span className="inline-flex items-center gap-0.5 rounded-sm border px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                        <BadgeCheckIcon aria-hidden className="size-3" />
+                        구매 인증
+                      </span>
                       {r.userId === currentUserId && (
                         <span className="rounded-sm bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
                           내 리뷰

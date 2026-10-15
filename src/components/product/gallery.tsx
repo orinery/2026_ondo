@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { GalleryImage } from "@/types/destination";
+import type { GalleryImage } from "@/types/product";
 
 type GalleryProps = {
   images: GalleryImage[];
@@ -30,7 +30,7 @@ type GalleryProps = {
 };
 
 /**
- * 여행지 갤러리 (명세 5.3 · Carousel(embla) + Dialog)
+ * 상품 갤러리 (명세 5.3 · Carousel(embla) + Dialog)
  * - 768 이상: 7+5 bento (큰 사진 1 + 작은 사진 2), 타일 클릭 → 라이트박스
  * - 767 이하: 풀폭 캐러셀 + "1 / N" 카운터
  * - 사진 1장: 화살표·카운터 숨김, "사진 보기" 버튼 비활성 (disabled)
@@ -129,7 +129,7 @@ function MobileCarousel({
   const current = useSelectedIndex(api);
 
   return (
-    <Carousel setApi={setApi} className="-mx-5 md:hidden" aria-label="여행지 사진">
+    <Carousel setApi={setApi} className="-mx-5 md:hidden" aria-label="상품 사진">
       <CarouselContent className="ml-0">
         {images.map((image, i) => (
           <CarouselItem key={image.src} className="pl-0">

@@ -1,16 +1,13 @@
-import {
-  DestinationCardSkeleton,
-  DestinationGrid,
-} from "@/components/destination/destination-card";
+import { ProductCardSkeleton, ProductGrid } from "@/components/product/product-card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * 목록 첫 로딩: 제목·필터 바 자리 + 카드 스켈레톤 8개 (명세 4.2 상태)
- * 라우트 그룹 (list) 안에 두어 목록만 감싼다 — 상세(/destinations/[slug])의 레이아웃까지 감싸지 않게.
+ * 라우트 그룹 (list) 안에 두어 목록만 감싼다 — 상세(/products/[slug])의 레이아웃까지 감싸지 않게.
  */
 export default function Loading() {
   return (
-    <div role="status" aria-busy="true" aria-label="여행지 불러오는 중">
+    <div role="status" aria-busy="true" aria-label="상품 불러오는 중">
       <div className="container pt-10 md:pt-14">
         <Skeleton className="h-6 w-24 rounded-sm" />
         <Skeleton className="mt-2 h-10 w-56 rounded-sm" />
@@ -22,11 +19,11 @@ export default function Loading() {
         </div>
       </div>
       <div className="container pt-8 pb-24">
-        <DestinationGrid>
+        <ProductGrid>
           {Array.from({ length: 8 }, (_, i) => (
-            <DestinationCardSkeleton key={i} />
+            <ProductCardSkeleton key={i} />
           ))}
-        </DestinationGrid>
+        </ProductGrid>
       </div>
     </div>
   );

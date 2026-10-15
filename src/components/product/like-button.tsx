@@ -8,8 +8,8 @@ import { toggleLike } from "@/actions/likes";
 import { cn } from "@/lib/utils";
 
 type LikeButtonProps = {
-  destinationId: string;
-  destinationName: string;
+  productId: string;
+  productTitle: string;
   initialLiked?: boolean;
   // overlay: 사진 위 흰 원형 (카드) / outline: 일반 배경 위 버튼 (상세 헤더·하단 CTA)
   variant?: "overlay" | "outline";
@@ -26,8 +26,8 @@ type LikeButtonProps = {
  * 비로그인 상태면 로그인 페이지로 보낸 뒤 지금 페이지로 돌아오게 한다.
  */
 export function LikeButton({
-  destinationId,
-  destinationName,
+  productId,
+  productTitle,
   initialLiked = false,
   variant = "overlay",
   mode = "server",
@@ -50,11 +50,9 @@ export function LikeButton({
     }
     startTransition(async () => {
       setOptimisticLiked(next);
-      const result = await toggleLike(destinationId, next);
+      const result = await toggleLike(productId, next);
       if (result.ok) {
-        setMessage(
-          next ? `${destinationName}을(를) 찜했어요` : `${destinationName} 찜을 해제했어요`,
-        );
+        setMessage(next ? `${productTitle}을(를) 찜했어요` : `${productTitle} 찜을 해제했어요`);
       } else if (result.reason === "unauthenticated") {
         router.push(`/login?next=${encodeURIComponent(pathname)}`);
       } else {
@@ -67,7 +65,7 @@ export function LikeButton({
     <>
       <button
         type="button"
-        aria-label={`${destinationName} 찜하기`}
+        aria-label={`${productTitle} 찜하기`}
         aria-pressed={liked}
         onClick={onClick}
         className={cn(

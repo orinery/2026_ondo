@@ -41,11 +41,13 @@ export type MyReview = {
 };
 
 type ReviewDialogProps = {
-  destinationId: string;
+  productId: string;
   slug: string;
-  destinationName: string;
+  productTitle: string;
   userId: string | null; // null = 비로그인
-  myReview: MyReview | null; // 이미 쓴 리뷰가 있으면 수정 모드 (여행지당 1개)
+  myReview: MyReview | null; // 이미 쓴 리뷰가 있으면 수정 모드 (상품당 1개)
+  // 구매 인증: 이용일이 지난 주문이 있어야 새 리뷰를 쓸 수 있다 (DB 정책 has_used_product와 같은 판단)
+  canReview: boolean;
 };
 
 // 사진 상태: 기존 유지 / 새 파일 / 삭제
@@ -63,11 +65,12 @@ type FieldErrors = { rating?: string; content?: string; photo?: string };
  * 3) Server Action으로 리뷰 저장 — 실패하면 2)에서 올린 사진을 지워 고아 파일을 남기지 않는다
  */
 export function ReviewDialog({
-  destinationId,
+  productId,
   slug,
-  destinationName,
+  productTitle,
   userId,
   myReview,
+  canReview,
 }: ReviewDialogProps) {
   const isEdit = Boolean(myReview);
 
@@ -75,30 +78,36 @@ export function ReviewDialog({
   if (!userId) {
     return (
       <Button asChild variant="outline" className="h-10 rounded-md px-4">
-        <Link href={`/login?next=${encodeURIComponent(`/destinations/${slug}`)}`}>
+        <Link href={`/login?next=${encodeURIComponent(`/products/${slug}`)}`}>
           로그인하고 리뷰 쓰기
         </Link>
       </Button>
     );
   }
 
+  // 구매하지 않았거나 아직 이용 전: 버튼 대신 안내 (눌러도 DB가 거부하므로 미리 알려 준다)
+  if (!myReview && !canReview) {
+    return <p className="text-sm text-muted-foreground">이용을 마친 뒤 리뷰를 남길 수 있어요</p>;
+  }
+
   return (
     <ReviewDialogInner
       key={myReview ? `${myReview.id}-${myReview.rating}-${myReview.content.length}` : "new"}
-      destinationId={destinationId}
+      productId={productId}
       slug={slug}
-      destinationName={destinationName}
+      productTitle={productTitle}
       userId={userId}
       myReview={myReview}
+      canReview={canReview}
       isEdit={isEdit}
     />
   );
 }
 
 function ReviewDialogInner({
-  destinationId,
+  productId,
   slug,
-  destinationName,
+  productTitle,
   userId,
   myReview,
   isEdit,
@@ -173,12 +182,12 @@ function ReviewDialogInner({
         photoPath = null;
       }
 
-      const result = await saveReview({ destinationId, slug, ...parsed.data, photoPath });
+      const result = await saveReview({ productId, slug, ...parsed.data, photoPath });
       if (!result.ok) {
         if (uploadedPath)
           await createClient().storage.from(REVIEW_PHOTO.bucket).remove([uploadedPath]);
         if (result.reason === "unauthenticated") {
-          router.push(`/login?next=${encodeURIComponent(`/destinations/${slug}`)}`);
+          router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
           return;
         }
         setFormError(result.message ?? "리뷰를 저장하지 못했어요. 다시 시도해 주세요");
@@ -212,7 +221,7 @@ function ReviewDialogInner({
         <form onSubmit={submit} noValidate className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle className="text-lg">{isEdit ? "내 리뷰 수정" : "리뷰 쓰기"}</DialogTitle>
-            <DialogDescription>{destinationName} 여행은 어떠셨나요?</DialogDescription>
+            <DialogDescription>{productTitle}, 어떠셨나요?</DialogDescription>
           </DialogHeader>
 
           {/* 별점: 네이티브 라디오를 써서 화살표 키 이동과 스크린리더 안내를 그대로 얻는다 */}
