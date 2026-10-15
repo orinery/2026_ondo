@@ -5,92 +5,103 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
-      destination_images: {
+      cancellation_policies: {
         Row: {
-          alt: string;
-          destination_id: string;
-          id: string;
-          position: number;
-          url: string;
+          code: string;
+          name: string;
+          summary: string;
         };
         ComputedFields: never;
         Insert: {
-          alt: string;
-          destination_id: string;
-          id?: string;
-          position: number;
-          url: string;
+          code: string;
+          name: string;
+          summary: string;
         };
         Update: {
-          alt?: string;
-          destination_id?: string;
-          id?: string;
-          position?: number;
-          url?: string;
+          code?: string;
+          name?: string;
+          summary?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "destination_images_destination_id_destinations_id_fk";
-            columns: ["destination_id"];
-            isOneToOne: false;
-            referencedRelation: "destinations";
-            referencedColumns: ["id"];
-          },
-        ];
+        Relationships: [];
       };
-      destination_itinerary_items: {
+      cancellation_policy_tiers: {
         Row: {
-          caution: string | null;
-          day_number: number;
-          destination_id: string;
-          id: string;
-          note: string | null;
-          position: number;
-          time: string | null;
-          title: string;
-          type: Database["public"]["Enums"]["itinerary_item_type"];
+          days_before: number;
+          policy_code: string;
+          refund_rate: number;
         };
         ComputedFields: never;
         Insert: {
-          caution?: string | null;
-          day_number: number;
-          destination_id: string;
-          id?: string;
-          note?: string | null;
-          position: number;
-          time?: string | null;
-          title: string;
-          type: Database["public"]["Enums"]["itinerary_item_type"];
+          days_before: number;
+          policy_code: string;
+          refund_rate: number;
         };
         Update: {
-          caution?: string | null;
-          day_number?: number;
-          destination_id?: string;
-          id?: string;
-          note?: string | null;
-          position?: number;
-          time?: string | null;
-          title?: string;
-          type?: Database["public"]["Enums"]["itinerary_item_type"];
+          days_before?: number;
+          policy_code?: string;
+          refund_rate?: number;
         };
         Relationships: [
           {
-            foreignKeyName: "destination_itinerary_items_destination_id_destinations_id_fk";
-            columns: ["destination_id"];
+            foreignKeyName: "cancellation_policy_tiers_policy_code_cancellation_policies_cod";
+            columns: ["policy_code"];
             isOneToOne: false;
-            referencedRelation: "destinations";
-            referencedColumns: ["id"];
+            referencedRelation: "cancellation_policies";
+            referencedColumns: ["code"];
           },
         ];
       };
-      destinations: {
+      cart_items: {
         Row: {
-          best_seasons: Database["public"]["Enums"]["season"][];
-          country: string;
+          adult_qty: number;
+          child_qty: number;
           created_at: string;
-          currency: string | null;
-          description: string;
-          flight_info: string | null;
+          id: string;
+          product_id: string;
+          updated_at: string;
+          use_date: string;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          adult_qty?: number;
+          child_qty?: number;
+          created_at?: string;
+          id?: string;
+          product_id: string;
+          updated_at?: string;
+          use_date: string;
+          user_id?: string;
+        };
+        Update: {
+          adult_qty?: number;
+          child_qty?: number;
+          created_at?: string;
+          id?: string;
+          product_id?: string;
+          updated_at?: string;
+          use_date?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_items_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_user_id_profiles_id_fk";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cities: {
+        Row: {
           id: string;
           image_alt: string;
           image_url: string;
@@ -98,23 +109,12 @@ export type Database = {
           longitude: number;
           name: string;
           name_en: string;
-          rating_avg: number;
-          review_count: number;
-          season: Database["public"]["Enums"]["season"];
+          position: number;
           slug: string;
           summary: string;
-          theme: Database["public"]["Enums"]["destination_theme"];
-          time_difference: string | null;
-          unavailable_reason: string | null;
         };
         ComputedFields: never;
         Insert: {
-          best_seasons: Database["public"]["Enums"]["season"][];
-          country: string;
-          created_at?: string;
-          currency?: string | null;
-          description: string;
-          flight_info?: string | null;
           id?: string;
           image_alt: string;
           image_url: string;
@@ -122,22 +122,11 @@ export type Database = {
           longitude: number;
           name: string;
           name_en: string;
-          rating_avg?: number;
-          review_count?: number;
-          season: Database["public"]["Enums"]["season"];
+          position: number;
           slug: string;
           summary: string;
-          theme: Database["public"]["Enums"]["destination_theme"];
-          time_difference?: string | null;
-          unavailable_reason?: string | null;
         };
         Update: {
-          best_seasons?: Database["public"]["Enums"]["season"][];
-          country?: string;
-          created_at?: string;
-          currency?: string | null;
-          description?: string;
-          flight_info?: string | null;
           id?: string;
           image_alt?: string;
           image_url?: string;
@@ -145,14 +134,9 @@ export type Database = {
           longitude?: number;
           name?: string;
           name_en?: string;
-          rating_avg?: number;
-          review_count?: number;
-          season?: Database["public"]["Enums"]["season"];
+          position?: number;
           slug?: string;
           summary?: string;
-          theme?: Database["public"]["Enums"]["destination_theme"];
-          time_difference?: string | null;
-          unavailable_reason?: string | null;
         };
         Relationships: [];
       };
@@ -189,31 +173,24 @@ export type Database = {
       likes: {
         Row: {
           created_at: string;
-          destination_id: string;
           folder_id: string | null;
+          product_id: string;
           user_id: string;
         };
         ComputedFields: never;
         Insert: {
           created_at?: string;
-          destination_id: string;
           folder_id?: string | null;
+          product_id: string;
           user_id?: string;
         };
         Update: {
           created_at?: string;
-          destination_id?: string;
           folder_id?: string | null;
+          product_id?: string;
           user_id?: string;
         };
         Relationships: [
-          {
-            foreignKeyName: "likes_destination_id_destinations_id_fk";
-            columns: ["destination_id"];
-            isOneToOne: false;
-            referencedRelation: "destinations";
-            referencedColumns: ["id"];
-          },
           {
             foreignKeyName: "likes_folder_id_like_folders_id_fk";
             columns: ["folder_id"];
@@ -222,10 +199,341 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "likes_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "likes_user_id_profiles_id_fk";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_items: {
+        Row: {
+          adult_price: number;
+          adult_qty: number;
+          cancel_policy: string;
+          child_price: number | null;
+          child_qty: number;
+          id: string;
+          order_id: string;
+          product_id: string;
+          product_title: string;
+          refund_amount: number | null;
+          subtotal: number;
+          use_date: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          adult_price: number;
+          adult_qty: number;
+          cancel_policy: string;
+          child_price?: number | null;
+          child_qty: number;
+          id?: string;
+          order_id: string;
+          product_id: string;
+          product_title: string;
+          refund_amount?: number | null;
+          subtotal: number;
+          use_date: string;
+        };
+        Update: {
+          adult_price?: number;
+          adult_qty?: number;
+          cancel_policy?: string;
+          child_price?: number | null;
+          child_qty?: number;
+          id?: string;
+          order_id?: string;
+          product_id?: string;
+          product_title?: string;
+          refund_amount?: number | null;
+          subtotal?: number;
+          use_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_items_cancel_policy_cancellation_policies_code_fk";
+            columns: ["cancel_policy"];
+            isOneToOne: false;
+            referencedRelation: "cancellation_policies";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "order_items_order_id_orders_id_fk";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      orders: {
+        Row: {
+          booker_email: string;
+          booker_name: string;
+          booker_phone: string;
+          cancelled_at: string | null;
+          created_at: string;
+          id: string;
+          idempotency_key: string;
+          order_no: string;
+          paid_at: string;
+          payment_method: string;
+          policy_agreed_at: string;
+          refund_amount: number | null;
+          status: Database["public"]["Enums"]["order_status"];
+          total_amount: number;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          booker_email: string;
+          booker_name: string;
+          booker_phone: string;
+          cancelled_at?: string | null;
+          created_at?: string;
+          id?: string;
+          idempotency_key: string;
+          order_no: string;
+          paid_at?: string;
+          payment_method?: string;
+          policy_agreed_at: string;
+          refund_amount?: number | null;
+          status?: Database["public"]["Enums"]["order_status"];
+          total_amount: number;
+          user_id: string;
+        };
+        Update: {
+          booker_email?: string;
+          booker_name?: string;
+          booker_phone?: string;
+          cancelled_at?: string | null;
+          created_at?: string;
+          id?: string;
+          idempotency_key?: string;
+          order_no?: string;
+          paid_at?: string;
+          payment_method?: string;
+          policy_agreed_at?: string;
+          refund_amount?: number | null;
+          status?: Database["public"]["Enums"]["order_status"];
+          total_amount?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_profiles_id_fk";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_images: {
+        Row: {
+          alt: string;
+          id: string;
+          position: number;
+          product_id: string;
+          url: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          alt: string;
+          id?: string;
+          position: number;
+          product_id: string;
+          url: string;
+        };
+        Update: {
+          alt?: string;
+          id?: string;
+          position?: number;
+          product_id?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_itinerary_items: {
+        Row: {
+          caution: string | null;
+          id: string;
+          note: string | null;
+          position: number;
+          product_id: string;
+          time: string | null;
+          title: string;
+          type: Database["public"]["Enums"]["itinerary_item_type"];
+        };
+        ComputedFields: never;
+        Insert: {
+          caution?: string | null;
+          id?: string;
+          note?: string | null;
+          position: number;
+          product_id: string;
+          time?: string | null;
+          title: string;
+          type: Database["public"]["Enums"]["itinerary_item_type"];
+        };
+        Update: {
+          caution?: string | null;
+          id?: string;
+          note?: string | null;
+          position?: number;
+          product_id?: string;
+          time?: string | null;
+          title?: string;
+          type?: Database["public"]["Enums"]["itinerary_item_type"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_itinerary_items_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      products: {
+        Row: {
+          adult_price: number;
+          cancel_policy: string;
+          category: Database["public"]["Enums"]["product_category"];
+          child_price: number | null;
+          city_id: string;
+          created_at: string;
+          cutoff_days: number;
+          description: string;
+          duration_text: string;
+          excludes: string[];
+          highlights: string[];
+          id: string;
+          image_alt: string;
+          image_url: string;
+          includes: string[];
+          latitude: number;
+          list_adult_price: number | null;
+          longitude: number;
+          max_qty: number;
+          meeting_point: string;
+          operating_days: number[];
+          rating_avg: number;
+          recommend_rank: number | null;
+          review_count: number;
+          slug: string;
+          start_time: string | null;
+          summary: string;
+          theme: Database["public"]["Enums"]["product_theme"];
+          title: string;
+          unavailable_reason: string | null;
+          usage_info: string[];
+        };
+        ComputedFields: never;
+        Insert: {
+          adult_price: number;
+          cancel_policy: string;
+          category: Database["public"]["Enums"]["product_category"];
+          child_price?: number | null;
+          city_id: string;
+          created_at?: string;
+          cutoff_days?: number;
+          description: string;
+          duration_text: string;
+          excludes?: string[];
+          highlights?: string[];
+          id?: string;
+          image_alt: string;
+          image_url: string;
+          includes?: string[];
+          latitude: number;
+          list_adult_price?: number | null;
+          longitude: number;
+          max_qty?: number;
+          meeting_point: string;
+          operating_days: number[];
+          rating_avg?: number;
+          recommend_rank?: number | null;
+          review_count?: number;
+          slug: string;
+          start_time?: string | null;
+          summary: string;
+          theme: Database["public"]["Enums"]["product_theme"];
+          title: string;
+          unavailable_reason?: string | null;
+          usage_info?: string[];
+        };
+        Update: {
+          adult_price?: number;
+          cancel_policy?: string;
+          category?: Database["public"]["Enums"]["product_category"];
+          child_price?: number | null;
+          city_id?: string;
+          created_at?: string;
+          cutoff_days?: number;
+          description?: string;
+          duration_text?: string;
+          excludes?: string[];
+          highlights?: string[];
+          id?: string;
+          image_alt?: string;
+          image_url?: string;
+          includes?: string[];
+          latitude?: number;
+          list_adult_price?: number | null;
+          longitude?: number;
+          max_qty?: number;
+          meeting_point?: string;
+          operating_days?: number[];
+          rating_avg?: number;
+          recommend_rank?: number | null;
+          review_count?: number;
+          slug?: string;
+          start_time?: string | null;
+          summary?: string;
+          theme?: Database["public"]["Enums"]["product_theme"];
+          title?: string;
+          unavailable_reason?: string | null;
+          usage_info?: string[];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "products_cancel_policy_cancellation_policies_code_fk";
+            columns: ["cancel_policy"];
+            isOneToOne: false;
+            referencedRelation: "cancellation_policies";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "products_city_id_cities_id_fk";
+            columns: ["city_id"];
+            isOneToOne: false;
+            referencedRelation: "cities";
             referencedColumns: ["id"];
           },
         ];
@@ -262,9 +570,9 @@ export type Database = {
         Row: {
           content: string;
           created_at: string;
-          destination_id: string;
           id: string;
           photo_path: string | null;
+          product_id: string;
           rating: number;
           updated_at: string;
           user_id: string;
@@ -273,9 +581,9 @@ export type Database = {
         Insert: {
           content: string;
           created_at?: string;
-          destination_id: string;
           id?: string;
           photo_path?: string | null;
+          product_id: string;
           rating: number;
           updated_at?: string;
           user_id?: string;
@@ -283,19 +591,19 @@ export type Database = {
         Update: {
           content?: string;
           created_at?: string;
-          destination_id?: string;
           id?: string;
           photo_path?: string | null;
+          product_id?: string;
           rating?: number;
           updated_at?: string;
           user_id?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "reviews_destination_id_destinations_id_fk";
-            columns: ["destination_id"];
+            foreignKeyName: "reviews_product_id_products_id_fk";
+            columns: ["product_id"];
             isOneToOne: false;
-            referencedRelation: "destinations";
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
           {
@@ -312,10 +620,11 @@ export type Database = {
           caution: string | null;
           created_at: string;
           day_index: number;
-          destination_id: string | null;
           id: string;
           note: string | null;
+          order_item_id: string | null;
           position: number;
+          product_id: string | null;
           time: string | null;
           title: string;
           trip_id: string;
@@ -326,10 +635,11 @@ export type Database = {
           caution?: string | null;
           created_at?: string;
           day_index: number;
-          destination_id?: string | null;
           id?: string;
           note?: string | null;
+          order_item_id?: string | null;
           position: number;
+          product_id?: string | null;
           time?: string | null;
           title: string;
           trip_id: string;
@@ -339,10 +649,11 @@ export type Database = {
           caution?: string | null;
           created_at?: string;
           day_index?: number;
-          destination_id?: string | null;
           id?: string;
           note?: string | null;
+          order_item_id?: string | null;
           position?: number;
+          product_id?: string | null;
           time?: string | null;
           title?: string;
           trip_id?: string;
@@ -350,10 +661,17 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "trip_items_destination_id_destinations_id_fk";
-            columns: ["destination_id"];
+            foreignKeyName: "trip_items_order_item_id_order_items_id_fk";
+            columns: ["order_item_id"];
+            isOneToOne: true;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trip_items_product_id_products_id_fk";
+            columns: ["product_id"];
             isOneToOne: false;
-            referencedRelation: "destinations";
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
           {
@@ -409,15 +727,44 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      booking_error: {
+        Args: { p_adult: number; p_child: number; p_product_id: string; p_use_date: string };
+        Returns: string;
+      };
+      cancel_order: { Args: { p_order_id: string }; Returns: number };
+      has_used_product: { Args: { p_product_id: string }; Returns: boolean };
+      place_order: {
+        Args: {
+          p_booker_email: string;
+          p_booker_name: string;
+          p_booker_phone: string;
+          p_cart_item_ids: string[];
+          p_expected_total: number;
+          p_idempotency_key: string;
+          p_policy_agreed: boolean;
+        };
+        Returns: string;
+      };
+      refund_quote: {
+        Args: { p_order_id: string };
+        Returns: {
+          days_before: number;
+          order_item_id: string;
+          refund_amount: number;
+          refund_rate: number;
+        }[];
+      };
       reorder_trip_items: {
         Args: { p_day_index: number; p_item_ids: string[]; p_trip_id: string };
         Returns: undefined;
       };
+      seoul_today: { Args: Record<PropertyKey, never>; Returns: string };
     };
     Enums: {
-      destination_theme: "sea" | "city" | "nature" | "culture";
-      itinerary_item_type: "move" | "sight" | "food";
-      season: "spring" | "summer" | "fall" | "winter";
+      itinerary_item_type: "move" | "sight" | "food" | "booking";
+      order_status: "paid" | "cancelled";
+      product_category: "tour" | "ticket";
+      product_theme: "sea" | "city" | "nature" | "culture";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -529,9 +876,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      destination_theme: ["sea", "city", "nature", "culture"],
-      itinerary_item_type: ["move", "sight", "food"],
-      season: ["spring", "summer", "fall", "winter"],
+      itinerary_item_type: ["move", "sight", "food", "booking"],
+      order_status: ["paid", "cancelled"],
+      product_category: ["tour", "ticket"],
+      product_theme: ["sea", "city", "nature", "culture"],
     },
   },
 } as const;

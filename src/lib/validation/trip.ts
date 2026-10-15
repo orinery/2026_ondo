@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ITEM_TYPE_VALUES } from "@/lib/constants/taxonomy";
+import { USER_ITEM_TYPE_VALUES } from "@/lib/constants/taxonomy";
 import { tripDayCount } from "@/lib/trip-dates";
 
 /** 여행·일정 항목 입력 검증 — 다이얼로그와 Server Action이 같이 쓴다. DB CHECK 제약과 범위를 맞췄다 */
@@ -53,7 +53,7 @@ export const tripItemSchema = z.object({
     .nullable()
     .optional()
     .or(z.literal("").transform(() => null)),
-  type: z.enum(ITEM_TYPE_VALUES),
+  type: z.enum(USER_ITEM_TYPE_VALUES),
   note: optionalText(200, "메모는 200자 이하로 입력해 주세요"),
   caution: optionalText(60, "주의 메모는 60자 이하로 입력해 주세요"),
 });

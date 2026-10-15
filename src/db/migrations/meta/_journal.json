@@ -22,6 +22,27 @@
       "when": 1792042282356,
       "tag": "0002_reorder_trip_items",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792049194412,
+      "tag": "0003_drop_destinations",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792049494732,
+      "tag": "0004_shop_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792049513156,
+      "tag": "0005_shop_functions_grants",
+      "breakpoints": true
     }
   ]
 }

@@ -6,12 +6,14 @@
  * - 앱 실행 중 읽기·쓰기: supabase-js(사용자 JWT)로만 한다. → 아래 RLS 정책이 항상 적용된다.
  *
  * RLS 요약
- * - 공개 데이터(여행지·사진·추천 일정·리뷰·프로필): 누구나 읽기, 쓰기는 정책 없음(= 거부)
- * - 개인 데이터(찜·찜 폴더·여행·일정 항목): 본인만 읽기·쓰기
- * - 리뷰 쓰기·프로필 수정: 본인 행만
+ * - 공개 데이터(도시·상품·사진·진행 일정·취소 규정·리뷰·프로필): 누구나 읽기, 쓰기는 정책 없음(= 거부)
+ * - 개인 데이터(장바구니·찜·찜 폴더·여행·일정 항목): 본인만 읽기·쓰기
+ * - 주문·주문 항목: 본인 것 **읽기만**. 만들기·취소는 DB 함수(place_order·cancel_order)로만 한다
+ *   → 금액을 클라이언트가 정할 수 없게 하기 위해서다 (가격은 함수가 products에서 다시 계산)
+ * - 리뷰 쓰기: 본인 행 + 이용일이 지난 구매 내역이 있을 때만 (has_used_product)
  *
- * 여기서 표현할 수 없는 것(트리거, 컬럼 단위 GRANT, Storage 정책)은
- * src/db/migrations/0001_*.sql 커스텀 마이그레이션에 있다.
+ * 여기서 표현할 수 없는 것(트리거, 함수, 컬럼 단위 GRANT, Storage 정책)은
+ * src/db/migrations/0001·0005 커스텀 마이그레이션에 있다.
  */
 import { sql } from "drizzle-orm";
 import {
@@ -31,15 +33,22 @@ import {
   timestamp,
   unique,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { anonRole, authenticatedRole, authUid, authUsers } from "drizzle-orm/supabase";
 
 // drizzle-kit이 tsconfig 경로 별칭을 해석하지 못할 수 있어 상대 경로로 가져온다
-import { ITEM_TYPE_VALUES, SEASON_VALUES, THEME_VALUES } from "../lib/constants/taxonomy";
+import {
+  CATEGORY_VALUES,
+  ITEM_TYPE_VALUES,
+  ORDER_STATUS_VALUES,
+  THEME_VALUES,
+} from "../lib/constants/taxonomy";
 
 // ─── enum ───────────────────────────────────────────────────────────────
-export const themeEnum = pgEnum("destination_theme", THEME_VALUES);
-export const seasonEnum = pgEnum("season", SEASON_VALUES);
+export const categoryEnum = pgEnum("product_category", CATEGORY_VALUES);
+export const themeEnum = pgEnum("product_theme", THEME_VALUES);
+export const orderStatusEnum = pgEnum("order_status", ORDER_STATUS_VALUES);
 export const itemTypeEnum = pgEnum("itinerary_item_type", ITEM_TYPE_VALUES);
 
 // ─── 공통 컬럼 ───────────────────────────────────────────────────────────
@@ -79,85 +88,291 @@ export const profiles = pgTable(
   ],
 );
 
-// ─── destinations: 여행지 (관리자 데이터, 앱에서는 읽기 전용) ────────────────
-export const destinations = pgTable(
-  "destinations",
+// ─── cities: 도시 (상품 분류 · 메인 바로가기) ──────────────────────────────
+export const cities = pgTable(
+  "cities",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     slug: text("slug").notNull().unique(),
     name: text("name").notNull(),
     nameEn: text("name_en").notNull(),
-    country: text("country").notNull(),
-    theme: themeEnum("theme").notNull(),
-    // 대표 계절(카드의 시즌 배지) + 추천 계절 목록(계절 필터) — 사용자 확정
-    season: seasonEnum("season").notNull(),
-    bestSeasons: seasonEnum("best_seasons").array().notNull(),
-    summary: text("summary").notNull(), // 한 줄 소개 (메타 description)
-    description: text("description").notNull(), // 상세 "소개" 본문
-    imageUrl: text("image_url").notNull(), // 대표 사진 (카드·히어로)
+    summary: text("summary").notNull(),
+    imageUrl: text("image_url").notNull(),
     imageAlt: text("image_alt").notNull(),
     latitude: doublePrecision("latitude").notNull(),
     longitude: doublePrecision("longitude").notNull(),
-    // 상세 사이드 "여행 정보" (명세 4.3: 시즌·비행·시차·통화)
-    flightInfo: text("flight_info"),
-    timeDifference: text("time_difference"),
-    currency: text("currency"),
-    // 값이 있으면 카드가 disabled 상태가 된다 (명세 5.1 Disabled)
+    position: smallint("position").notNull(), // 화면 표시 순서
+  },
+  () => [publicRead("cities_select_public")],
+);
+
+// ─── cancellation_policies: 취소 규정 (예: 7일 전 100% · 3일 전 50% …) ─────────
+export const cancellationPolicies = pgTable(
+  "cancellation_policies",
+  {
+    // 코드(flexible·standard·strict)를 키로 써서 주문 항목에 그대로 복사해 둔다
+    code: text("code").primaryKey(),
+    name: text("name").notNull(),
+    summary: text("summary").notNull(),
+  },
+  () => [publicRead("cancellation_policies_select_public")],
+);
+
+// 구간: "이용일 days_before일 전까지 취소하면 refund_rate% 환불"
+// 남은 일수 이하인 구간 중 days_before가 가장 큰 것을 적용한다 (refund_quote 함수)
+export const cancellationPolicyTiers = pgTable(
+  "cancellation_policy_tiers",
+  {
+    policyCode: text("policy_code")
+      .notNull()
+      .references(() => cancellationPolicies.code, { onDelete: "cascade" }),
+    daysBefore: smallint("days_before").notNull(),
+    refundRate: smallint("refund_rate").notNull(),
+  },
+  (t) => [
+    primaryKey({ name: "cancellation_policy_tiers_pkey", columns: [t.policyCode, t.daysBefore] }),
+    check("cancellation_policy_tiers_days", sql`${t.daysBefore} between 0 and 60`),
+    check("cancellation_policy_tiers_rate", sql`${t.refundRate} between 0 and 100`),
+    publicRead("cancellation_policy_tiers_select_public"),
+  ],
+);
+
+// ─── products: 판매 상품 (관리자 데이터, 앱에서는 읽기 전용) ────────────────────
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    cityId: uuid("city_id")
+      .notNull()
+      .references(() => cities.id, { onDelete: "restrict" }),
+    category: categoryEnum("category").notNull(),
+    theme: themeEnum("theme").notNull(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(), // 한 줄 소개 (카드·메타 description)
+    description: text("description").notNull(), // 상세 "상품 소개" 본문
+    highlights: text("highlights")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    imageUrl: text("image_url").notNull(), // 대표 사진 (카드)
+    imageAlt: text("image_alt").notNull(),
+    // 가격은 원(KRW) 정수. 아동 가격이 없으면 성인 전용 상품
+    adultPrice: integer("adult_price").notNull(),
+    childPrice: integer("child_price"),
+    // 정가 — 있으면 할인 전 가격으로 취소선 표시
+    listAdultPrice: integer("list_adult_price"),
+    // 운영 요일 (ISO 요일: 1=월 … 7=일)
+    operatingDays: smallint("operating_days").array().notNull(),
+    // 예약 마감: 이용일 N일 전까지 (0 = 당일까지)
+    cutoffDays: smallint("cutoff_days").notNull().default(1),
+    maxQty: smallint("max_qty").notNull().default(10), // 한 번에 예약할 수 있는 총 인원
+    startTime: time("start_time"),
+    durationText: text("duration_text").notNull(), // "약 4시간", "1일권" 등 표시용
+    includes: text("includes")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    excludes: text("excludes")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    usageInfo: text("usage_info")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    meetingPoint: text("meeting_point").notNull(), // 투어 = 만나는 장소, 티켓 = 이용 장소
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    cancelPolicy: text("cancel_policy")
+      .notNull()
+      .references(() => cancellationPolicies.code),
+    // 값이 있으면 판매 중지 — 카드 disabled 상태(명세 5.1)와 예약 불가에 쓴다
     unavailableReason: text("unavailable_reason"),
+    recommendRank: smallint("recommend_rank"), // 추천순 정렬·메인 노출 (작을수록 먼저)
     // 리뷰 집계 캐시 — reviews 트리거가 갱신한다. 목록에서 매번 집계하지 않기 위해 저장한다
     ratingAvg: numeric("rating_avg", { precision: 2, scale: 1 }).notNull().default("0"),
     reviewCount: integer("review_count").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
-    check("destinations_season_in_best", sql`${t.season} = any(${t.bestSeasons})`),
-    check("destinations_latitude", sql`${t.latitude} between -90 and 90`),
-    check("destinations_longitude", sql`${t.longitude} between -180 and 180`),
-    index("destinations_theme_idx").on(t.theme),
-    // 배열 포함 검색(best_seasons @> '{fall}')용 GIN 인덱스
-    index("destinations_best_seasons_idx").using("gin", t.bestSeasons),
-    publicRead("destinations_select_public"),
+    check("products_title_length", sql`char_length(${t.title}) between 1 and 60`),
+    check("products_adult_price", sql`${t.adultPrice} > 0`),
+    check("products_child_price", sql`${t.childPrice} is null or ${t.childPrice} >= 0`),
+    check(
+      "products_list_price",
+      sql`${t.listAdultPrice} is null or ${t.listAdultPrice} > ${t.adultPrice}`,
+    ),
+    check(
+      "products_operating_days",
+      sql`cardinality(${t.operatingDays}) >= 1 and ${t.operatingDays} <@ '{1,2,3,4,5,6,7}'::smallint[]`,
+    ),
+    check("products_cutoff_days", sql`${t.cutoffDays} between 0 and 30`),
+    check("products_max_qty", sql`${t.maxQty} between 1 and 20`),
+    check("products_latitude", sql`${t.latitude} between -90 and 90`),
+    check("products_longitude", sql`${t.longitude} between -180 and 180`),
+    index("products_city_idx").on(t.cityId),
+    index("products_category_theme_idx").on(t.category, t.theme),
+    publicRead("products_select_public"),
   ],
 );
 
-// ─── destination_images: 상세 갤러리 사진 ─────────────────────────────────
-export const destinationImages = pgTable(
-  "destination_images",
+// ─── product_images: 상세 갤러리 사진 ─────────────────────────────────────
+export const productImages = pgTable(
+  "product_images",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    destinationId: uuid("destination_id")
+    productId: uuid("product_id")
       .notNull()
-      .references(() => destinations.id, { onDelete: "cascade" }),
+      .references(() => products.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     alt: text("alt").notNull(),
     position: smallint("position").notNull(),
   },
   (t) => [
-    unique("destination_images_position_unique").on(t.destinationId, t.position),
-    publicRead("destination_images_select_public"),
+    unique("product_images_position_unique").on(t.productId, t.position),
+    publicRead("product_images_select_public"),
   ],
 );
 
-// ─── destination_itinerary_items: 상세 페이지 "추천 일정" ─────────────────────
-export const destinationItineraryItems = pgTable(
-  "destination_itinerary_items",
+// ─── product_itinerary_items: 투어 "진행 일정" (하루 코스) ──────────────────────
+export const productItineraryItems = pgTable(
+  "product_itinerary_items",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    destinationId: uuid("destination_id")
+    productId: uuid("product_id")
       .notNull()
-      .references(() => destinations.id, { onDelete: "cascade" }),
-    dayNumber: smallint("day_number").notNull(), // 1부터
+      .references(() => products.id, { onDelete: "cascade" }),
     position: smallint("position").notNull(),
     time: time("time"),
     title: text("title").notNull(),
     note: text("note"),
     type: itemTypeEnum("type").notNull(),
-    caution: text("caution"), // 주의 메모 (예: 월요일 휴관)
+    caution: text("caution"),
   },
   (t) => [
-    check("destination_itinerary_items_day", sql`${t.dayNumber} >= 1`),
-    unique("destination_itinerary_items_order_unique").on(t.destinationId, t.dayNumber, t.position),
-    publicRead("destination_itinerary_items_select_public"),
+    unique("product_itinerary_items_order_unique").on(t.productId, t.position),
+    publicRead("product_itinerary_items_select_public"),
+  ],
+);
+
+// ─── cart_items: 장바구니 (로그인 사용자, DB 저장) ───────────────────────────
+// 가격 컬럼이 없다: 장바구니는 항상 "현재 가격"으로 보여주고, 결제 금액은 place_order가 계산한다.
+// 예약 가능 여부(요일·마감·인원)는 BEFORE 트리거(validate_cart_item)가 검사한다.
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .default(sql`auth.uid()`)
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    useDate: date("use_date").notNull(),
+    adultQty: smallint("adult_qty").notNull().default(1),
+    childQty: smallint("child_qty").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check(
+      "cart_items_qty",
+      sql`${t.adultQty} >= 0 and ${t.childQty} >= 0 and ${t.adultQty} + ${t.childQty} >= 1`,
+    ),
+    // 같은 상품·같은 날짜는 한 줄로 합친다 (담기 액션이 수량을 더한다)
+    unique("cart_items_user_product_date_unique").on(t.userId, t.productId, t.useDate),
+    pgPolicy("cart_items_owner_all", {
+      for: "all",
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+      withCheck: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+// ─── orders: 주문 (모의 결제) ─────────────────────────────────────────────
+// INSERT·UPDATE 정책이 없다 = 사용자가 직접 만들거나 고칠 수 없다. place_order·cancel_order 함수만 쓴다.
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderNo: text("order_no").notNull().unique(), // 화면·URL용 번호: YO261015-000123
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    status: orderStatusEnum("status").notNull().default("paid"),
+    bookerName: text("booker_name").notNull(),
+    bookerEmail: text("booker_email").notNull(),
+    bookerPhone: text("booker_phone").notNull(),
+    totalAmount: integer("total_amount").notNull(),
+    refundAmount: integer("refund_amount"), // 취소 시 확정된 환불액
+    paymentMethod: text("payment_method").notNull().default("demo"),
+    // 중복 결제 방지 키: 결제 버튼을 두 번 누르거나 재시도해도 주문이 하나만 생긴다
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    policyAgreedAt: timestamp("policy_agreed_at", { withTimezone: true }).notNull(),
+    paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("orders_booker_name", sql`char_length(${t.bookerName}) between 1 and 30`),
+    check(
+      "orders_booker_email",
+      sql`char_length(${t.bookerEmail}) <= 254 and ${t.bookerEmail} like '%_@_%'`,
+    ),
+    check("orders_booker_phone", sql`${t.bookerPhone} ~ '^01[016789]-[0-9]{3,4}-[0-9]{4}$'`),
+    check("orders_total_amount", sql`${t.totalAmount} > 0`),
+    check(
+      "orders_refund_amount",
+      sql`${t.refundAmount} is null or ${t.refundAmount} between 0 and ${t.totalAmount}`,
+    ),
+    unique("orders_user_idempotency_unique").on(t.userId, t.idempotencyKey),
+    index("orders_user_created_idx").on(t.userId, t.createdAt),
+    pgPolicy("orders_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+// ─── order_items: 주문 항목 — 구매 시점의 상품명·단가·취소 규정을 복사해 둔다 ─────────
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    // 주문 이력이 있는 상품은 지울 수 없다 (판매 중지는 unavailable_reason으로)
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    productTitle: text("product_title").notNull(),
+    useDate: date("use_date").notNull(),
+    adultQty: smallint("adult_qty").notNull(),
+    childQty: smallint("child_qty").notNull(),
+    adultPrice: integer("adult_price").notNull(),
+    childPrice: integer("child_price"),
+    subtotal: integer("subtotal").notNull(),
+    cancelPolicy: text("cancel_policy")
+      .notNull()
+      .references(() => cancellationPolicies.code),
+    refundAmount: integer("refund_amount"),
+  },
+  (t) => [
+    check("order_items_qty", sql`${t.adultQty} >= 0 and ${t.childQty} >= 0`),
+    check("order_items_subtotal", sql`${t.subtotal} > 0`),
+    index("order_items_order_idx").on(t.orderId),
+    // 리뷰 자격 확인(has_used_product)용
+    index("order_items_product_date_idx").on(t.productId, t.useDate),
+    pgPolicy("order_items_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`exists (select 1 from public.orders o where o.id = ${t.orderId} and o.user_id = ${authUid})`,
+    }),
   ],
 );
 
@@ -186,7 +401,7 @@ export const likeFolders = pgTable(
   ],
 );
 
-// ─── likes: 찜 (사용자 × 여행지, 폴더는 0~1개 — 사용자 확정) ─────────────────
+// ─── likes: 찜 (사용자 × 상품, 폴더는 0~1개 — 사용자 확정) ─────────────────
 export const likes = pgTable(
   "likes",
   {
@@ -194,16 +409,16 @@ export const likes = pgTable(
       .notNull()
       .default(sql`auth.uid()`)
       .references(() => profiles.id, { onDelete: "cascade" }),
-    destinationId: uuid("destination_id")
+    productId: uuid("product_id")
       .notNull()
-      .references(() => destinations.id, { onDelete: "cascade" }),
+      .references(() => products.id, { onDelete: "cascade" }),
     // 폴더를 지우면 찜은 남기고 "폴더 없음"으로 돌린다
     folderId: uuid("folder_id").references(() => likeFolders.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [
-    // 같은 여행지를 두 번 찜할 수 없다
-    primaryKey({ name: "likes_pkey", columns: [t.userId, t.destinationId] }),
+    // 같은 상품을 두 번 찜할 수 없다
+    primaryKey({ name: "likes_pkey", columns: [t.userId, t.productId] }),
     index("likes_folder_idx").on(t.folderId),
     pgPolicy("likes_owner_all", {
       for: "all",
@@ -247,7 +462,11 @@ export const trips = pgTable(
   ],
 );
 
-// ─── trip_items: 날짜별 일정 항목 (여행지 연결 또는 자유 장소 — 사용자 확정) ─────
+// 일정 항목에는 user_id가 없으므로 "상위 여행이 본인 것인지"로 소유권을 판단한다
+const ownTrip = (tripId: AnyPgColumn) =>
+  sql`exists (select 1 from public.trips tr where tr.id = ${tripId} and tr.user_id = ${authUid})`;
+
+// ─── trip_items: 날짜별 일정 항목 (상품 연결 · 자유 장소 · 예약 자동 추가) ─────────
 export const tripItems = pgTable(
   "trip_items",
   {
@@ -262,13 +481,21 @@ export const tripItems = pgTable(
     type: itemTypeEnum("type").notNull().default("sight"),
     note: text("note"),
     caution: text("caution"), // 주의 메모 → 타임라인 disabled(휴무) 표시
-    // 여행지와 연결되면 동선 지도에 좌표로 표시된다. 여행지가 지워져도 항목은 남긴다
-    destinationId: uuid("destination_id").references(() => destinations.id, {
-      onDelete: "set null",
-    }),
+    // 상품과 연결되면 동선 지도에 좌표(만나는 장소)로 표시된다. 상품이 지워져도 항목은 남긴다
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    // 주문으로 자동 추가된 예약 항목. 사용자는 이 컬럼을 쓸 수 없다(GRANT 없음) — place_order만 채운다
+    orderItemId: uuid("order_item_id")
+      .unique("trip_items_order_item_unique")
+      .references(() => orderItems.id, { onDelete: "cascade" }),
     createdAt: createdAt(),
   },
   (t) => [
+    // 예약 유형 ⇔ 주문 항목 연결: 사용자가 직접 "예약" 항목을 만들거나 예약 항목의 유형을 바꿀 수 없다
+    // (type::text로 비교: 같은 트랜잭션에서 추가한 enum 값을 바로 쓰면 Postgres가 거부한다)
+    check(
+      "trip_items_booking_link",
+      sql`(${t.type}::text = 'booking') = (${t.orderItemId} is not null)`,
+    ),
     check("trip_items_day_index", sql`${t.dayIndex} between 0 and 29`),
     check("trip_items_title_length", sql`char_length(${t.title}) between 1 and 60`),
     check("trip_items_note_length", sql`${t.note} is null or char_length(${t.note}) <= 200`),
@@ -277,17 +504,24 @@ export const tripItems = pgTable(
       sql`${t.caution} is null or char_length(${t.caution}) <= 60`,
     ),
     index("trip_items_order_idx").on(t.tripId, t.dayIndex, t.position),
-    // 항목에는 user_id가 없으므로 "상위 여행이 본인 것인지"로 소유권을 판단한다
     pgPolicy("trip_items_owner_all", {
       for: "all",
       to: authenticatedRole,
-      using: sql`exists (select 1 from public.trips tr where tr.id = ${t.tripId} and tr.user_id = ${authUid})`,
-      withCheck: sql`exists (select 1 from public.trips tr where tr.id = ${t.tripId} and tr.user_id = ${authUid})`,
+      using: ownTrip(t.tripId),
+      withCheck: ownTrip(t.tripId),
+    }),
+    // 제한(restrictive) 정책은 위 정책과 AND로 묶인다: 예약 항목은 일정에서 직접 지울 수 없다.
+    // 주문을 취소하면 cancel_order(security definer)가 함께 지운다
+    pgPolicy("trip_items_delete_not_booking", {
+      as: "restrictive",
+      for: "delete",
+      to: authenticatedRole,
+      using: sql`${t.orderItemId} is null`,
     }),
   ],
 );
 
-// ─── reviews: 리뷰 (별점 + 텍스트 + 사진 1장, 여행지당 1개 — 사용자 확정) ─────────
+// ─── reviews: 리뷰 (별점 + 텍스트 + 사진 1장, 상품당 1개, 구매 고객만 — 사용자 확정) ─────
 export const reviews = pgTable(
   "reviews",
   {
@@ -297,9 +531,9 @@ export const reviews = pgTable(
       .notNull()
       .default(sql`auth.uid()`)
       .references(() => profiles.id, { onDelete: "cascade" }),
-    destinationId: uuid("destination_id")
+    productId: uuid("product_id")
       .notNull()
-      .references(() => destinations.id, { onDelete: "cascade" }),
+      .references(() => products.id, { onDelete: "cascade" }),
     rating: smallint("rating").notNull(),
     content: text("content").notNull(),
     // Storage(review-photos 버킷)의 객체 경로: "{user_id}/{파일명}"
@@ -310,13 +544,14 @@ export const reviews = pgTable(
   (t) => [
     check("reviews_rating_range", sql`${t.rating} between 1 and 5`),
     check("reviews_content_length", sql`char_length(${t.content}) between 10 and 1000`),
-    unique("reviews_user_destination_unique").on(t.userId, t.destinationId),
-    index("reviews_destination_created_idx").on(t.destinationId, t.createdAt),
+    unique("reviews_user_product_unique").on(t.userId, t.productId),
+    index("reviews_product_created_idx").on(t.productId, t.createdAt),
     publicRead("reviews_select_public"),
+    // 구매 인증: 이용일이 지난(취소되지 않은) 주문이 있어야 쓸 수 있다. 함수는 0005에 있다
     pgPolicy("reviews_insert_own", {
       for: "insert",
       to: authenticatedRole,
-      withCheck: sql`${t.userId} = ${authUid}`,
+      withCheck: sql`${t.userId} = ${authUid} and public.has_used_product(${t.productId})`,
     }),
     pgPolicy("reviews_update_own", {
       for: "update",
