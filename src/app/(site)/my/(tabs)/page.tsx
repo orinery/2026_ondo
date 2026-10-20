@@ -6,11 +6,14 @@ import { signOut } from "@/actions/auth";
 import { ProductCard, ProductCardEmpty, ProductGrid } from "@/components/product/product-card";
 import { FolderChips } from "@/components/my/folder-chips";
 import { MoveToFolderMenu } from "@/components/my/move-to-folder-menu";
+import { OrderList } from "@/components/orders/order-list";
 import { PlannerView } from "@/components/planner/planner-view";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { getMyLikes } from "@/lib/data/likes";
+import { getMyOrders } from "@/lib/data/orders";
 import { getMyTrips, getTrip } from "@/lib/data/trips";
+import { STATUS_FILTERS, type DisplayStatus } from "@/lib/order-status";
 import { seoulNow } from "@/lib/trip-dates";
 import { cn } from "@/lib/utils";
 
@@ -20,21 +23,27 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// 사용자 확정: 나의 여행 = 예약 내역 · 찜 · 일정 플래너 (예약 내역이 기본 탭)
 const TABS = [
+  { value: "orders", label: "예약 내역" },
   { value: "likes", label: "찜 목록" },
   { value: "planner", label: "일정 플래너" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
+const isTab = (v: unknown): v is Tab => TABS.some((t) => t.value === v);
+const isStatus = (v: unknown): v is DisplayStatus =>
+  STATUS_FILTERS.some((f) => f.value !== "all" && f.value === v);
+
 /**
  * 나의 여행 (명세 4.4, 보호된 페이지)
- * 탭과 폴더 선택은 URL 쿼리(?tab=&folder=)와 동기화한다 → 새로고침·공유해도 같은 화면
+ * 탭·상태·폴더 선택은 URL 쿼리(?tab=&status=&folder=)와 동기화한다 → 새로고침·공유해도 같은 화면
  */
 export default async function MyPage({ searchParams }: PageProps<"/my">) {
   // proxy가 1차로 막지만, 페이지에서도 다시 확인한다 (다중 방어)
   const user = await requireUser("/my");
   const params = await searchParams;
-  const tab: Tab = params.tab === "planner" ? "planner" : "likes";
+  const tab: Tab = isTab(params.tab) ? params.tab : "orders";
 
   return (
     <div className="container flex flex-col gap-8 py-10 md:py-14">
@@ -54,7 +63,7 @@ export default async function MyPage({ searchParams }: PageProps<"/my">) {
       </header>
 
       {/* 탭: 링크로 구현해 URL과 동기화 (명세 4.4) */}
-      <nav aria-label="나의 여행 메뉴" className="flex w-full max-w-sm rounded-md bg-muted p-1">
+      <nav aria-label="나의 여행 메뉴" className="flex w-full max-w-md rounded-md bg-muted p-1">
         {TABS.map((t) => (
           <Link
             key={t.value}
@@ -71,13 +80,20 @@ export default async function MyPage({ searchParams }: PageProps<"/my">) {
         ))}
       </nav>
 
-      {tab === "likes" ? (
+      {tab === "orders" && <OrdersTab status={isStatus(params.status) ? params.status : "all"} />}
+      {tab === "likes" && (
         <LikesTab folderParam={typeof params.folder === "string" ? params.folder : null} />
-      ) : (
+      )}
+      {tab === "planner" && (
         <PlannerTab tripParam={typeof params.trip === "string" ? params.trip : null} />
       )}
     </div>
   );
+}
+
+async function OrdersTab({ status }: { status: DisplayStatus | "all" }) {
+  const orders = await getMyOrders();
+  return <OrderList orders={orders} status={status} />;
 }
 
 async function LikesTab({ folderParam }: { folderParam: string | null }) {
