@@ -737,6 +737,11 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      add_booking_to_trip: {
+        Args: { p_order_item_id: string; p_trip_id: string };
+        Returns: undefined;
+      };
+      attach_bookings: { Args: { p_trip_id: string }; Returns: number };
       booking_error: {
         Args: { p_adult: number; p_child: number; p_product_id: string; p_use_date: string };
         Returns: string;

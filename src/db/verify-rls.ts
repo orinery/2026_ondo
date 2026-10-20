@@ -649,6 +649,60 @@ async function main() {
       }
       check("환불 구간 경계 (7·6·3·2·1일 전)", boundaryOk, observed.join(" · "));
 
+      // ── 새 여행을 만들면 그 기간의 예약이 붙는다 + 시작 시간 순 자리 (사용자 피드백)
+      // 위에서 만든 "7일 뒤" 주문(후지산 투어, 08:00 시작)은 아직 플래너에 없다
+      const [newTrip] = await as(
+        tx,
+        A,
+        (sp) => sp<{ id: string }[]>`
+        insert into public.trips (title, start_date, end_date)
+        values ('다시 만든 여행', public.seoul_today() + 7, public.seoul_today() + 8) returning id`,
+      );
+      if (!newTrip) throw new Error("새 여행 생성 실패");
+      // Day 1(= 7일 뒤)에 07:00 · 12:00 일정을 먼저 넣어 둔다
+      await as(
+        tx,
+        A,
+        (sp) => sp`insert into public.trip_items (trip_id, day_index, position, title, time)
+                   values (${newTrip.id}, 0, 0, '아침 식사', '07:00'), (${newTrip.id}, 0, 1, '점심', '12:00')`,
+      );
+      await expectError(
+        tx,
+        "B: A의 여행에 예약 붙이기",
+        B,
+        "not_found",
+        (sp) => sp`select public.attach_bookings(${newTrip.id})`,
+      );
+      const [attached] = await as(
+        tx,
+        A,
+        (sp) => sp<{ n: number }[]>`select public.attach_bookings(${newTrip.id}) as n`,
+      );
+      const day2 = (
+        await tx<{ title: string; type: string }[]>`
+          select title, type::text from public.trip_items
+          where trip_id = ${newTrip.id} and day_index = 0 order by position`
+      )
+        .map((r) => (r.type === "booking" ? `[예약]${r.title.slice(0, 6)}` : r.title))
+        .join(" → ");
+      check(
+        "새 여행에 기존 예약 붙이기 (시작 시간 순 자리)",
+        attached?.n === 1 && day2.startsWith("아침 식사 → [예약]") && day2.endsWith("→ 점심"),
+        `${attached?.n}개 · ${day2}`,
+      );
+      const [again2] = await as(
+        tx,
+        A,
+        (sp) => sp<{ n: number }[]>`select public.attach_bookings(${newTrip.id}) as n`,
+      );
+      check("다시 불러도 중복으로 붙지 않음", again2?.n === 0, `${again2?.n}개`);
+      await expectBlocked(
+        tx,
+        "anon: 예약 붙이기 함수 실행",
+        anon,
+        async (sp) => (await sp`select public.attach_bookings(${newTrip.id})`).count,
+      );
+
       const [todayOrder] = await tx<{ id: string }[]>`
         insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
         values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 10000, ${randomUUID()}, now())
