@@ -13,7 +13,11 @@ import {
   ProductCardSkeleton,
   ProductGrid,
 } from "@/components/product/product-card";
+import { CartView } from "@/components/cart/cart-view";
+import { OrderList } from "@/components/orders/order-list";
+import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { MOCK_ITINERARY } from "@/lib/mock/itinerary";
+import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
 import { seoulNow } from "@/lib/trip-dates";
 
@@ -367,7 +371,7 @@ export default function DevComponentsPage() {
             명세 밖 쇼핑몰 화면이라 기존 토큰·컴포넌트(Calendar, Button, 카드 보더)로 구성했다. 1023
             이하 상세에서는 하단 고정 바 → 하단 시트에 같은 내용이 열린다.
           </p>
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <BookingDemo today={seoulNow().today} />
             <div className="flex flex-col gap-6">
               <CancellationPolicyTable
@@ -390,6 +394,39 @@ export default function DevComponentsPage() {
                 tiers={[{ daysBefore: 0, refundRate: 0 }]}
               />
             </div>
+          </div>
+        </Section>
+
+        <Section id="orders" title="8. 장바구니 · 예약 내역 · 예약 취소">
+          <p className="text-sm text-muted-foreground">
+            명세 밖 쇼핑몰 화면 — 기존 토큰·컴포넌트로 구성. 목업 데이터라 인원 변경·삭제·취소
+            버튼은 &quot;로그인 필요&quot;로 실패한다.
+          </p>
+          <h3 className="text-lg font-semibold">장바구니 (주문 가능 1 · 마감 지난 항목 1)</h3>
+          <div className="rounded-lg border p-4 md:p-6">
+            <CartView items={MOCK_CART} preview />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">예약 내역 (이용 예정 · 이용 완료 · 취소)</h3>
+          <OrderList orders={MOCK_ORDERS} status="all" />
+          <h3 className="mt-4 text-lg font-semibold">예약 취소 확인 창 (환불 예정액)</h3>
+          <div>
+            <CancelOrderDialog
+              orderId="00000000-0000-0000-0000-000000000000"
+              orderNo="YO261015-000031"
+              lines={[
+                {
+                  title: "후지산·가와구치코 당일 버스 투어",
+                  daysBefore: 5,
+                  refundRate: 50,
+                  refundAmount: 89000,
+                },
+              ]}
+            />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">빈 상태</h3>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <CartView items={[]} preview />
+            <OrderList orders={[]} status="all" />
           </div>
         </Section>
       </main>

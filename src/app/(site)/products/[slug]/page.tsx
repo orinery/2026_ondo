@@ -135,7 +135,7 @@ export default async function ProductDetailPage({
                 ))}
               </ul>
             )}
-            <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border bg-card p-5 text-sm sm:grid-cols-4">
+            <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border bg-card p-5 text-sm md:grid-cols-4">
               <Fact label="운영">{operatingDaysLabel(product.operatingDays)}</Fact>
               <Fact label="소요 시간">{product.durationText}</Fact>
               <Fact label="시작 시간">{product.startTime ?? "자유"}</Fact>
@@ -156,7 +156,7 @@ export default async function ProductDetailPage({
             <h2 id="includes-title" className="font-kr text-2xl font-semibold">
               포함 · 불포함
             </h2>
-            <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-2">
               <IconList title="포함" items={product.includes} icon="check" />
               <IconList title="불포함" items={product.excludes} icon="x" />
             </div>
