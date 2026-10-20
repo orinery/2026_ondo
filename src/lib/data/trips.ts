@@ -38,6 +38,7 @@ export type TripItem = {
   } | null;
   // 주문으로 자동 추가된 예약 항목 — 날짜 이동·삭제는 DB가 막는다 (예약 취소로만 지워짐)
   isBooking: boolean;
+  orderNo: string | null; // 예약 항목이면 주문번호 (예약 상세 링크)
 };
 
 export type TripDetail = TripSummary & { items: TripItem[] };
@@ -70,7 +71,8 @@ export async function getTrip(tripId: string): Promise<TripDetail | null> {
     .select(
       `id, title, start_date, end_date,
        trip_items ( id, day_index, position, title, time, type, note, caution, order_item_id,
-                    products ( id, slug, title, latitude, longitude ) )`,
+                    products ( id, slug, title, latitude, longitude ),
+                    order_items ( orders ( order_no ) ) )`,
     )
     .eq("id", tripId)
     .maybeSingle();
@@ -89,6 +91,7 @@ export async function getTrip(tripId: string): Promise<TripDetail | null> {
       caution: i.caution,
       product: i.products,
       isBooking: i.order_item_id !== null,
+      orderNo: i.order_items?.orders.order_no ?? null,
     }))
     .sort((a, b) => a.dayIndex - b.dayIndex || a.position - b.position);
 

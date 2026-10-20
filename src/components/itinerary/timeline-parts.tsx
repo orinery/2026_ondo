@@ -1,6 +1,7 @@
 "use client";
 
 import { GripVerticalIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import Link from "next/link";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +20,9 @@ export function DayTabsList({ days }: { days: ItineraryDay[] }) {
   return (
     // 여행이 길면 Day 탭이 많아지므로 여러 줄로 감싼다.
     // 가로 스크롤로 하면 스크롤 영역이 키보드로 접근되지 않는 문제(axe: scrollable-region-focusable)가 생긴다
-    <TabsList className="h-auto w-full flex-wrap justify-start rounded-md bg-muted p-1">
+    // shadcn TabsList는 가로 탭에 고정 높이(group-data-horizontal/tabs:h-8)를 준다. 같은 변형으로 덮어써야
+    // 줄바꿈된 Day 탭(4일 이상)이 틀 밖으로 넘쳐 아래 내용과 겹치고 클릭이 막히는 문제가 생기지 않는다
+    <TabsList className="h-auto w-full flex-wrap justify-start rounded-md bg-muted p-1 group-data-horizontal/tabs:h-auto">
       {days.map((day) => (
         <TabsTrigger
           key={day.id}
@@ -141,6 +144,14 @@ export function TimelineCard({
           >
             {item.note}
           </p>
+        )}
+        {item.bookingHref && (
+          <Link
+            href={item.bookingHref}
+            className="mt-1 inline-block text-sm font-semibold text-primary underline-offset-3 hover:underline"
+          >
+            예약 보기<span className="sr-only"> ({item.title})</span> →
+          </Link>
         )}
         {/* 배지 배경은 bg-card: 휴무 카드(bg-muted) 위에 warning 10%를 겹치면 대비가 4.5:1 아래로 떨어진다 (8단계 axe) */}
         {closed && (

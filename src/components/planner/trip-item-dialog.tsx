@@ -1,9 +1,10 @@
 "use client";
 
-import { MapPinIcon } from "lucide-react";
+import { MapPinIcon, TicketIcon } from "lucide-react";
+import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 
-import { addTripItem, updateTripItem } from "@/actions/trips";
+import { addTripItem, updateBookingItem, updateTripItem } from "@/actions/trips";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,7 @@ import {
 import { ITEM_TYPES, type ItemTypeSlug } from "@/lib/constants/taxonomy";
 import type { TripItem } from "@/lib/data/trips";
 import { cn } from "@/lib/utils";
-import { tripItemSchema } from "@/lib/validation/trip";
+import { bookingItemSchema, tripItemSchema } from "@/lib/validation/trip";
 
 import { Field } from "./trip-form-dialog";
 
@@ -36,6 +37,7 @@ export type TripItemDialogState =
 /**
  * 일정 항목 추가("+ 장소 추가") / 수정(항목 제목 클릭)
  * 수정 창의 'Day' 선택으로 다른 날로 옮길 수 있다 (사용자 확정)
+ * 예약 항목(주문으로 자동 추가)은 날짜·유형을 바꿀 수 없다 — 이용일과 주문에서 정해지기 때문 (DB 트리거도 막음)
  */
 export function TripItemDialog({
   tripId,
@@ -54,6 +56,7 @@ export function TripItemDialog({
   const [pending, startTransition] = useTransition();
 
   const item = state?.mode === "edit" ? state.item : null;
+  const isBooking = item?.isBooking ?? false;
   const initialDay = state?.mode === "edit" ? state.item.dayIndex : (state?.dayIndex ?? 0);
   const [dayIndex, setDayIndex] = useState(initialDay);
   const [type, setType] = useState<ItemTypeSlug>(item?.type ?? "sight");
@@ -78,7 +81,7 @@ export function TripItemDialog({
       note: form.get("note"),
       caution: form.get("caution"),
     };
-    const parsed = tripItemSchema.safeParse(input);
+    const parsed = (isBooking ? bookingItemSchema : tripItemSchema).safeParse(input);
     if (!parsed.success) {
       const next: FieldErrors = {};
       for (const issue of parsed.error.issues) {
@@ -95,9 +98,11 @@ export function TripItemDialog({
     }
     setErrors({});
     startTransition(async () => {
-      const result = item
-        ? await updateTripItem(tripId, item.id, input)
-        : await addTripItem(tripId, input);
+      const result = !item
+        ? await addTripItem(tripId, input)
+        : isBooking
+          ? await updateBookingItem(item.id, input)
+          : await updateTripItem(tripId, item.id, input);
       if (!result.ok)
         return setFormError(result.message ?? "저장하지 못했어요. 다시 시도해 주세요");
       onOpenChange(false);
@@ -114,9 +119,27 @@ export function TripItemDialog({
           className="flex flex-col gap-4"
         >
           <DialogHeader>
-            <DialogTitle>{item ? "일정 수정" : "장소 추가"}</DialogTitle>
+            <DialogTitle>
+              {isBooking ? "예약 일정 수정" : item ? "일정 수정" : "장소 추가"}
+            </DialogTitle>
             <DialogDescription>
-              {item?.product ? (
+              {isBooking ? (
+                <span className="flex flex-col gap-1">
+                  <span className="inline-flex items-center gap-1">
+                    <TicketIcon aria-hidden className="size-3.5" />
+                    주문으로 추가된 예약이에요. 날짜·유형은 바꿀 수 없고, 예약을 취소하면 일정에서도
+                    빠져요.
+                  </span>
+                  {item?.orderNo && (
+                    <Link
+                      href={`/my/orders/${item.orderNo}`}
+                      className="self-start font-semibold text-primary hover:underline"
+                    >
+                      예약 상세 보기 →
+                    </Link>
+                  )}
+                </span>
+              ) : item?.product ? (
                 <span className="inline-flex items-center gap-1">
                   <MapPinIcon aria-hidden className="size-3.5" />
                   {item.product.title}과(와) 연결된 일정이에요 (동선 지도에 표시)
@@ -144,7 +167,11 @@ export function TripItemDialog({
               <span id={`${ids}-day`} className="text-sm font-medium">
                 날짜
               </span>
-              <Select value={String(dayIndex)} onValueChange={(v) => setDayIndex(Number(v))}>
+              <Select
+                value={String(dayIndex)}
+                onValueChange={(v) => setDayIndex(Number(v))}
+                disabled={isBooking}
+              >
                 <SelectTrigger aria-labelledby={`${ids}-day`} className="h-12! w-full text-base">
                   <SelectValue>{dayLabels[dayIndex]}</SelectValue>
                 </SelectTrigger>
@@ -168,34 +195,43 @@ export function TripItemDialog({
             </Field>
           </div>
 
-          {/* 유형: 이동 / 관광 / 식사 (명세 5.4 태그) */}
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium">유형</legend>
-            <div role="radiogroup" className="flex gap-2">
-              {ITEM_TYPES.map((t) => (
-                <label key={t.value} className="flex-1 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="type-choice"
-                    value={t.value}
-                    checked={type === t.value}
-                    onChange={() => setType(t.value)}
-                    className="peer sr-only"
-                  />
-                  <span
-                    className={cn(
-                      "flex h-11 items-center justify-center rounded-md border text-sm font-medium transition-colors duration-fast peer-focus-visible:shadow-focus",
-                      type === t.value
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-stone-500 bg-card",
-                    )}
-                  >
-                    {t.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {/* 유형: 이동 / 관광 / 식사 (명세 5.4 태그). 예약 항목은 "예약"으로 고정 */}
+          {isBooking ? (
+            <p className="text-sm">
+              <span className="font-medium">유형</span>{" "}
+              <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                예약
+              </span>
+            </p>
+          ) : (
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">유형</legend>
+              <div role="radiogroup" className="flex gap-2">
+                {ITEM_TYPES.map((t) => (
+                  <label key={t.value} className="flex-1 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="type-choice"
+                      value={t.value}
+                      checked={type === t.value}
+                      onChange={() => setType(t.value)}
+                      className="peer sr-only"
+                    />
+                    <span
+                      className={cn(
+                        "flex h-11 items-center justify-center rounded-md border text-sm font-medium transition-colors duration-fast peer-focus-visible:shadow-focus",
+                        type === t.value
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-stone-500 bg-card",
+                      )}
+                    >
+                      {t.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <Field id={`${ids}-note`} label="메모 (선택)" error={errors.note}>
             <Input

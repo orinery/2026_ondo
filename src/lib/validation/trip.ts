@@ -59,3 +59,14 @@ export const tripItemSchema = z.object({
 });
 
 export type TripItemInput = z.infer<typeof tripItemSchema>;
+
+/**
+ * 예약 항목(주문으로 자동 추가) 수정 — 날짜·유형은 이용일·주문에서 정해지므로 받지 않는다.
+ * (DB 트리거 guard_booking_item도 날짜·유형·상품 변경을 막는다)
+ */
+export const bookingItemSchema = tripItemSchema.pick({
+  title: true,
+  time: true,
+  note: true,
+  caution: true,
+});

@@ -84,12 +84,15 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
   const [importDay, setImportDay] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mapOpen, setMapOpen] = useState(false); // 768~1279 토글 패널
+  // 삭제·순서 저장이 거부됐을 때의 안내 (예: 예약 항목은 일정에서 직접 지울 수 없음)
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 다른 여행을 고르면 Day 1로 돌아간다
   const [prevTripId, setPrevTripId] = useState(trip?.id);
   if (trip?.id !== prevTripId) {
     setPrevTripId(trip?.id);
     setActiveDay(dayId(0));
+    setNotice(null);
   }
 
   // DB 항목 → 타임라인 형태(Day별). 서버 데이터가 바뀔 때만 다시 계산해 타임라인이 불필요하게 초기화되지 않게 한다
@@ -114,6 +117,7 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
           type: i.type,
           status: statuses[k] ?? "upcoming",
           closedReason: i.caution,
+          bookingHref: i.isBooking && i.orderNo ? `/my/orders/${i.orderNo}` : null,
         })),
       };
     });
@@ -279,18 +283,29 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
 
         {mapOpen && <RouteMap points={points} className="hidden aspect-video md:block xl:hidden" />}
 
+        {notice && (
+          <p
+            role="alert"
+            className="rounded-md border border-destructive/50 bg-card p-3 text-sm text-destructive"
+          >
+            {notice}
+          </p>
+        )}
+
         <ItineraryTimeline
           days={days}
           activeDayId={activeDay}
           onActiveDayChange={setActiveDay}
           onReorder={(id, orderedIds) =>
             startTransition(async () => {
-              await reorderTripItems(trip.id, dayIndexOf(id), orderedIds);
+              const result = await reorderTripItems(trip.id, dayIndexOf(id), orderedIds);
+              setNotice(result.ok ? null : (result.message ?? "순서를 저장하지 못했어요"));
             })
           }
           onRemove={(_, itemId) =>
             startTransition(async () => {
-              await removeTripItem(itemId);
+              const result = await removeTripItem(itemId);
+              setNotice(result.ok ? null : (result.message ?? "삭제하지 못했어요"));
             })
           }
           onAdd={(id) => setItemDialog({ mode: "add", dayIndex: dayIndexOf(id) })}

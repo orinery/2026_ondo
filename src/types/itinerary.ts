@@ -21,6 +21,8 @@ export type ItineraryItem = {
   status: ItineraryItemStatus;
   // 주의 메모(예: "수요일 휴무"). 값이 있으면 disabled 상태 + 경고 배지로 표시한다
   closedReason?: string | null;
+  // 주문으로 자동 추가된 예약 항목이면 예약 상세 주소 — 삭제 버튼 대신 이 링크를 보여준다
+  bookingHref?: string | null;
 };
 
 export type ItineraryDay = {

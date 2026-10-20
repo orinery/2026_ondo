@@ -204,7 +204,8 @@ function SortableDay({
               item={item}
               isLast={index === day.items.length - 1}
               previewHover={previewHoverItemId === item.id}
-              onRemove={() => onRemove(item.id)}
+              // 예약 항목은 일정에서 지울 수 없다 (예약 취소로만) → 삭제 버튼을 그리지 않는다
+              onRemove={item.bookingHref ? undefined : () => onRemove(item.id)}
               onEdit={onEdit ? () => onEdit(item.id) : undefined}
             />
           ))}
@@ -228,7 +229,7 @@ function SortableTimelineRow({
   item: ItineraryItem;
   isLast: boolean;
   previewHover: boolean;
-  onRemove: () => void;
+  onRemove?: () => void;
   onEdit?: () => void;
 }) {
   const {
