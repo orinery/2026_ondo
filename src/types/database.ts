@@ -686,6 +686,7 @@ export type Database = {
       trips: {
         Row: {
           created_at: string;
+          created_by_order_id: string | null;
           end_date: string;
           id: string;
           start_date: string;
@@ -696,6 +697,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           created_at?: string;
+          created_by_order_id?: string | null;
           end_date: string;
           id?: string;
           start_date: string;
@@ -705,6 +707,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          created_by_order_id?: string | null;
           end_date?: string;
           id?: string;
           start_date?: string;
@@ -713,6 +716,13 @@ export type Database = {
           user_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "trips_created_by_order_id_orders_id_fk";
+            columns: ["created_by_order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "trips_user_id_profiles_id_fk";
             columns: ["user_id"];

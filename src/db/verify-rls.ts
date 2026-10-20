@@ -268,6 +268,15 @@ async function main() {
       );
       await expectBlocked(
         tx,
+        "A: 여행의 created_by_order_id 직접 지정 (컬럼 권한)",
+        A,
+        async (sp) =>
+          (
+            await sp`update public.trips set created_by_order_id = ${randomUUID()} where id = ${tripA.id}`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
         "A: 직접 '예약' 유형 일정 항목 만들기",
         A,
         async (sp) =>
@@ -590,6 +599,18 @@ async function main() {
       const [{ n: bookingLeft } = { n: -1 }] = await tx<{ n: number }[]>`
         select count(*)::int as n from public.trip_items where id = ${booking.id}`;
       check("취소 → 플래너 예약 항목도 삭제", bookingLeft === 0, `남은 행 ${bookingLeft}`);
+      // 주문이 자동으로 만든 "도쿄 여행"은 비었으므로 함께 지워져야 한다 (사용자 피드백)
+      const [{ n: autoTripLeft } = { n: -1 }] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.trips where id = ${booking.trip_id}`;
+      check(
+        "취소 → 비어 버린 자동 생성 여행도 삭제",
+        autoTripLeft === 0,
+        `남은 여행 ${autoTripLeft}`,
+      );
+      // 사용자가 직접 만든 여행(A의 여행)은 그대로
+      const [{ n: ownTripLeft } = { n: -1 }] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.trips where id = ${tripA.id}`;
+      check("취소해도 직접 만든 여행은 유지", ownTripLeft === 1, `남은 여행 ${ownTripLeft}`);
       await expectError(
         tx,
         "A: 같은 주문 두 번 취소",

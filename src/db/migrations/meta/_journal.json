@@ -43,6 +43,13 @@
       "when": 1792049513156,
       "tag": "0005_shop_functions_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792460963154,
+      "tag": "0006_trip_created_by_order",
+      "breakpoints": true
     }
   ]
 }

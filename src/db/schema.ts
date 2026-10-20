@@ -444,6 +444,11 @@ export const trips = pgTable(
     title: text("title").notNull(),
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
+    // 주문(place_order)이 자동으로 만든 여행이면 그 주문 id. 주문을 취소해 여행이 비면 함께 지운다.
+    // 사용자는 이 컬럼을 쓸 수 없다(GRANT 없음)
+    createdByOrderId: uuid("created_by_order_id").references(() => orders.id, {
+      onDelete: "set null",
+    }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
