@@ -89,6 +89,19 @@ export function bookingTotal(
   return adult * rules.adultPrice + child * (rules.childPrice ?? 0);
 }
 
+const ERROR_LABELS: Record<BookingErrorCode, string> = {
+  product_not_found: "판매 종료",
+  unavailable: "판매 중지",
+  qty: "인원 조건 변경",
+  child_unavailable: "아동 예약 불가",
+  cutoff: "예약 마감",
+  too_far: "예약 기간 밖",
+  closed_day: "운영하지 않는 날",
+};
+
+/** 장바구니 배지용 짧은 사유 ("예약 마감") — 긴 안내 문장은 order-errors.ts */
+export const bookingErrorLabel = (code: BookingErrorCode) => ERROR_LABELS[code];
+
 const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
 /** [1,2,4,5,6,7] → "매일 (수요일 휴무)" / [1..7] → "매일" */
