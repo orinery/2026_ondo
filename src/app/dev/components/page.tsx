@@ -16,7 +16,7 @@ import {
 import { CartView } from "@/components/cart/cart-view";
 import { OrderList } from "@/components/orders/order-list";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
-import { MOCK_ITINERARY } from "@/lib/mock/itinerary";
+import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
 import { seoulNow } from "@/lib/trip-dates";
@@ -312,6 +312,11 @@ export default function DevComponentsPage() {
               </div>
             </State>
             <div className="flex flex-col gap-8">
+              <State label="5일 여행 · Day 탭 줄바꿈">
+                <div className="rounded-lg border bg-card p-6">
+                  <ItineraryTimeline days={MOCK_LONG_ITINERARY} />
+                </div>
+              </State>
               <State label="hover · 핸들·삭제 노출">
                 <div className="rounded-lg border bg-card p-6">
                   <ItineraryTimeline days={MOCK_ITINERARY.slice(1, 2)} previewHoverItemId="i4" />

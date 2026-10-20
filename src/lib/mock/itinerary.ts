@@ -61,6 +61,16 @@ export const MOCK_ITINERARY: ItineraryDay[] = [
         type: "sight",
         status: "upcoming",
       },
+      {
+        // 주문으로 자동 추가된 예약 항목: "예약" 태그 + 예약 보기 링크, 삭제 버튼 없음
+        id: "i7",
+        time: "14:00",
+        title: "교토 마치야 다도 체험",
+        note: "예약번호 YO261015-000031",
+        type: "booking",
+        status: "upcoming",
+        bookingHref: "/my/orders/YO261015-000031",
+      },
     ],
   },
   {
@@ -68,4 +78,11 @@ export const MOCK_ITINERARY: ItineraryDay[] = [
     label: "Day 3 · 11.4",
     items: [],
   },
+];
+
+/** 5일 여행 — Day 탭이 줄바꿈되는 경우 (탭 틀이 늘어나고 아래 내용과 겹치지 않아야 한다) */
+export const MOCK_LONG_ITINERARY: ItineraryDay[] = [
+  ...MOCK_ITINERARY,
+  { id: "d4", label: "Day 4 · 11.5", items: [] },
+  { id: "d5", label: "Day 5 · 11.6", items: [] },
 ];
