@@ -7,8 +7,10 @@
  * - 데모 주문은 (사용자, 중복 방지 키) 기준으로 한 번만 만든다. 키는 이메일+상품으로 고정 계산한다.
  * - 리뷰는 (작성자, 상품) 기준 upsert. "구매 고객만 리뷰" 규칙에 맞게 리뷰마다 이용 완료 주문을 먼저 만든다.
  *
- * 선택: SEED_BUYER_EMAIL=본인 이메일 을 주면 그 계정에 "이용 완료" 주문 1건을 넣어
- *       리뷰 작성 흐름을 직접 확인할 수 있다 (이미 가입한 계정이어야 한다).
+ * 선택 (모두 이미 가입한 계정이어야 한다. 1계정 1역할이라 관리자와 파트너는 서로 다른 계정):
+ * - SEED_BUYER_EMAIL: 그 계정에 "이용 완료" 주문 1건 → 리뷰 작성 흐름 확인
+ * - SEED_ADMIN_EMAIL: 그 계정을 관리자로 → /admin
+ * - SEED_PARTNER_EMAIL: 그 계정을 데모 파트너(하루 트래블)의 소유자로 → /partner
  *
  * DATABASE_URL(postgres 권한)로 접속하므로 RLS를 우회한다. 시드처럼 관리 작업에만 쓴다.
  */
@@ -23,6 +25,7 @@ import postgres from "postgres";
 import * as schema from "./schema";
 import {
   SEED_CITIES,
+  SEED_PARTNERS,
   SEED_POLICIES,
   SEED_PRODUCTS,
   SEED_REVIEWERS,
@@ -90,6 +93,24 @@ async function seedCatalog() {
       );
     }
 
+    // 파트너는 고정 id로 upsert한다. 소유자(owner_user_id)는 덮어쓰지 않는다 (SEED_PARTNER_EMAIL로 연결한 값 유지)
+    const partnerByCity = new Map<string, string>();
+    for (const pa of SEED_PARTNERS) {
+      const values = {
+        id: pa.id,
+        name: pa.name,
+        contactName: pa.contactName,
+        contactPhone: pa.contactPhone,
+        contactEmail: pa.contactEmail,
+        intro: pa.intro,
+      };
+      await tx
+        .insert(schema.partners)
+        .values(values)
+        .onConflictDoUpdate({ target: schema.partners.id, set: values });
+      for (const city of pa.cities) partnerByCity.set(city, pa.id);
+    }
+
     const cityIds = new Map<string, string>();
     for (const [position, c] of SEED_CITIES.entries()) {
       const values = {
@@ -114,21 +135,24 @@ async function seedCatalog() {
 
     for (const p of SEED_PRODUCTS) {
       const cityId = cityIds.get(p.city);
-      if (!cityId) throw new Error(`${p.slug}: 도시 ${p.city}가 없습니다`);
-      await upsertProduct(tx, p, cityId);
+      const partnerId = partnerByCity.get(p.city);
+      if (!cityId || !partnerId)
+        throw new Error(`${p.slug}: 도시 ${p.city}의 도시·파트너가 없습니다`);
+      await upsertProduct(tx, p, cityId, partnerId);
     }
   });
   console.log(
-    `✓ 취소 규정 ${SEED_POLICIES.length}종 · 도시 ${SEED_CITIES.length}곳 · 상품 ${SEED_PRODUCTS.length}개`,
+    `✓ 취소 규정 ${SEED_POLICIES.length}종 · 파트너 ${SEED_PARTNERS.length}곳 · 도시 ${SEED_CITIES.length}곳 · 상품 ${SEED_PRODUCTS.length}개`,
   );
 }
 
-async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string) {
+async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string, partnerId: string) {
   const [cover] = p.images;
   if (!cover) throw new Error(`${p.slug}: 대표 사진이 없습니다`);
 
   const values = {
     slug: p.slug,
+    partnerId,
     cityId,
     category: p.category,
     theme: p.theme,
@@ -159,8 +183,8 @@ async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string) {
 
   const [row] = await tx
     .insert(schema.products)
-    .values(values)
-    // 평점 캐시(rating_avg, review_count)는 덮어쓰지 않는다 — 트리거가 관리
+    .values({ ...values, publishedAt: sql`now()` })
+    // 평점 캐시(rating_avg, review_count)와 공개 시각은 덮어쓰지 않는다
     .onConflictDoUpdate({ target: schema.products.slug, set: values })
     .returning({ id: schema.products.id });
   if (!row) throw new Error(`${p.slug}: upsert 실패`);
@@ -347,11 +371,87 @@ async function seedBuyerOrder() {
   console.log(`✓ ${email}에 이용 완료 주문 1건 (교토 다도 체험 — 리뷰 작성 가능)`);
 }
 
+/** 이메일로 가입한 계정의 프로필 id를 찾는다 */
+async function findProfileByEmail(email: string) {
+  const [user] = await db
+    .select({ id: schema.profiles.id, role: schema.profiles.role })
+    .from(schema.profiles)
+    .innerJoin(authUsersEmail, eq(authUsersEmail.id, schema.profiles.id))
+    .where(eq(authUsersEmail.email, email));
+  return user ?? null;
+}
+
+/** 선택: 관리자·파트너 계정 지정 (1계정 1역할 — 이미 다른 역할이면 바꾸지 않고 알린다) */
+async function seedRoles() {
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const partnerEmail = process.env.SEED_PARTNER_EMAIL?.trim().toLowerCase();
+  if (adminEmail && adminEmail === partnerEmail) {
+    console.log(
+      "- SEED_ADMIN_EMAIL과 SEED_PARTNER_EMAIL이 같아 역할 지정을 건너뜁니다 (1계정 1역할)",
+    );
+    return;
+  }
+
+  if (adminEmail) {
+    const user = await findProfileByEmail(adminEmail);
+    if (!user) console.log(`- SEED_ADMIN_EMAIL(${adminEmail}) 계정을 찾지 못해 건너뜁니다`);
+    else if (user.role === "partner")
+      console.log(`- ${adminEmail}은 파트너 계정이라 관리자로 바꾸지 않습니다`);
+    else {
+      await db
+        .update(schema.profiles)
+        .set({ role: "admin" })
+        .where(eq(schema.profiles.id, user.id));
+      console.log(`✓ ${adminEmail} → 관리자`);
+    }
+  }
+
+  if (partnerEmail) {
+    const user = await findProfileByEmail(partnerEmail);
+    const [demo] = SEED_PARTNERS;
+    if (!user) console.log(`- SEED_PARTNER_EMAIL(${partnerEmail}) 계정을 찾지 못해 건너뜁니다`);
+    else if (user.role === "admin")
+      console.log(`- ${partnerEmail}은 관리자 계정이라 파트너로 바꾸지 않습니다`);
+    else if (demo) {
+      const linked = await db.transaction(async (tx) => {
+        // 이미 파트너를 갖고 있으면 그대로 두고, 아니면 데모 파트너가 비어 있을 때만 연결한다
+        const [owned] = await tx
+          .select({ id: schema.partners.id })
+          .from(schema.partners)
+          .where(eq(schema.partners.ownerUserId, user.id));
+        const target =
+          owned ??
+          (
+            await tx
+              .update(schema.partners)
+              .set({ ownerUserId: user.id })
+              .where(
+                and(eq(schema.partners.id, demo.id), sql`${schema.partners.ownerUserId} is null`),
+              )
+              .returning({ id: schema.partners.id })
+          )[0];
+        if (!target) return false;
+        await tx
+          .update(schema.profiles)
+          .set({ role: "partner" })
+          .where(eq(schema.profiles.id, user.id));
+        return true;
+      });
+      console.log(
+        linked
+          ? `✓ ${partnerEmail} → 파트너 (${demo.name})`
+          : `- ${demo.name}에 이미 다른 소유자가 있어 ${partnerEmail}을 연결하지 않았습니다`,
+      );
+    }
+  }
+}
+
 async function main() {
   await seedCatalog();
   const userIds = await ensureDemoUsers();
   if (userIds) await seedOrdersAndReviews(userIds);
   await seedBuyerOrder();
+  await seedRoles();
 }
 
 main()

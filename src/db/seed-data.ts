@@ -106,7 +106,50 @@ export const SEED_POLICIES: {
   },
 ];
 
-/** 데모 리뷰 작성자 — 시드 스크립트가 만들고, 리뷰를 쓴 상품의 "이용 완료" 주문도 함께 만든다 */
+/**
+ * 데모 파트너 — 도시별로 상품을 나눠 맡는다. 로그인 계정 없이(owner 없음) 만들고,
+ * SEED_PARTNER_EMAIL을 주면 첫 번째 파트너의 소유자로 연결해 파트너 센터를 직접 써 볼 수 있다.
+ * id를 고정해 두어 시드를 다시 실행해도 같은 파트너를 가리킨다.
+ */
+export const SEED_PARTNERS: {
+  id: string;
+  name: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  intro: string;
+  cities: CitySlug[];
+}[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000011",
+    name: "하루 트래블",
+    contactName: "김하루",
+    contactPhone: "02-555-0101",
+    contactEmail: "haru@partners.yeoun.test",
+    intro: "도쿄·오사카 도심 투어와 테마파크 티켓을 전문으로 운영합니다.",
+    cities: ["tokyo", "osaka"],
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000012",
+    name: "교토 모노가타리",
+    contactName: "이서윤",
+    contactPhone: "051-555-0202",
+    contactEmail: "monogatari@partners.yeoun.test",
+    intro: "교토·후쿠오카의 전통 문화 체험과 미식 투어를 소개합니다.",
+    cities: ["kyoto", "fukuoka"],
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000013",
+    name: "유키시마 트래블",
+    contactName: "박도윤",
+    contactPhone: "064-555-0303",
+    contactEmail: "yukishima@partners.yeoun.test",
+    intro: "삿포로의 눈과 오키나와의 바다, 계절 액티비티를 운영합니다.",
+    cities: ["sapporo", "okinawa"],
+  },
+];
+
+/** 데모 리뷰 작성자 —시드 스크립트가 만들고, 리뷰를 쓴 상품의 "이용 완료" 주문도 함께 만든다 */
 export const SEED_REVIEWERS = [
   { email: "demo-haneul@yeoun.test", name: "하늘", phone: "010-0000-0001" },
   { email: "demo-sora@yeoun.test", name: "소라", phone: "010-0000-0002" },
