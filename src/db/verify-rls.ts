@@ -1477,6 +1477,348 @@ async function main() {
           ).count,
       );
 
+      // ── 파트너 센터 (S4): 상품 저장 · 재고 일괄 수정 · 예약 확정/거절/사용 처리 · 자동 만료
+      // 파트너 D = 유키시마 트래블(스노클링 담당), 위 S2 시나리오에서 연결했다
+      const [day1, day3, day14, day20, day25] = await Promise.all([
+        dayPlus(1),
+        dayPlus(3),
+        dayPlus(14),
+        dayPlus(20),
+        dayPlus(25),
+      ]);
+      const [kyoto] = await tx<{ id: string }[]>`select id from public.cities where slug = 'kyoto'`;
+      if (!kyoto) throw new Error("도시 없음");
+      const productJson = {
+        slug: `rls-partner-${userD.slice(0, 8)}`,
+        city_id: kyoto.id,
+        category: "tour",
+        theme: "culture",
+        title: "검증용 파트너 상품",
+        summary: "검증용 요약",
+        description: "검증용 상품 설명입니다.",
+        highlights: ["포인트"],
+        adult_price: 30000,
+        child_price: null,
+        list_adult_price: null,
+        operating_days: [1, 2, 3, 4, 5, 6, 7],
+        cutoff_days: 1,
+        max_qty: 6,
+        duration_text: "약 2시간",
+        includes: [],
+        excludes: [],
+        usage_info: [],
+        meeting_point: "교토역",
+        latitude: 35,
+        longitude: 135.7,
+        cancel_policy: "standard",
+        unavailable_reason: null,
+        confirmation_mode: "manual",
+        publish: false,
+      };
+      const images = [{ url: "https://images.unsplash.com/photo-1", alt: "검증 사진" }];
+      const slotsJson = [
+        { start_time: "09:00", capacity: 5 },
+        { start_time: "15:00", capacity: 5 },
+      ];
+      const optionsJson = [{ name: "픽업", price: 5000, unit: "per_booking" }];
+      const saveProduct = (
+        sp: Tx,
+        id: string | null,
+        product: Record<string, unknown>,
+        imgs: unknown[],
+        slotList: unknown[],
+        opts: unknown[] = optionsJson,
+      ) => sp<{ id: string }[]>`
+        select public.save_product(${id}::uuid, ${JSON.stringify(product)}::text::jsonb, ${JSON.stringify(imgs)}::text::jsonb,
+          '[]'::jsonb, ${JSON.stringify(slotList)}::text::jsonb, ${JSON.stringify(opts)}::text::jsonb) as id`;
+
+      const [savedRow] = await as(tx, D, (sp) =>
+        saveProduct(sp, null, productJson, images, slotsJson),
+      );
+      const savedId = savedRow?.id;
+      if (!savedId) throw new Error("파트너 상품 저장 실패");
+      const [saved] = await tx<
+        { partner_id: string; published_at: string | null; slots: number; opts: number }[]
+      >`
+        select p.partner_id, p.published_at,
+               (select count(*)::int from public.product_slots s where s.product_id = p.id and s.active) as slots,
+               (select count(*)::int from public.product_options o where o.product_id = p.id and o.active) as opts
+        from public.products p where p.id = ${savedId}`;
+      check(
+        "파트너: 상품·회차·옵션 한 번에 저장 (본인 파트너, 임시 저장)",
+        saved?.partner_id === snorkel.partner_id &&
+          saved.published_at === null &&
+          saved.slots === 2 &&
+          saved.opts === 1,
+        `회차 ${saved?.slots} · 옵션 ${saved?.opts}`,
+      );
+      await expectError(tx, "파트너: 허용되지 않은 사진 주소", D, "invalid_images", (sp) =>
+        saveProduct(
+          sp,
+          null,
+          { ...productJson, slug: "rls-bad-image" },
+          [{ url: "https://evil.example/x.jpg", alt: "x" }],
+          slotsJson,
+        ),
+      );
+      await expectError(tx, "파트너: 같은 시간 회차 두 번", D, "invalid_slots", (sp) =>
+        saveProduct(sp, null, { ...productJson, slug: "rls-dup-slot" }, images, [
+          { start_time: "09:00", capacity: 5 },
+          { start_time: "09:00", capacity: 3 },
+        ]),
+      );
+      await expectError(tx, "파트너: 다른 파트너 상품 수정", D, "not_found", (sp) =>
+        saveProduct(sp, fuji.id, productJson, images, slotsJson),
+      );
+      await expectError(tx, "고객: 상품 저장 함수", B, "forbidden", (sp) =>
+        saveProduct(sp, null, { ...productJson, slug: "rls-customer" }, images, slotsJson),
+      );
+      await expectOk(
+        tx,
+        "파트너: 회차 하나 빼고 공개로 수정 → 뺀 회차는 판매만 끔",
+        D,
+        async (sp) => {
+          await saveProduct(
+            sp,
+            savedId,
+            { ...productJson, publish: true },
+            images,
+            [slotsJson[0]],
+            [],
+          );
+          return "저장";
+        },
+      );
+      const [afterEdit] = await tx<
+        { active: number; total: number; opts: number; published: boolean }[]
+      >`
+        select (select count(*)::int from public.product_slots s where s.product_id = ${savedId} and s.active) as active,
+               (select count(*)::int from public.product_slots s where s.product_id = ${savedId}) as total,
+               (select count(*)::int from public.product_options o where o.product_id = ${savedId} and o.active) as opts,
+               (select published_at is not null from public.products where id = ${savedId}) as published`;
+      check(
+        "수정 후: 회차 1개 판매(1개는 꺼짐, 지우지 않음) · 옵션 꺼짐 · 공개",
+        afterEdit?.active === 1 &&
+          afterEdit.total === 2 &&
+          afterEdit.opts === 0 &&
+          afterEdit.published,
+        `판매 ${afterEdit?.active}/${afterEdit?.total} · 옵션 ${afterEdit?.opts}`,
+      );
+
+      // 재고 일괄 수정
+      const [savedSlot] = await tx<{ id: string }[]>`
+        select id from public.product_slots where product_id = ${savedId} and active limit 1`;
+      if (!savedSlot) throw new Error("저장한 회차 없음");
+      const [ranged] = await as(
+        tx,
+        D,
+        (sp) =>
+          sp<{ n: number }[]>`select public.set_inventory_range(${savedSlot.id}, ${day1}::date,
+          ${day14}::date, '{6,7}'::smallint[], 3, false, 35000, null) as n`,
+      );
+      check(
+        "파트너: 2주 중 주말만 정원 3·가격 35,000원",
+        (ranged?.n ?? 0) >= 4 && (ranged?.n ?? 0) <= 6,
+        `${ranged?.n}일`,
+      );
+      await expectError(
+        tx,
+        "파트너: 다른 파트너 회차 재고 일괄 수정",
+        D,
+        "not_found",
+        (sp) =>
+          sp`select public.set_inventory_range(${fujiSlot.id}, ${day1}::date, ${day3}::date, null, 1, false, null, null)`,
+      );
+      await expectError(
+        tx,
+        "파트너: 지난 날짜 포함 기간",
+        D,
+        "invalid_range",
+        (sp) =>
+          sp`select public.set_inventory_range(${savedSlot.id}, ${dates.past}::date, ${day3}::date, null, 1, false, null, null)`,
+      );
+
+      // 예약 처리: A가 스노클링(파트너 확정)을 세 번 예약 → 확정 / 거절 / 기한 지나 자동 취소
+      const snorkelOrders: { itemId: string; slotId: string; useDate: string }[] = [];
+      for (const n of [21, 22, 23, 24]) {
+        const useDate = await dayPlus(n);
+        const [cart] = await as(tx, A, (sp) =>
+          addCart(sp, { product_id: snorkel.id, use_date: useDate }),
+        );
+        if (!cart) throw new Error("스노클링 담기 실패");
+        const [placed2] = await as(tx, A, (sp) => booker(sp, [cart.id], snorkel.adult_price));
+        const [item] = await tx<{ id: string; slot_id: string }[]>`
+          select oi.id, oi.slot_id from public.order_items oi join public.orders o on o.id = oi.order_id
+          where o.order_no = ${placed2?.order_no ?? ""}`;
+        if (!item) throw new Error("스노클링 주문 실패");
+        snorkelOrders.push({ itemId: item.id, slotId: item.slot_id, useDate });
+      }
+      const [toConfirm, toReject, toExpire, lateConfirm] = snorkelOrders as [
+        (typeof snorkelOrders)[number],
+        (typeof snorkelOrders)[number],
+        (typeof snorkelOrders)[number],
+        (typeof snorkelOrders)[number],
+      ];
+
+      await expectOk(tx, "파트너: 예약 목록(예약자 연락처 포함)", D, async (sp) => {
+        const rows = await sp<{ item_id: string; booker_name: string }[]>`
+          select item_id, booker_name from public.partner_bookings(${day20}::date, ${day25}::date)`;
+        const mine = rows.filter((r) => snorkelOrders.some((o) => o.itemId === r.item_id));
+        if (mine.length !== 4 || mine[0]?.booker_name !== "검증")
+          throw new Error(`${mine.length}건`);
+        return `${mine.length}건 · 예약자 ${mine[0].booker_name}`;
+      });
+      await expectBlocked(
+        tx,
+        "고객: 파트너 예약 목록",
+        B,
+        async (sp) =>
+          (await sp`select 1 from public.partner_bookings(${day20}::date, ${day25}::date)`).length,
+      );
+      await expectError(
+        tx,
+        "고객: 예약 확정 함수",
+        A,
+        "forbidden",
+        (sp) => sp`select public.confirm_item(${toConfirm.itemId})`,
+      );
+      const [confirmed] = await as(
+        tx,
+        D,
+        (sp) => sp<{ r: string }[]>`select public.confirm_item(${toConfirm.itemId}) as r`,
+      );
+      const [voucher] = await tx<{ status: string; voucher_code: string | null }[]>`
+        select status::text, voucher_code from public.order_items where id = ${toConfirm.itemId}`;
+      check(
+        "파트너: 확정 → 바우처 발급",
+        confirmed?.r === "confirmed" &&
+          voucher?.status === "confirmed" &&
+          Boolean(voucher.voucher_code),
+        `${voucher?.status} · ${voucher?.voucher_code}`,
+      );
+      await expectError(
+        tx,
+        "파트너: 이미 확정한 예약 다시 확정",
+        D,
+        "not_pending",
+        (sp) => sp`select public.confirm_item(${toConfirm.itemId})`,
+      );
+      const code = voucher?.voucher_code ?? "";
+      await expectError(
+        tx,
+        "파트너: 이용일 전 바우처 사용 처리",
+        D,
+        "not_use_date",
+        (sp) => sp`select * from public.mark_used(${code})`,
+      );
+      // 이용일이 된 상황을 만든다 (검증용으로 이용일만 오늘로)
+      await tx`update public.order_items set use_date = public.seoul_today() where id = ${toConfirm.itemId}`;
+      await expectError(
+        tx,
+        "다른 파트너 계정으로 바우처 사용 처리",
+        admin,
+        "forbidden",
+        (sp) => sp`select * from public.mark_used(${code})`,
+      );
+      await expectOk(tx, "파트너: 바우처 사용 처리 (소문자·하이픈 입력도 인식)", D, async (sp) => {
+        const formatted = `${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase();
+        const [r] = await sp<
+          { product_title: string }[]
+        >`select * from public.mark_used(${formatted})`;
+        return r?.product_title ?? "";
+      });
+      await expectError(
+        tx,
+        "파트너: 같은 바우처 두 번 사용",
+        D,
+        "already_used",
+        (sp) => sp`select * from public.mark_used(${code})`,
+      );
+
+      await expectError(
+        tx,
+        "파트너: 사유 없이 거절",
+        D,
+        "invalid_reason",
+        (sp) => sp`select public.reject_item(${toReject.itemId}, '')`,
+      );
+      const bookedBeforeReject = await bookedOf(toReject.slotId, toReject.useDate);
+      await expectOk(tx, "파트너: 예약 거절", D, async (sp) => {
+        await sp`select public.reject_item(${toReject.itemId}, '해당 날짜 선박 점검')`;
+        return "거절";
+      });
+      const [rejected] = await tx<{ status: string; refund_amount: number; trip_left: number }[]>`
+        select oi.status::text, oi.refund_amount,
+               (select count(*)::int from public.trip_items ti where ti.order_item_id = oi.id) as trip_left
+        from public.order_items oi where oi.id = ${toReject.itemId}`;
+      check(
+        "거절 → 전액 환불 · 좌석 반환 · 플래너 항목 삭제",
+        rejected?.status === "rejected" &&
+          rejected.refund_amount === snorkel.adult_price &&
+          rejected.trip_left === 0 &&
+          (await bookedOf(toReject.slotId, toReject.useDate)) === bookedBeforeReject - 1,
+        `${rejected?.status} · 환불 ${rejected?.refund_amount?.toLocaleString()}원`,
+      );
+
+      // 기한 지난 확정 대기: 자동 만료 함수(로그인 사용자 누구나 호출 가능) → 전액 환불
+      await tx`update public.order_items set confirm_deadline = now() - interval '1 minute'
+               where id in (${toExpire.itemId}, ${lateConfirm.itemId})`;
+      const [lateResult] = await as(
+        tx,
+        D,
+        (sp) => sp<{ r: string }[]>`select public.confirm_item(${lateConfirm.itemId}) as r`,
+      );
+      check(
+        "기한 지난 뒤 확정 시도 → 확정 대신 자동 취소",
+        lateResult?.r === "expired",
+        lateResult?.r ?? "",
+      );
+      const [expiredCount] = await as(
+        tx,
+        B,
+        (sp) => sp<{ n: number }[]>`select public.expire_pending_items() as n`,
+      );
+      const [expired] = await tx<{ status: string; refund_amount: number }[]>`
+        select status::text, refund_amount from public.order_items where id = ${toExpire.itemId}`;
+      check(
+        "자동 만료 → 기한 초과 취소 · 전액 환불",
+        (expiredCount?.n ?? 0) >= 1 &&
+          expired?.status === "expired" &&
+          expired.refund_amount === snorkel.adult_price,
+        `${expiredCount?.n}건 · ${expired?.status}`,
+      );
+      await expectBlocked(
+        tx,
+        "anon: 자동 만료 함수",
+        anon,
+        async (sp) => (await sp`select public.expire_pending_items()`).count,
+      );
+
+      // Storage: 파트너 폴더에만 상품 사진 업로드
+      await expectOk(tx, "파트너: 내 파트너 폴더에 상품 사진 업로드", D, async (sp) => {
+        const r =
+          await sp`insert into storage.objects (bucket_id, name) values ('product-images', ${`${snorkel.partner_id}/rls.webp`})`;
+        return `${r.count}행`;
+      });
+      await expectBlocked(
+        tx,
+        "파트너: 다른 파트너 폴더에 업로드",
+        D,
+        async (sp) =>
+          (
+            await sp`insert into storage.objects (bucket_id, name) values ('product-images', ${`00000000-0000-4000-8000-000000000011/rls.webp`})`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "고객: 상품 사진 업로드",
+        B,
+        async (sp) =>
+          (
+            await sp`insert into storage.objects (bucket_id, name) values ('product-images', ${`${userB}/rls.webp`})`
+          ).count,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
