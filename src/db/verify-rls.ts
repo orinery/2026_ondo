@@ -131,6 +131,34 @@ async function main() {
                (public.seoul_today() - 5)::text as past`;
       if (!dates) throw new Error("날짜 계산 실패");
 
+      /** 관리자 권한으로 주문 항목을 직접 넣는다 (지난 날짜 등 place_order가 거부하는 상황 준비용).
+       *  회차(시간 포함)는 상품의 첫 판매 회차, 파트너·수수료는 상품에서 복사한다. booked 카운터는 바꾸지 않는다 */
+      const insertItem = (
+        orderId: string,
+        productId: string,
+        title: string,
+        useDate: string,
+        price: number,
+        status = "confirmed",
+      ) => tx`
+        insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+          adult_price, subtotal, cancel_policy, slot_id, start_time, partner_id, commission_rate, status)
+        select ${orderId}, p.id, ${title}, ${useDate}::date, 1, 0, ${price}, ${price}, 'standard',
+          s.id, s.start_time, p.partner_id, 15, ${status}::public.order_item_status
+        from public.products p
+        cross join lateral (
+          select s.id, s.start_time from public.product_slots s
+          where s.product_id = p.id and s.active order by s.position limit 1
+        ) s
+        where p.id = ${productId}`;
+      const dayPlus = async (n: number) => {
+        const [row] = await tx<
+          { d: string }[]
+        >`select (public.seoul_today() + ${n}::int)::text as d`;
+        if (!row) throw new Error("날짜 계산 실패");
+        return row.d;
+      };
+
       // ── 회원가입 트리거
       const [profile] = await tx<
         { display_name: string }[]
@@ -636,8 +664,7 @@ async function main() {
           values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 10000, ${randomUUID()}, now())
           returning id`;
         if (!o) throw new Error("경계 테스트 주문 생성 실패");
-        await tx`insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, subtotal, cancel_policy)
-                 values (${o.id}, ${fuji.id}, '경계 테스트', public.seoul_today() + ${days}::int, 1, 0, 10000, 10000, 'standard')`;
+        await insertItem(o.id, fuji.id, "경계 테스트", await dayPlus(days), 10000);
         const [q] = await as(
           tx,
           A,
@@ -708,8 +735,7 @@ async function main() {
         values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 10000, ${randomUUID()}, now())
         returning id`;
       if (!todayOrder) throw new Error("당일 주문 생성 실패");
-      await tx`insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, subtotal, cancel_policy)
-               values (${todayOrder.id}, ${fuji.id}, '당일', public.seoul_today(), 1, 0, 10000, 10000, 'standard')`;
+      await insertItem(todayOrder.id, fuji.id, "당일", dates.today, 10000);
       await expectError(
         tx,
         "A: 이용일 당일 취소",
@@ -744,8 +770,7 @@ async function main() {
         values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 38000, ${randomUUID()}, now())
         returning id`;
       if (!pastOrder) throw new Error("지난 주문 생성 실패");
-      await tx`insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, subtotal, cancel_policy)
-               values (${pastOrder.id}, ${tea.id}, '다도', ${dates.past}, 1, 0, 38000, 38000, 'standard')`;
+      await insertItem(pastOrder.id, tea.id, "다도", dates.past, 38000);
 
       const [reviewA] = await as(
         tx,
@@ -1074,6 +1099,383 @@ async function main() {
         const r = await sp`insert into public.partner_applications ${sp(application)}`;
         return `${r.count}건`;
       });
+
+      // ── 회차 재고 · 옵션 · 항목 상태 (S2)
+      // 후지산 투어(매일 운영·마감 2일, 08:00 회차 정원 40, 옵션: 호텔 픽업 1만/건·도시락 1.2만/인)
+      // 스노클링(파트너 확정 필요, 09:00·13:00 회차)
+      const [fujiSlot] = await tx<{ id: string }[]>`
+        select id from public.product_slots where product_id = ${fuji.id} and active order by position limit 1`;
+      const [teaSlot] = await tx<{ id: string }[]>`
+        select id from public.product_slots where product_id = ${tea.id} and active order by position limit 1`;
+      const [snorkel] = await tx<{ id: string; adult_price: number; partner_id: string }[]>`
+        select id, adult_price, partner_id from public.products where slug = 'okinawa-blue-cave-snorkel'`;
+      const fujiOptions = await tx<{ id: string; name: string; price: number }[]>`
+        select id, name, price from public.product_options where product_id = ${fuji.id} and active order by position`;
+      const [snorkelOption] = await tx<{ id: string }[]>`
+        select o.id from public.product_options o where o.product_id = ${snorkel?.id ?? null} limit 1`;
+      const [pickup, lunch] = fujiOptions;
+      if (!fujiSlot || !teaSlot || !snorkel || !pickup || !lunch || !snorkelOption) {
+        throw new Error("회차·옵션 시드가 없습니다. 먼저 npm run db:seed를 실행하세요.");
+      }
+      const capDate = await dayPlus(13);
+      const closedDate = await dayPlus(14);
+      const optionDate = await dayPlus(15);
+      const priceDate = await dayPlus(16);
+      const booker = (sp: Tx, ids: string[], total: number) =>
+        sp<{ order_no: string }[]>`
+        select public.place_order(${ids}::uuid[], '검증', 'v@rls.test', '010-1234-5678', true, ${total}, ${randomUUID()}::uuid) as order_no`;
+      const addCart = (sp: Tx, values: Record<string, unknown>) =>
+        sp<{ id: string }[]>`insert into public.cart_items ${sp(values)} returning id`;
+      const bookedOf = async (slotId: string, useDate: string) => {
+        const [row] = await tx<{ booked: number }[]>`
+          select booked from public.slot_inventory where slot_id = ${slotId} and use_date = ${useDate}`;
+        return row?.booked ?? 0;
+      };
+
+      // 회차를 보내지 않은 담기(회차 선택 전 화면)는 트리거가 첫 회차로 채운다
+      const [autoSlot] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { slot_id: string }[]
+          >`insert into public.cart_items (product_id, use_date) values (${fuji.id}, ${capDate}) returning slot_id`,
+      );
+      check(
+        "회차 없이 담기 → 첫 회차 자동 지정",
+        autoSlot?.slot_id === fujiSlot.id,
+        autoSlot?.slot_id ?? "없음",
+      );
+      await tx`delete from public.cart_items where user_id = ${userA}`;
+
+      // 정원 3인 날짜: A 2명 → B 2명은 매진, B 1명은 성공
+      await tx`insert into public.slot_inventory (slot_id, use_date, capacity) values (${fujiSlot.id}, ${capDate}, 3)`;
+      const [capCartA] = await as(tx, A, (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: fujiSlot.id, use_date: capDate, adult_qty: 2 }),
+      );
+      if (!capCartA) throw new Error("정원 테스트 담기 실패");
+      const [capOrderA] = await as(tx, A, (sp) => booker(sp, [capCartA.id], fuji.adult_price * 2));
+      check(
+        "정원 3 · A 2명 결제 → 예약 인원 2",
+        (await bookedOf(fujiSlot.id, capDate)) === 2,
+        `booked=${await bookedOf(fujiSlot.id, capDate)}`,
+      );
+      await expectError(tx, "B: 남은 1석에 2명 담기", B, "sold_out", (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: fujiSlot.id, use_date: capDate, adult_qty: 2 }),
+      );
+      const [capCartB] = await as(tx, B, (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: fujiSlot.id, use_date: capDate, adult_qty: 1 }),
+      );
+      if (!capCartB) throw new Error("B 1명 담기 실패");
+      // 결제 직전에 다른 사람이 마지막 자리를 가져간 상황 (카운터를 직접 올려 재현)
+      await tx`update public.slot_inventory set booked = 3 where slot_id = ${fujiSlot.id} and use_date = ${capDate}`;
+      const ordersBefore = (
+        await tx<
+          { n: number }[]
+        >`select count(*)::int as n from public.orders where user_id = ${userB}`
+      )[0]?.n;
+      await expectError(tx, "B: 결제 순간 매진 → 결제 거부", B, "sold_out", (sp) =>
+        booker(sp, [capCartB.id], fuji.adult_price),
+      );
+      const ordersAfter = (
+        await tx<
+          { n: number }[]
+        >`select count(*)::int as n from public.orders where user_id = ${userB}`
+      )[0]?.n;
+      check(
+        "매진으로 실패한 결제는 주문을 남기지 않음",
+        ordersBefore === ordersAfter,
+        `${ordersBefore} → ${ordersAfter}`,
+      );
+      await tx`update public.slot_inventory set booked = 2 where slot_id = ${fujiSlot.id} and use_date = ${capDate}`;
+      await expectOk(tx, "B: 남은 1석 결제", B, async (sp) => {
+        const [r] = await booker(sp, [capCartB.id], fuji.adult_price);
+        return r?.order_no ?? "";
+      });
+      check(
+        "예약 인원 = 정원 3",
+        (await bookedOf(fujiSlot.id, capDate)) === 3,
+        `booked=${await bookedOf(fujiSlot.id, capDate)}`,
+      );
+
+      const [capItemA] = await tx<{ id: string; status: string; voucher_code: string | null }[]>`
+        select oi.id, oi.status::text, oi.voucher_code from public.order_items oi
+        join public.orders o on o.id = oi.order_id where o.order_no = ${capOrderA?.order_no ?? ""}`;
+      if (!capItemA) throw new Error("A 정원 테스트 항목 없음");
+      check(
+        "즉시 확정 상품 → 확정 + 바우처 발급",
+        capItemA.status === "confirmed" && Boolean(capItemA.voucher_code),
+        `${capItemA.status} · ${capItemA.voucher_code}`,
+      );
+      await expectError(
+        tx,
+        "B: A의 주문 항목 취소",
+        B,
+        "not_found",
+        (sp) => sp`select public.cancel_order_item(${capItemA.id})`,
+      );
+      await expectOk(tx, "A: 항목 취소 → 좌석 반환", A, async (sp) => {
+        const [r] = await sp<
+          { refund: number }[]
+        >`select public.cancel_order_item(${capItemA.id}) as refund`;
+        return `환불 ${r?.refund.toLocaleString()}원`;
+      });
+      check(
+        "취소 후 예약 인원 3 → 1",
+        (await bookedOf(fujiSlot.id, capDate)) === 1,
+        `booked=${await bookedOf(fujiSlot.id, capDate)}`,
+      );
+      await expectError(
+        tx,
+        "A: 취소한 항목 다시 취소",
+        A,
+        "already_cancelled",
+        (sp) => sp`select public.cancel_order_item(${capItemA.id})`,
+      );
+      const [{ n: activeQty } = { n: -1 }] = await tx<{ n: number }[]>`
+        select coalesce(sum(adult_qty + child_qty), 0)::int as n from public.order_items
+        where slot_id = ${fujiSlot.id} and use_date = ${capDate} and status::text in ('pending', 'confirmed', 'used')`;
+      check(
+        "불변식: 예약 인원 = 살아 있는 항목 인원 합",
+        activeQty === (await bookedOf(fujiSlot.id, capDate)),
+        `${activeQty}명`,
+      );
+
+      // 마감 회차 · 다른 상품 회차/옵션
+      await tx`insert into public.slot_inventory (slot_id, use_date, closed) values (${fujiSlot.id}, ${closedDate}, true)`;
+      await expectError(tx, "A: 마감한 날짜·회차 담기", A, "slot_closed", (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: fujiSlot.id, use_date: closedDate }),
+      );
+      await expectError(tx, "A: 다른 상품의 회차로 담기", A, "slot_not_found", (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: teaSlot.id, use_date: optionDate }),
+      );
+      await expectError(
+        tx,
+        "A: 다른 상품의 옵션 고르기",
+        A,
+        "option_invalid",
+        (sp) =>
+          sp`insert into public.cart_items (product_id, slot_id, use_date, option_ids)
+           values (${fuji.id}, ${fujiSlot.id}, ${optionDate}, ${[snorkelOption.id]}::uuid[])`,
+      );
+
+      // 옵션 금액: 성인 2 + 픽업(건당) + 도시락(1인당 × 2)
+      const [optCart] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { id: string }[]
+          >`insert into public.cart_items (product_id, slot_id, use_date, adult_qty, option_ids)
+           values (${fuji.id}, ${fujiSlot.id}, ${optionDate}, 2, ${[pickup.id, lunch.id]}::uuid[]) returning id`,
+      );
+      if (!optCart) throw new Error("옵션 담기 실패");
+      const optionTotal = fuji.adult_price * 2 + pickup.price + lunch.price * 2;
+      await expectError(tx, "A: 옵션 금액을 뺀 금액으로 결제", A, "price_changed", (sp) =>
+        booker(sp, [optCart.id], fuji.adult_price * 2),
+      );
+      const [optOrder] = await as(tx, A, (sp) => booker(sp, [optCart.id], optionTotal));
+      const [optItem] = await tx<{ options_amount: number; subtotal: number; n: number }[]>`
+        select oi.options_amount, oi.subtotal, (select count(*)::int from public.order_item_options x where x.order_item_id = oi.id) as n
+        from public.order_items oi join public.orders o on o.id = oi.order_id where o.order_no = ${optOrder?.order_no ?? ""}`;
+      check(
+        "옵션 포함 결제 (건당 + 1인당 × 인원)",
+        optItem?.options_amount === pickup.price + lunch.price * 2 &&
+          optItem.subtotal === optionTotal &&
+          optItem.n === 2,
+        `옵션 ${optItem?.options_amount?.toLocaleString()}원 · 합계 ${optItem?.subtotal?.toLocaleString()}원 · 옵션 ${optItem?.n}행`,
+      );
+
+      // 날짜별 가격 덮어쓰기
+      await tx`insert into public.slot_inventory (slot_id, use_date, adult_price) values (${fujiSlot.id}, ${priceDate}, 99000)`;
+      const [priceCart] = await as(tx, A, (sp) =>
+        addCart(sp, { product_id: fuji.id, slot_id: fujiSlot.id, use_date: priceDate }),
+      );
+      if (!priceCart) throw new Error("가격 덮어쓰기 담기 실패");
+      await expectError(
+        tx,
+        "A: 기본 가격으로 결제 (덮어쓴 가격과 다름)",
+        A,
+        "price_changed",
+        (sp) => booker(sp, [priceCart.id], fuji.adult_price),
+      );
+      await expectOk(tx, "A: 날짜별 덮어쓴 가격(99,000원)으로 결제", A, async (sp) => {
+        const [r] = await booker(sp, [priceCart.id], 99000);
+        return r?.order_no ?? "";
+      });
+
+      // 파트너 확정 상품: 확정 대기 · 기한 · 대기 중 취소 100%
+      const snorkelDate = await dayPlus(10);
+      const [snorkelCart] = await as(tx, A, (sp) =>
+        addCart(sp, { product_id: snorkel.id, use_date: snorkelDate }),
+      );
+      if (!snorkelCart) throw new Error("스노클링 담기 실패");
+      const [snorkelOrder] = await as(tx, A, (sp) =>
+        booker(sp, [snorkelCart.id], snorkel.adult_price),
+      );
+      const [pending] = await tx<
+        {
+          id: string;
+          order_id: string;
+          status: string;
+          voucher_code: string | null;
+          deadline_ok: boolean;
+        }[]
+      >`
+        select oi.id, oi.order_id, oi.status::text, oi.voucher_code,
+               oi.confirm_deadline <= now() + interval '48 hours'
+               and oi.confirm_deadline <= (oi.use_date::timestamp at time zone 'Asia/Seoul') as deadline_ok
+        from public.order_items oi join public.orders o on o.id = oi.order_id
+        where o.order_no = ${snorkelOrder?.order_no ?? ""}`;
+      if (!pending) throw new Error("확정 대기 항목 없음");
+      check(
+        "파트너 확정 상품 → 확정 대기 · 바우처 없음 · 기한 ≤ 48시간·이용일 0시",
+        pending.status === "pending" && pending.voucher_code === null && pending.deadline_ok,
+        `${pending.status} · 기한 ${pending.deadline_ok ? "정상" : "✗"}`,
+      );
+      const [pendingQuote] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { status: string; refund_rate: number }[]
+          >`select status, refund_rate from public.refund_quote(${pending.order_id})`,
+      );
+      check(
+        "확정 대기 환불 미리보기 = 100%",
+        pendingQuote?.status === "pending" && pendingQuote.refund_rate === 100,
+        `${pendingQuote?.status} · ${pendingQuote?.refund_rate}%`,
+      );
+
+      // 역할별 주문 항목 읽기: 담당 파트너는 자기 상품 항목만, 주문(총액·예약자)은 못 본다
+      const userD = randomUUID();
+      await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+               values (${userD}, ${`${userD}@rls.test`}, ${sql.json({ name: "검증파트너" })}, 'authenticated', 'authenticated')`;
+      await tx`update public.profiles set role = 'partner' where id = ${userD}`;
+      await tx`update public.partners set owner_user_id = ${userD} where id = ${snorkel.partner_id}`;
+      const D: Role = { name: "authenticated", userId: userD };
+      await expectOk(tx, "파트너: 자기 상품의 주문 항목 읽기", D, async (sp) => {
+        const rows = await sp`select 1 from public.order_items where id = ${pending.id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+      await expectBlocked(
+        tx,
+        "파트너: 그 주문(총액·예약자) 읽기",
+        D,
+        async (sp) => (await sp`select 1 from public.orders where id = ${pending.order_id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "파트너: 다른 파트너 상품의 주문 항목 읽기",
+        D,
+        async (sp) => (await sp`select 1 from public.order_items where id = ${capItemA.id}`).length,
+      );
+      await expectOk(tx, "관리자: 모든 주문 읽기", admin, async (sp) => {
+        const rows = await sp`select 1 from public.orders where id = ${pending.order_id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+      await expectBlocked(
+        tx,
+        "B: A의 주문 옵션 읽기",
+        B,
+        async (sp) =>
+          (
+            await sp`select 1 from public.order_item_options x join public.order_items oi on oi.id = x.order_item_id where oi.order_id = ${pending.order_id}`
+          ).length,
+      );
+
+      // 재고 쓰기 권한: 예약 인원 카운터는 아무도 직접 못 바꾼다
+      const [snorkelSlot] = await tx<{ id: string }[]>`
+        select slot_id as id from public.order_items where id = ${pending.id}`;
+      if (!snorkelSlot) throw new Error("스노클링 회차 없음");
+      await expectBlocked(
+        tx,
+        "A(고객): 예약 인원 카운터 수정",
+        A,
+        async (sp) =>
+          (await sp`update public.slot_inventory set booked = 0 where slot_id = ${fujiSlot.id}`)
+            .count,
+      );
+      await expectBlocked(
+        tx,
+        "파트너: 예약 인원 카운터 수정 (컬럼 권한)",
+        D,
+        async (sp) =>
+          (await sp`update public.slot_inventory set booked = 0 where slot_id = ${snorkelSlot.id}`)
+            .count,
+      );
+      await expectError(
+        tx,
+        "파트너: 예약보다 적은 정원으로 바꾸기",
+        D,
+        "capacity_below_booked",
+        (sp) =>
+          sp`update public.slot_inventory set capacity = 0 where slot_id = ${snorkelSlot.id} and use_date = ${snorkelDate}`,
+      );
+      await expectOk(tx, "파트너: 자기 회차 날짜 마감", D, async (sp) => {
+        const r =
+          await sp`insert into public.slot_inventory (slot_id, use_date, closed) values (${snorkelSlot.id}, ${await dayPlus(20)}, true)`;
+        return `${r.count}행`;
+      });
+      await expectBlocked(
+        tx,
+        "파트너: 다른 파트너 회차 재고 수정",
+        D,
+        async (sp) =>
+          (await sp`update public.slot_inventory set closed = true where slot_id = ${fujiSlot.id}`)
+            .count,
+      );
+      await expectBlocked(
+        tx,
+        "파트너: 다른 파트너 상품에 옵션 추가",
+        D,
+        async (sp) =>
+          (
+            await sp`insert into public.product_options (product_id, name, price) values (${fuji.id}, '끼워 넣기', 1)`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "anon: 재고 행 삭제",
+        anon,
+        async (sp) =>
+          (await sp`delete from public.slot_inventory where slot_id = ${fujiSlot.id}`).count,
+      );
+
+      const bookedBeforeCancel = await bookedOf(snorkelSlot.id, snorkelDate);
+      await expectOk(tx, "A: 확정 대기 항목 취소 → 전액 환불", A, async (sp) => {
+        const [r] = await sp<
+          { refund: number }[]
+        >`select public.cancel_order_item(${pending.id}) as refund`;
+        if (r?.refund !== snorkel.adult_price) throw new Error(`환불 ${r?.refund}`);
+        return `환불 ${r.refund.toLocaleString()}원`;
+      });
+      const [pendingOrder] = await tx<{ status: string; refund_amount: number }[]>`
+        select status::text, refund_amount from public.orders where id = ${pending.order_id}`;
+      check(
+        "모든 항목이 끝나면 주문도 취소 · 환불 합계",
+        pendingOrder?.status === "cancelled" &&
+          pendingOrder.refund_amount === snorkel.adult_price &&
+          (await bookedOf(snorkelSlot.id, snorkelDate)) === bookedBeforeCancel - 1,
+        `${pendingOrder?.status} · ${pendingOrder?.refund_amount?.toLocaleString()}원`,
+      );
+
+      // 리뷰 자격은 항목 상태를 따른다: 지난 날짜라도 확정 대기·취소 항목으로는 못 쓴다
+      const [pendingPast] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userB}, '검증B', 'b@rls.test', '010-1234-5678', 10000, ${randomUUID()}, now())
+        returning id`;
+      if (!pendingPast) throw new Error("지난 확정 대기 주문 생성 실패");
+      await insertItem(pendingPast.id, yatai.id, "야타이", dates.past, 10000, "pending");
+      await expectBlocked(
+        tx,
+        "B: 이용일 지난 '확정 대기' 상품에 리뷰",
+        B,
+        async (sp) =>
+          (
+            await sp`insert into public.reviews (product_id, rating, content) values (${yatai.id}, 5, '확정 안 된 예약이에요')`
+          ).count,
+      );
 
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
