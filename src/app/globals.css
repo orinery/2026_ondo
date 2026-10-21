@@ -67,6 +67,13 @@
   --radius: 10px;
   /* shadcn 컴포넌트가 var(--radius-md)를 직접 참조하므로 명세 md(= --radius)와 같은 값으로 노출 */
   --radius-md: var(--radius);
+  /* 관리자 대시보드 차트 색 — 새 색을 만들지 않고 명세 시맨틱 토큰을 그대로 가리킨다.
+     .dark에서 원본 토큰이 바뀌므로 차트 색도 함께 바뀐다 */
+  --chart-1: var(--primary);
+  --chart-2: var(--secondary);
+  --chart-3: var(--highlight);
+  --chart-4: var(--warning);
+  --chart-5: var(--muted-foreground);
 }
 
 .dark {

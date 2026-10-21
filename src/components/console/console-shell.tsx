@@ -3,9 +3,11 @@
 import {
   ArrowLeftIcon,
   CalendarCheckIcon,
+  FlagIcon,
   LayoutDashboardIcon,
   MenuIcon,
   PackageIcon,
+  ReceiptTextIcon,
   StoreIcon,
   TicketCheckIcon,
   WalletIcon,
@@ -28,7 +30,6 @@ import { cn } from "@/lib/utils";
 type ConsoleSection = "partner" | "admin";
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
 
-// 메뉴는 단계마다 늘어난다 (S6 대시보드·주문·신고)
 const NAV: Record<ConsoleSection, { title: string; items: NavItem[] }> = {
   partner: {
     title: "파트너 센터",
@@ -43,7 +44,11 @@ const NAV: Record<ConsoleSection, { title: string; items: NavItem[] }> = {
   admin: {
     title: "관리자 콘솔",
     items: [
+      { href: "/admin", label: "대시보드", icon: LayoutDashboardIcon, exact: true },
       { href: "/admin/partners", label: "파트너", icon: StoreIcon },
+      { href: "/admin/products", label: "상품", icon: PackageIcon },
+      { href: "/admin/orders", label: "주문", icon: ReceiptTextIcon },
+      { href: "/admin/reports", label: "리뷰 신고", icon: FlagIcon },
       { href: "/admin/settlements", label: "정산", icon: WalletIcon },
     ],
   },
