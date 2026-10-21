@@ -39,12 +39,20 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { UserRole } from "@/lib/constants/taxonomy";
 import { cn } from "@/lib/utils";
 
 import { SearchCommand, type SearchCity, type SearchItem } from "./search-command";
 import { ThemeToggle } from "./theme-toggle";
 
-export type NavUser = { name: string; avatarUrl: string | null };
+export type NavUser = { name: string; avatarUrl: string | null; role: UserRole };
+
+// 역할별 계정 메뉴 링크: 파트너 → 파트너 센터, 관리자 → 관리자 콘솔, 고객 → 파트너 신청
+const ROLE_LINK: Record<UserRole, { href: string; label: string }> = {
+  customer: { href: "/partner-apply", label: "파트너 신청" },
+  partner: { href: "/partner", label: "파트너 센터" },
+  admin: { href: "/admin", label: "관리자 콘솔" },
+};
 
 type SiteNavProps = {
   user: NavUser | null; // null = 비로그인
@@ -377,6 +385,9 @@ function UserArea({
           <Link href="/my">나의 여행</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link href={ROLE_LINK[user.role].href}>{ROLE_LINK[user.role].label}</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           {/* 로그아웃은 Server Action — 폼 제출로 실행한다 */}
           <form action={signOut} className="w-full">
             <button type="submit" className="w-full text-left">
@@ -451,6 +462,15 @@ function MobileMenu({
             }
           </WithCategory>
         </nav>
+        {user && (
+          <Link
+            href={ROLE_LINK[user.role].href}
+            onClick={() => setOpen(false)}
+            className="mt-4 border-t pt-4 text-sm text-muted-foreground hover:text-foreground"
+          >
+            {ROLE_LINK[user.role].label}
+          </Link>
+        )}
         <div className="mt-4 flex items-center justify-between border-t pt-4">
           {user ? (
             <form action={signOut} className="flex items-center gap-3 text-sm">

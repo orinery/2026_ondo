@@ -38,7 +38,7 @@ async function SiteNavWithUser() {
 
   return (
     <SiteNav
-      user={user ? { name: user.displayName, avatarUrl: user.avatarUrl } : null}
+      user={user ? { name: user.displayName, avatarUrl: user.avatarUrl, role: user.role } : null}
       searchItems={searchItems}
       searchCities={cities.map((c) => ({ slug: c.slug, name: c.name, nameEn: c.nameEn }))}
       cartCount={user ? await getCartCount() : 0}

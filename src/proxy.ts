@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { updateSession } from "@/lib/supabase/proxy";
 
-// 로그인이 필요한 경로
-const PROTECTED_PREFIXES = ["/my", "/cart", "/checkout"];
+// 로그인이 필요한 경로 (역할 확인은 여기서 하지 않는다 — 페이지의 requireRole과 DB가 한다)
+const PROTECTED_PREFIXES = ["/my", "/cart", "/checkout", "/partner", "/partner-apply", "/admin"];
 // 로그인한 사용자가 들어올 필요가 없는 경로
 const AUTH_PAGES = ["/login", "/signup"];
 
