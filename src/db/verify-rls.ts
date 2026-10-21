@@ -819,6 +819,262 @@ async function main() {
           (await sp`update public.profiles set display_name = '탈취' where id = ${userA}`).count,
       );
 
+      // ── 역할 · 파트너 신청/승인 · 파트너 상품
+      // 관리자 C는 시드처럼 postgres 권한으로 지정한다 (앱에는 관리자를 만드는 길이 없다)
+      const userC = randomUUID();
+      await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+               values (${userC}, ${`${userC}@rls.test`}, ${sql.json({ name: "검증관리자" })}, 'authenticated', 'authenticated')`;
+      await tx`update public.profiles set role = 'admin' where id = ${userC}`;
+      const admin: Role = { name: "authenticated", userId: userC };
+
+      await expectError(
+        tx,
+        "anon: 프로필 역할(role) 읽기",
+        anon,
+        "permission denied",
+        (sp) => sp`select role from public.profiles limit 1`,
+      );
+      await expectOk(tx, "anon: 프로필 표시 정보 읽기", anon, async (sp) => {
+        const rows = await sp`select display_name from public.profiles where id = ${userA}`;
+        return `${rows.length}행`;
+      });
+
+      const application = {
+        business_name: "검증 트래블",
+        contact_name: "검증A",
+        contact_phone: "02-123-4567",
+        contact_email: "a@rls.test",
+        intro: "검증용 파트너 신청서입니다.",
+      };
+      const [appA] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { id: string }[]
+          >`insert into public.partner_applications ${sp(application)} returning id`,
+      );
+      check("A: 파트너 신청", Boolean(appA), appA ? "1건" : "실패");
+      if (!appA) throw new Error("파트너 신청 실패");
+      await expectError(
+        tx,
+        "A: 검토 중에 다시 신청",
+        A,
+        "application_pending",
+        (sp) => sp`insert into public.partner_applications ${sp(application)}`,
+      );
+      await expectBlocked(
+        tx,
+        "B: A의 신청서 읽기",
+        B,
+        async (sp) =>
+          (await sp`select 1 from public.partner_applications where id = ${appA.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "A: 본인 신청서를 승인 상태로 바꾸기 (컬럼 권한)",
+        A,
+        async (sp) =>
+          (
+            await sp`update public.partner_applications set status = 'approved' where id = ${appA.id}`
+          ).count,
+      );
+      await expectError(
+        tx,
+        "A: 승인 함수 호출",
+        A,
+        "forbidden",
+        (sp) => sp`select public.approve_partner_application(${appA.id})`,
+      );
+      await expectOk(tx, "관리자: 신청서 읽기", admin, async (sp) => {
+        const rows = await sp`select 1 from public.partner_applications where id = ${appA.id}`;
+        return `${rows.length}행`;
+      });
+      await expectOk(tx, "관리자: 신청 승인", admin, async (sp) => {
+        await sp`select public.approve_partner_application(${appA.id})`;
+        return "승인";
+      });
+      await expectError(
+        tx,
+        "관리자: 이미 승인한 신청 다시 승인",
+        admin,
+        "not_pending",
+        (sp) => sp`select public.approve_partner_application(${appA.id})`,
+      );
+      const [meA] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { role: string; partner_id: string | null }[]
+          >`select role, partner_id from public.my_profile()`,
+      );
+      check(
+        "승인 후 A = 파트너 (my_profile)",
+        meA?.role === "partner" && meA.partner_id !== null,
+        `role=${meA?.role}`,
+      );
+      const partnerA = meA?.partner_id;
+      if (!partnerA) throw new Error("파트너 생성 실패");
+      await expectError(
+        tx,
+        "A(파트너): 다시 신청",
+        A,
+        "already_partner",
+        (sp) => sp`insert into public.partner_applications ${sp(application)}`,
+      );
+      await expectBlocked(
+        tx,
+        "A: 본인 역할을 관리자로 (컬럼 권한)",
+        A,
+        async (sp) =>
+          (await sp`update public.profiles set role = 'admin' where id = ${userA}`).count,
+      );
+
+      // 파트너 상품: partner_id는 기본값(my_partner_id())으로 채워진다
+      const [kyotoCity] = await tx<
+        { id: string }[]
+      >`select id from public.cities where slug = 'kyoto'`;
+      if (!kyotoCity) throw new Error("도시가 없습니다");
+      const draft = {
+        slug: `rls-draft-${userA.slice(0, 8)}`,
+        city_id: kyotoCity.id,
+        category: "tour",
+        theme: "culture",
+        title: "검증용 임시 상품",
+        summary: "검증용",
+        description: "검증용 상품 설명",
+        image_url: "https://images.unsplash.com/photo-1",
+        image_alt: "검증",
+        adult_price: 10000,
+        operating_days: [1, 2, 3, 4, 5, 6, 7],
+        duration_text: "약 1시간",
+        meeting_point: "교토역",
+        latitude: 35,
+        longitude: 135,
+        cancel_policy: "standard",
+      };
+      const [draftRow] = await as(
+        tx,
+        A,
+        (sp) =>
+          sp<
+            { id: string; partner_id: string }[]
+          >`insert into public.products ${sp(draft)} returning id, partner_id`,
+      );
+      check(
+        "A(파트너): 임시 저장 상품 만들기 (partner_id 자동)",
+        draftRow?.partner_id === partnerA,
+        draftRow ? "본인 파트너로 저장" : "실패",
+      );
+      if (!draftRow) throw new Error("파트너 상품 생성 실패");
+      await expectBlocked(
+        tx,
+        "anon: 임시 저장 상품 보기",
+        anon,
+        async (sp) => (await sp`select 1 from public.products where id = ${draftRow.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "B: 임시 저장 상품 보기",
+        B,
+        async (sp) => (await sp`select 1 from public.products where id = ${draftRow.id}`).length,
+      );
+      await expectOk(tx, "관리자: 임시 저장 상품 보기", admin, async (sp) => {
+        const rows = await sp`select 1 from public.products where id = ${draftRow.id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+      await expectBlocked(
+        tx,
+        "B(고객): 상품 만들기",
+        B,
+        async (sp) =>
+          (await sp`insert into public.products ${sp({ ...draft, slug: "rls-b" })}`).count,
+      );
+      await expectBlocked(
+        tx,
+        "A(파트너): 다른 파트너 상품 수정",
+        A,
+        async (sp) =>
+          (await sp`update public.products set title = '탈취' where id = ${fuji.id}`).count,
+      );
+      await expectBlocked(
+        tx,
+        "A(파트너): 본인 상품의 파트너 바꾸기 (컬럼 권한)",
+        A,
+        async (sp) =>
+          (await sp`update public.products set partner_id = ${partnerA} where id = ${draftRow.id}`)
+            .count,
+      );
+      await expectBlocked(
+        tx,
+        "A(파트너): 관리자 판매 중지 해제 (컬럼 권한)",
+        A,
+        async (sp) =>
+          (await sp`update public.products set suspended_reason = null where id = ${draftRow.id}`)
+            .count,
+      );
+      await expectError(
+        tx,
+        "A(파트너): 확정 필요 상품을 당일 마감으로",
+        A,
+        "products_manual_cutoff",
+        (sp) =>
+          sp`update public.products set confirmation_mode = 'manual', cutoff_days = 0 where id = ${draftRow.id}`,
+      );
+      await expectOk(tx, "A(파트너): 본인 상품 판매 시작", A, async (sp) => {
+        const r =
+          await sp`update public.products set published_at = now() where id = ${draftRow.id}`;
+        return `${r.count}행`;
+      });
+
+      // 이용 정지 → my_partner_id()가 null → 본인 상품도 고칠 수 없다
+      await expectError(
+        tx,
+        "B: 파트너 정지 함수 호출",
+        B,
+        "forbidden",
+        (sp) => sp`select public.admin_set_partner_status(${partnerA}, 'suspended')`,
+      );
+      await expectOk(tx, "관리자: 파트너 이용 정지", admin, async (sp) => {
+        await sp`select public.admin_set_partner_status(${partnerA}, 'suspended')`;
+        return "정지";
+      });
+      await expectBlocked(
+        tx,
+        "정지된 파트너 A: 본인 상품 수정",
+        A,
+        async (sp) =>
+          (await sp`update public.products set title = '정지 중 수정' where id = ${draftRow.id}`)
+            .count,
+      );
+
+      // 거절 → 다시 신청 가능
+      const [appB] = await as(
+        tx,
+        B,
+        (sp) =>
+          sp<
+            { id: string }[]
+          >`insert into public.partner_applications ${sp({ ...application, contact_name: "검증B" })} returning id`,
+      );
+      if (!appB) throw new Error("B 신청 실패");
+      await expectError(
+        tx,
+        "관리자: 사유 없이 거절",
+        admin,
+        "invalid_reason",
+        (sp) => sp`select public.reject_partner_application(${appB.id}, '  ')`,
+      );
+      await expectOk(tx, "관리자: 신청 거절", admin, async (sp) => {
+        await sp`select public.reject_partner_application(${appB.id}, '사업 정보 확인이 필요합니다')`;
+        return "거절";
+      });
+      await expectOk(tx, "B: 거절 후 다시 신청", B, async (sp) => {
+        const r = await sp`insert into public.partner_applications ${sp(application)}`;
+        return `${r.count}건`;
+      });
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
