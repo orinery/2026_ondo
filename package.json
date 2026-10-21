@@ -15,6 +15,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "db:verify-rls": "tsx src/db/verify-rls.ts",
+    "db:verify-race": "tsx src/db/verify-race.ts",
     "db:types": "tsx src/db/gen-types.ts && prettier --write src/types/database.ts"
   },
   "dependencies": {
