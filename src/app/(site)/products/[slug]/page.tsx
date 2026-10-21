@@ -20,6 +20,7 @@ import { getLikedIds } from "@/lib/data/likes";
 import {
   canReviewProduct,
   getProductBySlug,
+  getInventory,
   getRelatedProducts,
   getReviews,
   type ProductDetail,
@@ -58,11 +59,17 @@ export default async function ProductDetailPage({
   const query = await searchParams;
   const initialDate = typeof query.date === "string" ? query.date : null;
 
-  const [{ items: reviews, distribution }, likedIds, user, related] = await Promise.all([
+  const { today } = seoulNow();
+  const [{ items: reviews, distribution }, likedIds, user, related, inventory] = await Promise.all([
     getReviews(product.id),
     getLikedIds(),
     getCurrentUser(),
     getRelatedProducts(product),
+    // 날짜별 잔여석·가격 (예약 위젯 달력·회차 선택용)
+    getInventory(
+      product.slots.map((sl) => sl.id),
+      today,
+    ),
   ]);
   // 상품당 리뷰 1개(사용자 확정) → 이미 쓴 리뷰가 있으면 다이얼로그가 수정 모드가 된다
   const myReview = user ? (reviews.find((r) => r.userId === user.id) ?? null) : null;
@@ -70,7 +77,7 @@ export default async function ProductDetailPage({
   const canReview = user && !myReview ? await canReviewProduct(product.id) : false;
   const liked = likedIds.includes(product.id);
   const days = toItineraryDays(product);
-  const { today } = seoulNow();
+  const slotTimes = product.slots.flatMap((sl) => (sl.startTime ? [sl.startTime] : []));
 
   return (
     // 1023 이하: 하단 고정 예약 바(+360 하단 탭)에 내용이 가려지지 않게 여백
@@ -138,7 +145,7 @@ export default async function ProductDetailPage({
             <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border bg-card p-5 text-sm md:grid-cols-4">
               <Fact label="운영">{operatingDaysLabel(product.operatingDays)}</Fact>
               <Fact label="소요 시간">{product.durationText}</Fact>
-              <Fact label="시작 시간">{product.startTime ?? "자유"}</Fact>
+              <Fact label="시작 시간">{slotTimes.length > 0 ? slotTimes.join(" · ") : "자유"}</Fact>
               <Fact label="예약 마감">{cutoffLabel(product.cutoffDays)}</Fact>
             </dl>
           </section>
@@ -246,8 +253,11 @@ export default async function ProductDetailPage({
                 cutoffDays: product.cutoffDays,
                 maxQty: product.maxQty,
                 unavailableReason: product.unavailableReason,
-                startTime: product.startTime,
                 durationText: product.durationText,
+                confirmationMode: product.confirmationMode,
+                slots: product.slots,
+                options: product.options,
+                inventory,
               }}
               today={today}
               initialDate={initialDate}

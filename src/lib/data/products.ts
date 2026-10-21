@@ -2,8 +2,16 @@ import "server-only";
 
 import { cache } from "react";
 
-import { daysBetween, isoWeekday } from "@/lib/booking";
-import type { ThemeSlug, UserItemTypeSlug } from "@/lib/constants/taxonomy";
+import {
+  addDays,
+  daysBetween,
+  isoWeekday,
+  MAX_DAYS_AHEAD,
+  type InventoryRow,
+  type OptionRule,
+  type SlotRule,
+} from "@/lib/booking";
+import type { ConfirmationMode, ThemeSlug, UserItemTypeSlug } from "@/lib/constants/taxonomy";
 import { createClient } from "@/lib/supabase/server";
 import { seoulNow } from "@/lib/trip-dates";
 import type { ProductFilters, SortKey } from "@/lib/validation/product-filters";
@@ -13,6 +21,8 @@ import type { CitySummary, GalleryImage, ProductSummary } from "@/types/product"
 /**
  * 상품·도시 조회 (Data Access Layer)
  * - 모든 조회는 supabase-js(사용자 JWT 또는 anon)로 해서 RLS가 적용된다.
+ * - 목록은 공개된(published_at 있는) 상품만: 파트너·관리자는 RLS로 임시 저장 상품도 읽을 수 있어서
+ *   목록에 섞이지 않게 명시적으로 거른다.
  * - DB 행(snake_case) → 화면용 뷰 모델(camelCase)로 바꿔서 돌려준다. 컴포넌트는 DB 구조를 모른다.
  */
 
@@ -21,7 +31,7 @@ type CityRow = Database["public"]["Tables"]["cities"]["Row"];
 
 // 카드에 필요한 컬럼만 고른다 (설명 본문 등 큰 컬럼 제외). cities!inner: 도시 조건으로 거를 수 있게 내부 조인
 const SUMMARY_COLUMNS =
-  "id, slug, title, category, theme, image_url, image_alt, adult_price, list_adult_price, rating_avg, review_count, unavailable_reason, cities!inner ( slug, name, name_en )";
+  "id, slug, title, category, theme, image_url, image_alt, adult_price, list_adult_price, rating_avg, review_count, unavailable_reason, suspended_reason, cities!inner ( slug, name, name_en )";
 
 type SummaryRow = Pick<
   ProductRow,
@@ -37,7 +47,12 @@ type SummaryRow = Pick<
   | "rating_avg"
   | "review_count"
   | "unavailable_reason"
+  | "suspended_reason"
 > & { cities: Pick<CityRow, "slug" | "name" | "name_en"> };
+
+/** 판매하지 않는 이유 — 관리자 판매 중지가 파트너의 판매 중단보다 먼저 */
+const unavailableOf = (row: Pick<ProductRow, "unavailable_reason" | "suspended_reason">) =>
+  row.suspended_reason ? "판매가 중지된 상품이에요" : row.unavailable_reason;
 
 function toSummary(row: SummaryRow): ProductSummary {
   return {
@@ -53,7 +68,7 @@ function toSummary(row: SummaryRow): ProductSummary {
     listAdultPrice: row.list_adult_price,
     rating: Number(row.rating_avg),
     reviewCount: row.review_count,
-    unavailableReason: row.unavailable_reason,
+    unavailableReason: unavailableOf(row),
   };
 }
 
@@ -110,9 +125,10 @@ function applyFilters<
     contains: (column: string, value: number[]) => Q;
     lte: (column: string, value: number) => Q;
     is: (column: string, value: null) => Q;
+    not: (column: string, operator: "is", value: null) => Q;
   },
 >(query: Q, filters: Filterable, cityIds: string[], omit?: keyof Filterable): Q {
-  let q = query;
+  let q = query.not("published_at", "is", null);
   const search = sanitizeSearch(filters.q);
   if (search && omit !== "q") {
     const conditions = [`title.ilike.%${search}%`, `summary.ilike.%${search}%`];
@@ -199,7 +215,9 @@ export async function getFeaturedProducts(limit = 8) {
   const { data, error } = await supabase
     .from("products")
     .select(SUMMARY_COLUMNS)
+    .not("published_at", "is", null)
     .is("unavailable_reason", null)
+    .is("suspended_reason", null)
     .order("recommend_rank", { ascending: true, nullsFirst: false })
     .limit(limit);
   if (error) throw error;
@@ -212,6 +230,7 @@ export async function getSearchItems() {
   const { data, error } = await supabase
     .from("products")
     .select("slug, title, category, cities!inner ( name, name_en )")
+    .not("published_at", "is", null)
     .order("recommend_rank", { ascending: true, nullsFirst: false });
   if (error) throw error;
   return (data ?? []).map((p) => ({
@@ -247,6 +266,9 @@ export type ProductDetail = ProductSummary & {
   latitude: number;
   longitude: number;
   cancelPolicy: CancellationPolicy;
+  confirmationMode: ConfirmationMode;
+  slots: SlotRule[]; // 판매 중인 회차 (순서대로)
+  options: OptionRule[]; // 판매 중인 추가 옵션
   images: GalleryImage[];
   itinerary: {
     time: string | null;
@@ -267,6 +289,8 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
        cities!inner ( slug, name, name_en ),
        product_images ( url, alt, position ),
        product_itinerary_items ( position, time, title, note, type, caution ),
+       product_slots ( id, start_time, capacity, active, position ),
+       product_options ( id, name, price, unit, active, position ),
        cancellation_policies ( code, name, summary, cancellation_policy_tiers ( days_before, refund_rate ) )`,
     )
     .eq("slug", slug)
@@ -290,9 +314,26 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
     }));
 
   const policy = data.cancellation_policies;
+  const slots = data.product_slots
+    .filter((sl) => sl.active)
+    .sort(
+      (a, b) => a.position - b.position || (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+    )
+    .map((sl) => ({
+      id: sl.id,
+      startTime: sl.start_time ? sl.start_time.slice(0, 5) : null,
+      capacity: sl.capacity,
+    }));
+  const options = data.product_options
+    .filter((o) => o.active)
+    .sort((a, b) => a.position - b.position)
+    .map((o) => ({ id: o.id, name: o.name, price: o.price, unit: o.unit }));
+  const summary = toSummary(data);
 
   return {
-    ...toSummary(data),
+    ...summary,
+    // 임시 저장 상품은 소유 파트너·관리자만 볼 수 있다(RLS) — 미리 보기에서는 예약을 막는다
+    unavailableReason: data.published_at ? summary.unavailableReason : "공개 전 상품이에요",
     summary: data.summary,
     description: data.description,
     highlights: data.highlights,
@@ -316,10 +357,38 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
         .sort((a, b) => b.days_before - a.days_before)
         .map((t) => ({ daysBefore: t.days_before, refundRate: t.refund_rate })),
     },
+    confirmationMode: data.confirmation_mode,
+    slots,
+    options,
     images,
     itinerary,
   };
 });
+
+/**
+ * 예약 가능 기간(오늘 ~ 180일)의 날짜별 재고 — 덮어쓴 정원·가격·마감과 예약 인원.
+ * 행은 덮어썼거나 예약이 있는 날짜에만 있어서 많지 않다. 없는 날짜는 회차 기본값.
+ */
+export async function getInventory(slotIds: string[], today: string): Promise<InventoryRow[]> {
+  if (slotIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("slot_inventory")
+    .select("slot_id, use_date, capacity, closed, adult_price, child_price, booked")
+    .in("slot_id", slotIds)
+    .gte("use_date", today)
+    .lte("use_date", addDays(today, MAX_DAYS_AHEAD));
+  if (error) throw error;
+  return data.map((i) => ({
+    slotId: i.slot_id,
+    useDate: i.use_date,
+    capacity: i.capacity,
+    closed: i.closed,
+    adultPrice: i.adult_price,
+    childPrice: i.child_price,
+    booked: i.booked,
+  }));
+}
 
 /** 같은 도시의 다른 상품 (상세 하단 "함께 보면 좋은 상품") */
 export async function getRelatedProducts(product: Pick<ProductSummary, "id" | "city">, limit = 4) {
@@ -329,7 +398,9 @@ export async function getRelatedProducts(product: Pick<ProductSummary, "id" | "c
     .select(SUMMARY_COLUMNS)
     .eq("cities.slug", product.city.slug)
     .neq("id", product.id)
+    .not("published_at", "is", null)
     .is("unavailable_reason", null)
+    .is("suspended_reason", null)
     .order("recommend_rank", { ascending: true, nullsFirst: false })
     .limit(limit);
   if (error) throw error;

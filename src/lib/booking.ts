@@ -124,6 +124,35 @@ export function slotAvailability(
 
 export type SlotAvailability = ReturnType<typeof slotAvailability>;
 
+/** 그날의 회차별 조건 (회차 순서대로) — 예약 위젯의 회차 선택·달력 매진 표시에 쓴다 */
+export function slotsOn(
+  rules: Pick<BookingRules, "adultPrice" | "childPrice">,
+  slots: SlotRule[],
+  inventory: InventoryRow[],
+  useDate: string,
+) {
+  return slots.map((slot) => ({
+    slot,
+    availability: slotAvailability(
+      rules,
+      slot,
+      inventory.find((i) => i.slotId === slot.id && i.useDate === useDate),
+    ),
+  }));
+}
+
+/** 그날 모든 회차가 마감이거나 남은 자리가 없으면 true (달력에서 고를 수 없게) */
+export function isSoldOutOn(
+  rules: Pick<BookingRules, "adultPrice" | "childPrice">,
+  slots: SlotRule[],
+  inventory: InventoryRow[],
+  useDate: string,
+) {
+  return slotsOn(rules, slots, inventory, useDate).every(
+    ({ availability }) => availability.closed || availability.remaining === 0,
+  );
+}
+
 /** 회차 단위 검사 (마감 → 매진 순서, DB와 같음) */
 export function slotError(availability: SlotAvailability, qty: number): BookingErrorCode | null {
   if (availability.closed) return "slot_closed";
@@ -180,6 +209,16 @@ export function operatingDaysLabel(days: number[]) {
   if (days.length === 7) return "매일";
   const closed = [1, 2, 3, 4, 5, 6, 7].filter((d) => !days.includes(d));
   return `${closed.map((d) => WEEKDAY_LABELS[d - 1]).join("·")}요일 휴무`;
+}
+
+/** 옵션 가격 표시: "+10,000원 / 건", "+12,000원 / 1인" */
+export function optionPriceLabel(option: Pick<OptionRule, "price" | "unit">) {
+  return `+${option.price.toLocaleString("ko-KR")}원 / ${option.unit === "per_person" ? "1인" : "건"}`;
+}
+
+/** 고른 옵션 표시: 건당 "호텔 픽업", 1인당 "도시락 ×3" */
+export function optionLabel(option: Pick<OptionRule, "name" | "unit">, qty: number) {
+  return option.unit === "per_person" ? `${option.name} ×${qty}` : option.name;
 }
 
 /** 예약 마감 안내: 0 → "당일까지 예약", 2 → "이용 2일 전까지 예약" */
