@@ -223,7 +223,9 @@ function CartRow({
           </h3>
           <p className="mt-0.5 text-sm">
             {formatUseDate(item.useDate)}
-            {p.startTime && <span className="text-muted-foreground"> · {p.startTime} 시작</span>}
+            {item.slot.startTime && (
+              <span className="text-muted-foreground"> · {item.slot.startTime} 시작</span>
+            )}
           </p>
         </div>
         <button
@@ -247,7 +249,7 @@ function CartRow({
           <div className="flex flex-col gap-2 md:w-72">
             <QuantityStepper
               label="성인"
-              description={formatKrw(p.adultPrice)}
+              description={formatKrw(item.prices.adultPrice)}
               value={item.adultQty}
               max={item.adultQty + remaining}
               // 인원 합계는 1명 이상이어야 한다 (DB CHECK)
@@ -255,10 +257,10 @@ function CartRow({
               disabled={pending}
               onChange={(n) => onQuantity(n, item.childQty)}
             />
-            {p.childPrice !== null && (
+            {item.prices.childPrice !== null && (
               <QuantityStepper
                 label="아동"
-                description={formatKrw(p.childPrice)}
+                description={formatKrw(item.prices.childPrice)}
                 value={item.childQty}
                 max={item.childQty + remaining}
                 min={item.adultQty > 0 ? 0 : 1}

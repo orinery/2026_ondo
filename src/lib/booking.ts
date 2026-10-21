@@ -1,5 +1,7 @@
+import type { OptionUnit } from "@/lib/constants/taxonomy";
+
 /**
- * 예약 규칙 (화면용) — DB 함수 public.booking_error(0005 마이그레이션)와 같은 규칙의 TypeScript 판.
+ * 예약 규칙 (화면용) — DB 함수 public.booking_error·line_price(0012 마이그레이션)와 같은 규칙의 TypeScript 판.
  *
  * 왜 두 곳에 있나
  * - 화면: 달력에서 고를 수 없는 날짜를 미리 비활성화하고, 총액을 바로 보여주기 위해 (UX)
@@ -18,6 +20,22 @@ export type BookingRules = {
   unavailableReason: string | null;
 };
 
+/** 회차 (예: 10:00). startTime null = 시간 없는 상품(종일권)의 단일 회차 */
+export type SlotRule = { id: string; startTime: string | null; capacity: number };
+
+/** 날짜 × 회차 재고 행 (없으면 회차 기본값) — slot_inventory */
+export type InventoryRow = {
+  slotId: string;
+  useDate: string;
+  capacity: number | null;
+  closed: boolean;
+  adultPrice: number | null;
+  childPrice: number | null;
+  booked: number;
+};
+
+export type OptionRule = { id: string; name: string; price: number; unit: OptionUnit };
+
 export type BookingErrorCode =
   | "product_not_found"
   | "unavailable"
@@ -25,7 +43,11 @@ export type BookingErrorCode =
   | "child_unavailable"
   | "cutoff"
   | "too_far"
-  | "closed_day";
+  | "closed_day"
+  | "slot_not_found"
+  | "slot_closed"
+  | "option_invalid"
+  | "sold_out";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const toUtc = (ymd: string) => {
@@ -81,6 +103,51 @@ export function firstAvailableDate(rules: BookingRules, today: string) {
   return null;
 }
 
+/**
+ * 날짜·회차의 실제 조건: 남은 자리·마감·가격 (덮어쓴 값이 있으면 그것, 없으면 회차·상품 기본값).
+ * DB booking_error의 잔여석 계산·line_price의 가격 선택과 같다.
+ */
+export function slotAvailability(
+  rules: Pick<BookingRules, "adultPrice" | "childPrice">,
+  slot: SlotRule,
+  inventory: InventoryRow | undefined,
+) {
+  const capacity = inventory?.capacity ?? slot.capacity;
+  return {
+    remaining: Math.max(capacity - (inventory?.booked ?? 0), 0),
+    closed: inventory?.closed ?? false,
+    adultPrice: inventory?.adultPrice ?? rules.adultPrice,
+    // 성인 전용 상품은 덮어쓴 아동 가격이 있어도 아동 판매 안 함
+    childPrice: rules.childPrice === null ? null : (inventory?.childPrice ?? rules.childPrice),
+  };
+}
+
+export type SlotAvailability = ReturnType<typeof slotAvailability>;
+
+/** 회차 단위 검사 (마감 → 매진 순서, DB와 같음) */
+export function slotError(availability: SlotAvailability, qty: number): BookingErrorCode | null {
+  if (availability.closed) return "slot_closed";
+  if (qty > availability.remaining) return "sold_out";
+  return null;
+}
+
+/** 옵션 금액: 건당은 한 번, 1인당은 인원 수만큼 */
+export function optionsAmount(options: OptionRule[], selectedIds: string[], qty: number) {
+  return options
+    .filter((o) => selectedIds.includes(o.id))
+    .reduce((sum, o) => sum + (o.unit === "per_person" ? o.price * qty : o.price), 0);
+}
+
+/** 한 줄 금액 = 인원 금액 + 옵션 금액 (DB line_price와 같은 공식) */
+export function lineTotal(
+  prices: { adultPrice: number; childPrice: number | null },
+  adult: number,
+  child: number,
+  optionTotal = 0,
+) {
+  return adult * prices.adultPrice + child * (prices.childPrice ?? 0) + optionTotal;
+}
+
 export function bookingTotal(
   rules: Pick<BookingRules, "adultPrice" | "childPrice">,
   adult: number,
@@ -97,6 +164,10 @@ const ERROR_LABELS: Record<BookingErrorCode, string> = {
   cutoff: "예약 마감",
   too_far: "예약 기간 밖",
   closed_day: "운영하지 않는 날",
+  slot_not_found: "회차 판매 종료",
+  slot_closed: "회차 마감",
+  option_invalid: "옵션 변경",
+  sold_out: "매진",
 };
 
 /** 장바구니 배지용 짧은 사유 ("예약 마감") — 긴 안내 문장은 order-errors.ts */

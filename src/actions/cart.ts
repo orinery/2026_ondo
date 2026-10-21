@@ -13,7 +13,7 @@ import { cartItemSchema, cartQuantitySchema } from "@/lib/validation/cart";
  * 장바구니 Server Actions
  * - 로그인 확인 → Zod 검증 → supabase-js(RLS: 본인 장바구니만).
  * - 가격은 다루지 않는다. 장바구니에는 상품·이용일·인원만 저장하고, 금액은 결제 시 DB 함수가 계산한다.
- * - 예약 가능 여부(요일·마감·인원)는 DB 트리거(validate_cart_item)가 최종 판단한다.
+ * - 예약 가능 여부(요일·마감·인원·회차·잔여석·옵션)는 DB 트리거(validate_cart_item)가 최종 판단한다.
  *   트리거가 던진 코드(예: "closed_day")를 사용자 문장으로 바꿔 돌려준다.
  */
 
@@ -31,8 +31,10 @@ function dbFailure(message: string | undefined): ActionResult<never> {
 
 /**
  * 장바구니 담기.
- * - mode "add"(장바구니 담기): 같은 상품·같은 날짜가 이미 있으면 인원을 더한다
- * - mode "set"(바로 구매): 인원을 이번 선택 그대로 맞춘다 — 예전에 담아 둔 인원이 섞여 결제되지 않게
+ * - 같은 회차·같은 날짜가 이미 있으면 한 줄로 합친다 (사용자 확정: 인원은 더하고 옵션은 새 선택으로 바꾼다)
+ *   - mode "add"(장바구니 담기): 인원을 더한다
+ *   - mode "set"(바로 구매): 인원을 이번 선택 그대로 맞춘다 — 예전에 담아 둔 인원이 섞여 결제되지 않게
+ * - 남은 자리·마감·옵션 유효성은 DB 트리거가 판단한다 (매진이면 sold_out)
  * 돌려주는 cartItemId로 바로 구매는 주문서(/checkout?items=)로 이동한다.
  */
 export async function addToCart(
@@ -44,13 +46,27 @@ export async function addToCart(
   if (!parsed.success) {
     return { ok: false, reason: "invalid", message: parsed.error.issues[0]?.message };
   }
-  const { productId, useDate, adultQty, childQty } = parsed.data;
+  const { productId, useDate, adultQty, childQty, optionIds } = parsed.data;
 
   const supabase = await createClient();
+  let slotId = parsed.data.slotId;
+  if (!slotId) {
+    const { data: slot } = await supabase
+      .from("product_slots")
+      .select("id")
+      .eq("product_id", productId)
+      .eq("active", true)
+      .order("position")
+      .limit(1)
+      .maybeSingle();
+    if (!slot) return dbFailure("slot_not_found");
+    slotId = slot.id;
+  }
+
   const { data: existing, error: findError } = await supabase
     .from("cart_items")
     .select("id, adult_qty, child_qty")
-    .eq("product_id", productId)
+    .eq("slot_id", slotId)
     .eq("use_date", useDate)
     .maybeSingle();
   if (findError) return { ok: false, reason: "error" };
@@ -60,7 +76,10 @@ export async function addToCart(
       mode === "add"
         ? { adult_qty: existing.adult_qty + adultQty, child_qty: existing.child_qty + childQty }
         : { adult_qty: adultQty, child_qty: childQty };
-    const { error } = await supabase.from("cart_items").update(next).eq("id", existing.id);
+    const { error } = await supabase
+      .from("cart_items")
+      .update({ ...next, option_ids: optionIds })
+      .eq("id", existing.id);
     if (error) return dbFailure(error.message);
     refresh();
     return { ok: true, cartItemId: existing.id };
@@ -68,7 +87,14 @@ export async function addToCart(
 
   const { data, error } = await supabase
     .from("cart_items")
-    .insert({ product_id: productId, use_date: useDate, adult_qty: adultQty, child_qty: childQty })
+    .insert({
+      product_id: productId,
+      slot_id: slotId,
+      use_date: useDate,
+      adult_qty: adultQty,
+      child_qty: childQty,
+      option_ids: optionIds,
+    })
     .select("id")
     .single();
   if (error) return dbFailure(error.message);

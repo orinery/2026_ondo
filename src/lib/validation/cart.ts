@@ -14,9 +14,13 @@ export const cartQuantitySchema = z
 export const cartItemSchema = z
   .object({
     productId: z.uuid(),
+    // 회차: 보내지 않으면 상품의 첫 회차 (회차가 하나뿐인 상품·회차 선택 전 화면)
+    slotId: z.uuid().optional(),
     useDate: z.iso.date({ error: "이용일을 선택해 주세요" }),
     adultQty: qty,
     childQty: qty,
+    // 추가 옵션 — 유효한지(이 상품의 판매 중인 옵션인지)는 DB 트리거가 확인한다
+    optionIds: z.array(z.uuid()).max(10).default([]),
   })
   .refine((v) => v.adultQty + v.childQty >= 1, { message: "인원을 1명 이상 선택해 주세요" });
 

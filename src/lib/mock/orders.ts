@@ -24,6 +24,10 @@ export const MOCK_CART: CartItem[] = [
     useDate: "2026-11-21",
     adultQty: 2,
     childQty: 1,
+    slot: { id: "s1", startTime: "08:00" },
+    prices: { adultPrice: 89000, childPrice: 69000 },
+    options: [],
+    optionsAmount: 0,
     subtotal: 247000,
     error: null,
     product: {
@@ -48,6 +52,10 @@ export const MOCK_CART: CartItem[] = [
     useDate: "2026-10-16",
     adultQty: 2,
     childQty: 0,
+    slot: { id: "s2", startTime: "14:00" },
+    prices: { adultPrice: 38000, childPrice: 25000 },
+    options: [],
+    optionsAmount: 0,
     subtotal: 76000,
     // 담은 뒤 마감이 지나 주문할 수 없게 된 항목
     error: "cutoff",

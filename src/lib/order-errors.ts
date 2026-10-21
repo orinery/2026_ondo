@@ -11,6 +11,12 @@ const MESSAGES: Record<string, string> = {
   cutoff: "예약이 마감된 날짜예요. 다른 날짜를 골라 주세요.",
   too_far: "180일 이내의 날짜만 예약할 수 있어요.",
   closed_day: "운영하지 않는 요일이에요. 다른 날짜를 골라 주세요.",
+  // 회차·재고·옵션 (0012)
+  slot_not_found: "선택한 회차를 지금은 판매하지 않아요. 다른 회차를 골라 주세요.",
+  slot_closed: "선택한 날짜의 회차가 마감됐어요. 다른 날짜나 회차를 골라 주세요.",
+  sold_out: "남은 자리가 부족해요. 인원을 줄이거나 다른 날짜·회차를 골라 주세요.",
+  option_invalid: "선택한 옵션을 지금은 고를 수 없어요. 옵션을 다시 골라 주세요.",
+  capacity_below_booked: "이미 예약된 인원보다 적게 정원을 줄일 수 없어요.",
   // 주문 (place_order)
   cart_changed: "장바구니가 바뀌었어요. 장바구니를 다시 확인해 주세요.",
   price_changed: "그 사이 가격이 바뀌었어요. 바뀐 금액을 확인한 뒤 다시 결제해 주세요.",
@@ -18,7 +24,7 @@ const MESSAGES: Record<string, string> = {
   // 취소 (cancel_order)
   not_found: "주문을 찾을 수 없어요.",
   already_cancelled: "이미 취소된 주문이에요.",
-  not_cancellable: "이용일 당일·이후에는 취소할 수 없어요.",
+  not_cancellable: "이용일 당일·이후이거나 이미 이용한 예약은 취소할 수 없어요.",
   // 플래너 예약 항목
   booking_locked: "예약 항목은 날짜를 옮길 수 없어요. 날짜를 바꾸려면 예약을 취소해 주세요.",
   booking_out_of_range:
