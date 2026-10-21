@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CartItem } from "@/lib/data/cart";
 import { formatKrw, formatUseDate } from "@/lib/format";
-import { bookingErrorLabel } from "@/lib/booking";
+import { bookingErrorLabel, optionLabel } from "@/lib/booking";
 import { errorMessage } from "@/lib/order-errors";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,8 @@ export function CartView({
   preview?: boolean;
 }) {
   const router = useRouter();
+  // 미리보기는 쇼케이스 섹션 안에 들어가므로 보조 랜드마크(aside)를 중첩하지 않는다 (axe landmark 규칙)
+  const Summary = preview ? "div" : "aside";
   const orderable = items.filter((i) => !i.error);
   // 처음에는 주문 가능한 항목을 모두 선택한다
   const [selected, setSelected] = useState<string[]>(() => orderable.map((i) => i.id));
@@ -107,7 +109,7 @@ export function CartView({
       </section>
 
       {/* 결제 요약: 1024 이상 사이드 sticky */}
-      <aside aria-label="결제 요약" className="hidden lg:col-span-4 lg:block">
+      <Summary aria-label="결제 요약" className="hidden lg:col-span-4 lg:block">
         <div className="sticky top-24 flex flex-col gap-4 rounded-xl border bg-card p-5">
           <h2 className="text-lg font-semibold">결제 예정 금액</h2>
           <dl className="flex flex-col gap-2 text-sm">
@@ -139,7 +141,7 @@ export function CartView({
             금액은 현재 판매 가격 기준이에요. 결제 직전에 한 번 더 확인해요.
           </p>
         </div>
-      </aside>
+      </Summary>
 
       {/* 1023 이하: 하단 고정 주문 바 (360에서는 하단 탭 위) */}
       <div
@@ -227,6 +229,13 @@ function CartRow({
               <span className="text-muted-foreground"> · {item.slot.startTime} 시작</span>
             )}
           </p>
+          {item.options.length > 0 && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              옵션:{" "}
+              {item.options.map((o) => optionLabel(o, item.adultQty + item.childQty)).join(", ")} (+
+              {formatKrw(item.optionsAmount)})
+            </p>
+          )}
         </div>
         <button
           type="button"

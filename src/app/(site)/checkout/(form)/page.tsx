@@ -11,6 +11,7 @@ import { CancellationPolicyTable } from "@/components/product/cancellation-polic
 import { requireUser } from "@/lib/auth";
 import { getCartItems } from "@/lib/data/cart";
 import { errorMessage } from "@/lib/order-errors";
+import { optionLabel } from "@/lib/booking";
 import { parseItemsParam } from "@/lib/validation/checkout";
 
 export const metadata: Metadata = {
@@ -50,8 +51,10 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
     cityName: i.product.cityName,
     imageUrl: i.product.imageUrl,
     useDate: i.useDate,
+    startTime: i.slot.startTime,
     adultQty: i.adultQty,
     childQty: i.childQty,
+    options: i.options.map((o) => optionLabel(o, i.adultQty + i.childQty)),
     subtotal: i.subtotal,
     note: i.error ? (
       <p className="mt-1 inline-flex items-center gap-1 text-sm text-destructive">
