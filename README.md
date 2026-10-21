@@ -2,16 +2,18 @@
 
 > 떠나기 전의 설렘이 돌아온 뒤의 여운으로.
 
-일본 6개 도시(도쿄·교토·오사카·후쿠오카·삿포로·오키나와)의 **투어·액티비티와 입장권을 날짜·인원을 골라 예약하는 여행 상품 쇼핑몰**입니다. 개인 포트폴리오 프로젝트로, 디자이너가 만든 디자인 시스템 명세(`design/yeoun-design-system.dc.html`)를 기준으로 구현했습니다.
+일본 6개 도시(도쿄·교토·오사카·후쿠오카·삿포로·오키나와)의 **투어·액티비티와 입장권을 날짜·회차·인원을 골라 예약하는 여행 상품 쇼핑몰**입니다. 고객 화면에 더해 **판매자(파트너) 센터와 관리자 콘솔**까지 갖춘 마켓플레이스 구조입니다. 개인 포트폴리오 프로젝트로, 디자이너가 만든 디자인 시스템 명세(`design/yeoun-design-system.dc.html`)를 기준으로 구현했습니다.
 
 **주요 기능**
 
 - 상품 목록·상세 — 도시·상품 종류·테마 필터, 정렬, 검색(도시 이름 포함), **이용일로 예약 가능한 상품만 보기**
-- 예약 위젯 — 쉬는 요일·마감·180일 이후를 막은 달력, 성인/아동 인원, 실시간 총액, 장바구니 담기·바로 구매
-- 장바구니 → 주문서 → **모의 결제** → 주문 완료 (금액은 DB가 다시 계산, 중복 결제 방지)
-- 나의 여행 — 예약 내역(이용 예정·완료·취소) · 예약 상세 · **취소 규정에 따른 환불액 계산과 예약 취소**
+- 예약 위젯 — 쉬는 요일·마감·180일 이후·**매진**을 막은 달력, **회차(시간)별 남은 자리**, 날짜별 가격, **추가 옵션**(건당/1인당), 성인/아동 인원, 실시간 총액
+- 장바구니 → 주문서 → **모의 결제** → 주문 완료 (금액은 DB가 다시 계산, 중복 결제 방지, **동시 결제에도 초과 판매 없음**)
+- 나의 여행 — 예약 내역(확정 대기·이용 예정·완료·취소) · 예약 상세 · **모바일 바우처(QR)** · 취소 규정에 따른 환불액 계산과 **상품별 취소**
+- **파트너 센터** — 파트너 신청(관리자 승인), 상품 등록·수정(사진 업로드·회차·옵션), 날짜별 재고·가격 관리, 예약 확정·거절(파트너 확정 상품, 48시간 기한 지나면 자동 취소), 바우처 사용 처리, **월별 정산**(수수료 15%)
+- **관리자 콘솔** — 대시보드 차트, 파트너 신청 승인·이용 정지, 상품 판매 중지, 주문 조회, **리뷰 신고 처리**, 월 정산 완료 처리
 - 일정 플래너 — 주문하면 이용일에 맞춰 **예약이 자동으로 추가**(시작 시간 순), 날짜별 장소 추가·드래그 정렬·동선 지도, 찜에서 불러오기
-- 리뷰 — **이용을 마친 구매 고객만** 작성(구매 인증 배지), 별점 + 텍스트 + 사진 1장
+- 리뷰 — **이용을 마친 구매 고객만** 작성(구매 인증 배지), 별점 + 텍스트 + 사진 1장, 신고
 - 찜·찜 폴더, 회원가입·로그인(이메일 인증), 라이트/다크 모드, 360 / 768 / 1280 반응형
 
 ## 목차
@@ -57,20 +59,25 @@ npm run dev
 
 http://localhost:3000 에서 확인합니다. 디자인 토큰과 모든 컴포넌트 상태(장바구니·예약 내역·예약 위젯 포함)는 http://localhost:3000/dev/components 에 모아 두었습니다.
 
-> 리뷰 작성 흐름을 바로 보고 싶다면 가입한 계정 이메일을 `SEED_BUYER_EMAIL`로 주고 시드를 다시 실행하면, 그 계정에 "이용 완료" 주문 1건이 생깁니다.
+> 가입한 계정 이메일을 `.env.local`에 넣고 시드를 다시 실행하면 역할별 화면을 바로 볼 수 있습니다 (1계정 1역할 — 서로 다른 계정).
+>
+> - `SEED_BUYER_EMAIL` → 그 계정에 "이용 완료" 주문 1건 (리뷰 작성 흐름)
+> - `SEED_ADMIN_EMAIL` → 관리자 (`/admin`)
+> - `SEED_PARTNER_EMAIL` → 데모 파트너 "하루 트래블"의 소유자 (`/partner`)
 
 ### 스크립트
 
-| 명령                            | 하는 일                                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `dev` / `build` / `start`       | 개발 서버 / 프로덕션 빌드 / 프로덕션 실행                                                      |
-| `typecheck` · `lint` · `format` | 타입 검사(strict) · ESLint · Prettier                                                          |
-| `db:generate`                   | `src/db/schema.ts` 변경을 SQL 마이그레이션으로 생성                                            |
-| `db:migrate`                    | 마이그레이션을 Supabase에 적용                                                                 |
-| `db:seed`                       | 도시 6 · 상품 24 · 사진 89 · 취소 규정 3 · 데모 주문·리뷰 28 입력 (여러 번 실행해도 결과 동일) |
-| `db:verify-rls`                 | 실제 DB에서 권한·주문 규칙 76개 시나리오 검증 (트랜잭션 롤백, 흔적 없음)                       |
-| `db:types`                      | 실제 DB 스키마로 supabase-js 타입 생성                                                         |
-| `db:studio`                     | Drizzle Studio (DB 브라우저)                                                                   |
+| 명령                            | 하는 일                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `dev` / `build` / `start`       | 개발 서버 / 프로덕션 빌드 / 프로덕션 실행                                                                                   |
+| `typecheck` · `lint` · `format` | 타입 검사(strict) · ESLint · Prettier                                                                                       |
+| `db:generate`                   | `src/db/schema.ts` 변경을 SQL 마이그레이션으로 생성                                                                         |
+| `db:migrate`                    | 마이그레이션을 Supabase에 적용                                                                                              |
+| `db:seed`                       | 도시 6 · 파트너 3 · 상품 24(회차·옵션·날짜별 재고 포함) · 취소 규정 3 · 데모 주문·리뷰 28 입력 (여러 번 실행해도 결과 동일) |
+| `db:verify-rls`                 | 실제 DB에서 역할별 권한·주문·재고·정산 규칙 204개 시나리오 검증 (트랜잭션 롤백, 흔적 없음)                                  |
+| `db:verify-race`                | 정원 5명 회차에 10명 동시 결제 → 정확히 5건만 성공하는지 검증 (검증 데이터는 끝나면 삭제)                                   |
+| `db:types`                      | 실제 DB 스키마로 supabase-js 타입 생성                                                                                      |
+| `db:studio`                     | Drizzle Studio (DB 브라우저)                                                                                                |
 
 ## 2. 기술 스택과 선택 이유
 
@@ -86,6 +93,9 @@ http://localhost:3000 에서 확인합니다. 디자인 토큰과 모든 컴포�
 | 달력                | **react-day-picker** (shadcn Calendar)             | 날짜별 비활성화(쉬는 요일·마감)를 함수 하나로 지정, 키보드 탐색 지원                                                     |
 | 지도                | **Leaflet + OpenStreetMap**                        | 무료, API 키 불필요                                                                                                      |
 | 드래그 정렬         | **dnd-kit**                                        | 키보드 정렬·스크린리더 안내를 지원                                                                                       |
+| 차트                | **shadcn chart** (recharts)                        | 관리자 대시보드. 색은 디자인 시맨틱 토큰을 가리키는 `--chart-*` 변수만 사용                                              |
+| QR                  | **qrcode**                                         | 바우처 QR — 모듈 배열만 받아 SVG를 직접 그려 토큰 색을 따르게 함                                                         |
+| 예약 만료 작업      | **pg_cron** (Supabase)                             | 파트너가 기한 안에 확정하지 않은 예약을 10분마다 자동 취소. 일시 정지 대비 화면을 열 때도 한 번 더 처리                  |
 | 배포                | **Vercel**                                         | Next.js 기본 배포 대상, 무료 티어                                                                                        |
 
 ### 설계 결정 몇 가지
@@ -95,27 +105,31 @@ http://localhost:3000 에서 확인합니다. 디자인 토큰과 모든 컴포�
 - **날짜는 한국 기준 문자열** — 이용일은 `YYYY-MM-DD`, "오늘"은 DB `seoul_today()` / 앱 `seoulNow()`로 계산해 서버 시간대(UTC)와 관계없이 같다.
 - **Drizzle은 스키마·마이그레이션·시드 전용, 앱의 데이터 접근은 supabase-js만** — Drizzle은 DB 관리자 권한으로 접속해 RLS를 우회한다. 사용자 요청은 항상 사용자 JWT로 실행돼야 RLS가 마지막 방어선이 된다.
 - **상태의 원본은 URL** — 목록 필터(`?city=kyoto&category=tour&sort=price_asc&date=…`), 나의 여행 탭·예약 상태·폴더·선택한 여행이 모두 URL에 남아 새로고침·공유·뒤로 가기가 그대로 동작한다.
+- **역할은 DB 함수로 판단** — 로그인 사용자는 모두 같은 DB 역할(`authenticated`)이라 컬럼 GRANT로는 파트너·관리자를 나눌 수 없다. `is_admin()`·`my_partner_id()`(security definer)를 RLS 정책과 관리자 함수에서 부른다. 관리자 전용 컬럼(역할·판매 중지·예약 인원 카운터 등)에는 GRANT를 주지 않는다.
+- **초과 판매 방지** — 결제할 때 "남은 자리가 충분할 때만 예약 인원을 늘리는" UPDATE 한 문장으로 좌석을 잡는다. 같은 회차를 동시에 결제하면 행 잠금에서 기다렸다가 바뀐 값으로 다시 판단한다. 여러 회차는 항상 같은 순서로 잠가 교착을 막는다. `db:verify-race`로 실제 동시 결제를 확인한다.
+- **상태 변경은 한 함수로** — 취소·거절·만료가 모두 `release_item`을 거쳐 좌석 반환·플래너 정리·주문 환불 합계가 어긋나지 않는다 (불변식: 예약 인원 = 살아 있는 항목 인원 합).
 - **Cache Components 끔** — 로그인 상태를 쿠키로 읽는 구조에서는 "쿠키를 읽으면 동적 렌더링"인 기존 모델이 더 단순하고 Supabase 공식 예제와도 같다.
 
 ## 3. 아키텍처
 
 ```mermaid
 flowchart LR
-  B[브라우저] -->|요청| P[Proxy<br/>세션 갱신 · /my /cart /checkout 1차 차단]
+  B[브라우저] -->|요청| P[Proxy<br/>세션 갱신 · 로그인 필요 경로 1차 차단]
   P --> R[Server Component<br/>lib/data 조회]
   B -->|폼·버튼| A[Server Action<br/>로그인 확인 → Zod 검증]
-  R -->|publishable 키 + 사용자 JWT| S[(Supabase Postgres<br/>RLS + 컬럼 GRANT)]
+  R -->|publishable 키 + 사용자 JWT| S[(Supabase Postgres<br/>RLS + 컬럼 GRANT<br/>is_admin · my_partner_id)]
   A -->|insert / rpc| S
-  S --- F[DB 함수<br/>place_order · cancel_order · refund_quote<br/>booking_error · attach_bookings]
-  B -->|리뷰 사진 직접 업로드| ST[(Supabase Storage<br/>본인 폴더 정책)]
+  S --- F[DB 함수<br/>place_order · cancel_order(_item) · release_item<br/>save_product · confirm/reject_item · mark_used<br/>settlement_* · admin_*]
+  C[pg_cron 10분] -->|expire_pending_items| S
+  B -->|리뷰·상품 사진 직접 업로드| ST[(Supabase Storage<br/>본인·파트너 폴더 정책)]
   D[로컬 스크립트<br/>Drizzle 마이그레이션·시드·검증] -->|DATABASE_URL| S
 ```
 
 **권한은 세 겹으로 확인합니다.**
 
-1. **Proxy** (`src/proxy.ts`) — 매 요청 세션 토큰을 갱신하고, 로그인 없이 `/my`·`/cart`·`/checkout`에 오면 로그인으로 보낸다. 빠른 리다이렉트용.
-2. **Data Access Layer** (`src/lib/auth.ts`) — 페이지·Server Action마다 `getClaims()`로 JWT 서명을 검증한다. Proxy를 우회하는 요청에 대비.
-3. **DB** — RLS가 "어떤 행"을, 컬럼 단위 GRANT가 "어떤 컬럼"을, DB 함수가 "주문·취소 규칙"을 강제한다. 앱 코드에 버그가 있어도 남의 데이터를 읽거나 금액을 바꿀 수 없다.
+1. **Proxy** (`src/proxy.ts`) — 매 요청 세션 토큰을 갱신하고, 로그인 없이 `/my`·`/cart`·`/checkout`·`/partner`·`/admin`에 오면 로그인으로 보낸다. 빠른 리다이렉트용.
+2. **Data Access Layer** (`src/lib/auth.ts`) — 페이지·Server Action마다 `getClaims()`로 JWT 서명을 검증하고, 콘솔은 `requireRole`로 역할을 확인한다(관리자 화면은 404로 존재를 숨김). Proxy를 우회하는 요청에 대비.
+3. **DB** — RLS가 "어떤 행"을, 컬럼 단위 GRANT가 "어떤 컬럼"을, DB 함수가 "주문·취소·확정·정산 규칙과 역할"을 강제한다. 앱 코드에 버그가 있어도 남의 데이터를 읽거나 금액·재고를 바꿀 수 없다.
 
 ## 4. 폴더 구조
 
@@ -134,13 +148,19 @@ src/
         complete/[orderNo]/  주문 완료
       my/
         (tabs)/          나의 여행 (예약 내역 · 찜 · 일정 플래너)
-        orders/[orderNo]/    예약 상세·취소
+        orders/[orderNo]/    예약 상세·바우처·취소
+      partner-apply/     파트너 신청
+    (console)/           콘솔 공통 틀 (사이드바, 사이트 내비 없음)
+      partner/           파트너 센터: 홈 · 상품(등록·수정·재고) · 예약 · 바우처 · 정산
+      admin/             관리자: 대시보드 · 파트너 · 상품 · 주문 · 리뷰 신고 · 정산
     auth/callback/       이메일 인증 링크가 돌아오는 Route Handler
     dev/components/      디자인 시스템 쇼케이스 (검색 노출 안 함)
-  actions/               Server Actions — 모든 데이터 변경 (auth · cart · orders · likes · reviews · trips)
+  actions/               Server Actions — 모든 데이터 변경 (auth · cart · orders · likes · reviews · trips
+                         · partners · partner-products · partner-bookings · settlements · admin)
   components/
     ui/                  shadcn/ui 원본 (수정은 최소화하고 이유를 주석으로 남김)
-    product/ cart/ checkout/ orders/ itinerary/ planner/ my/ layout/ auth/ home/   도메인 컴포넌트
+    product/ cart/ checkout/ orders/ itinerary/ planner/ my/ layout/ auth/ home/   고객 화면
+    console/ partner/ admin/ settlements/                                         콘솔 화면
   lib/
     data/                서버 전용 조회 (DB 행 → 화면용 타입으로 변환)
     supabase/            서버·브라우저·Proxy용 클라이언트
@@ -161,14 +181,16 @@ design/                  디자인 시스템 명세 원본
 
 ERD·주문 흐름·함수 목록은 [docs/database.md](docs/database.md)에 있습니다.
 
-- 테이블 15개: 카탈로그(`cities` · `products` · `product_images` · `product_itinerary_items` · `cancellation_policies` · `cancellation_policy_tiers`) / 구매(`cart_items` · `orders` · `order_items`) / 개인(`profiles` · `like_folders` · `likes` · `trips` · `trip_items`) / `reviews`
-- **모든 테이블에 RLS** — 카탈로그·리뷰·프로필은 누구나 읽기만, 장바구니·찜·여행은 본인만, 주문은 본인 것 **읽기만**
-- **주문** — `place_order`가 한 트랜잭션에서: 같은 중복 방지 키면 기존 주문 반환 → 장바구니 행 잠금(두 탭 동시 결제 차단) → 예약 규칙 재검사 → **가격 재계산** → 화면 금액과 다르면 `price_changed` → 주문·항목(구매 시점 상품명·단가·취소 규정 복사) 생성 → 장바구니 삭제 → 플래너에 예약 항목 추가
-- **취소·환불** — 취소 확인 창의 환불 예정액과 실제 취소가 같은 함수(`refund_quote`)를 쓴다. 이용일 당일·이후, 이미 취소된 주문은 거부. 남의 주문 id에는 "없음"과 같은 오류를 돌려준다
-- **리뷰** — 작성 정책에 `has_used_product`(이용일이 지난 결제 완료 주문)를 넣어 "구매 고객만"을 DB가 보장
+- 테이블 23개: 카탈로그(`cities` · `products` · `product_images` · `product_itinerary_items` · `cancellation_policies` · `cancellation_policy_tiers` · `product_slots` · `slot_inventory` · `product_options`) / 구매(`cart_items` · `orders` · `order_items` · `order_item_options`) / 개인(`profiles` · `like_folders` · `likes` · `trips` · `trip_items`) / 리뷰(`reviews` · `review_reports`) / 판매자(`partners` · `partner_applications` · `settlements`)
+- **모든 테이블에 RLS** — 카탈로그·리뷰·프로필은 누구나 읽기, 장바구니·찜·여행은 본인만, 주문은 본인 것 **읽기만**. 파트너는 자기 상품·자기 상품의 주문 항목만(예약자 연락처는 함수로만), 관리자는 전체 읽기 + 관리자 함수
+- **주문** — `place_order`가 한 트랜잭션에서: 같은 중복 방지 키면 기존 주문 반환 → 장바구니 행 잠금(두 탭 동시 결제 차단) → 예약 규칙 재검사 → **가격 재계산**(날짜별 가격 + 옵션) → 화면 금액과 다르면 `price_changed` → **좌석 확보**(남은 자리가 없으면 `sold_out`) → 주문·항목(구매 시점 상품명·단가·회차·옵션·수수료율 복사, 즉시 확정이면 바우처 / 파트너 확정이면 처리 기한) 생성 → 장바구니 삭제 → 플래너에 예약 항목 추가
+- **취소·환불** — 취소 확인 창의 환불 예정액과 실제 취소가 같은 함수(`refund_quote`)를 쓴다. 확정 대기는 전액, 확정은 규정 구간. 이용일 당일·이후는 거부. 남의 주문 id에는 "없음"과 같은 오류를 돌려준다
+- **파트너 확정·만료** — 파트너가 확정하면 바우처 발급, 거절하면 전액 환불. 기한(결제 + 48시간, 이용일 0시 중 빠른 쪽)이 지나면 pg_cron이 자동 취소·전액 환불
+- **정산** — 이용월 기준, 매출 = 결제 − 환불, 수수료 = 항목별 주문 당시 수수료율. 관리자가 정산 완료 처리하면 그 달 숫자를 고정(스냅숏)
+- **리뷰** — 작성 정책에 `has_used_product`(이용 완료 또는 확정 후 이용일이 지난 항목)를 넣어 "구매 고객만"을 DB가 보장. 신고를 받아 숨긴 리뷰는 작성자·관리자만 보고 평점에서 빠진다
 - **플래너 예약 항목** — 사용자는 만들거나 지울 수 없고(컬럼 권한·제한 정책), 날짜·유형도 바꿀 수 없다(트리거). 여행 날짜를 바꾸면 이용일 기준으로 Day를 다시 계산
 - **컬럼 단위 GRANT** — `user_id`·주문 연결 컬럼은 클라이언트가 보낼 수 없다. 장바구니에는 가격 컬럼 자체가 없다
-- **검증** — `npm run db:verify-rls`가 anon / 사용자 A / 사용자 B 역할로 76개 시나리오를 실제 DB에서 실행한다. 예: 화면 금액 1,000원으로 위조 → `price_changed`, 같은 결제 재시도 → 같은 주문 1건, B가 A의 장바구니로 주문 → 거부, 이중 취소 → 거부, 환불 구간 경계일(7·6·3·2·1일 전), 구매 전 리뷰 → 거부, 예약 항목 직접 삭제 → 0행
+- **검증** — `npm run db:verify-rls`가 anon / 고객 A·B / 파트너 / 관리자 역할로 204개 시나리오를 실제 DB에서 실행한다. 예: 화면 금액 위조 → `price_changed`, 남은 1석에 2명 → `sold_out`, 다른 파트너 상품 수정 → 0행, 고객이 예약 확정 → `forbidden`, 거절 → 전액 환불·좌석 반환, 상태별 고정 데이터로 정산 금액 정확히 일치. `npm run db:verify-race`는 10명 동시 결제로 초과 판매가 없는지 본다
 
 ## 6. 디자인 시스템
 
@@ -186,20 +208,20 @@ ERD·주문 흐름·함수 목록은 [docs/database.md](docs/database.md)에 있
 | Motion          | 150 / 220 / 360ms, `ease-out-soft`, reduced-motion 존중                                |
 
 - **토큰만 쓰는 규칙을 강제** — Tailwind 기본 팔레트를 `--color-*: initial`로 제거해, `bg-blue-500`을 써도 스타일이 생성되지 않는다. 하드코딩 HEX 0건.
-- **명세 밖 화면** — 장바구니·주문서·완료·예약 내역·예약 위젯은 하이파이 시안이 없어 기존 토큰·컴포넌트(카드 보더, Button, Checkbox, AlertDialog, Calendar)로 구성했다. 구성 기준은 [docs/review.md 5절](docs/review.md#5-디자인-명세와-다른-부분).
+- **명세 밖 화면** — 장바구니·주문서·완료·예약 내역·예약 위젯, 파트너 센터·관리자 콘솔은 하이파이 시안이 없어 기존 토큰·컴포넌트(카드 보더, Button, Checkbox, AlertDialog, Calendar)로 구성했다. 구성 기준은 [docs/review.md 5절](docs/review.md#5-디자인-명세와-다른-부분).
 - **모든 상태 구현** — 카드·필터 바·갤러리·타임라인·내비게이션·장바구니·예약 위젯의 default / hover / active / disabled / loading / empty. `/dev/components`에서 hover·focus 같은 순간 상태도 정지 화면으로 볼 수 있다(`data-preview`).
 
 ## 7. 품질 점검
 
-S5 점검 결과 요약 ([docs/review.md](docs/review.md))
+점검 결과 요약 ([docs/review.md](docs/review.md))
 
-| 항목      | 결과                                                                           |
-| --------- | ------------------------------------------------------------------------------ |
-| 반응형    | 360 · 768 · 1280 × 9개 페이지 × 라이트/다크 가로 넘침 없음                     |
-| 접근성    | axe-core WCAG 2.1 AA(색 대비 포함) 위반 0건 — 9개 페이지 × 2개 너비 × 2개 테마 |
-| 권한·주문 | 실제 DB 시나리오 76/76 통과                                                    |
-| 상태 코드 | 없는 상품 404 · 전환 전 주소 308 · 로그인 필요 경로 307                        |
-| 성능      | 서버 응답 200~500ms(대부분 DB 왕복), 상세에 드래그 라이브러리 미포함 유지      |
+| 항목      | 결과                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------- |
+| 반응형    | 360 · 768 · 1280 × 라이트/다크 가로 넘침 없음 (고객 페이지 + 콘솔 쇼케이스)               |
+| 접근성    | axe-core WCAG 2.1 AA(색 대비 포함) 위반 0건 — 공개 페이지·콘솔 화면 × 3개 너비 × 2개 테마 |
+| 권한·주문 | 실제 DB 시나리오 204/204 통과, 동시 결제 10건 → 정원 5건만 성공                           |
+| 상태 코드 | 없는 상품 404 · 전환 전 주소 308 · 로그인 필요 경로 307                                   |
+| 성능      | 서버 응답 200~500ms(대부분 DB 왕복), 상세에 드래그 라이브러리 미포함 유지                 |
 
 **접근성에서 신경 쓴 것** — 본문 바로가기 링크, `aria-current` 내비게이션, 칩 `aria-pressed` / Segmented `radiogroup`, 결과 수·총액 `aria-live`, 인원 버튼에 "성인 한 명 더하기" 같은 이름, 장바구니 배지 숫자를 링크 이름에 포함, 라이트박스 포커스 트랩, 키보드 드래그 정렬과 한국어 스크린리더 안내, 입력 오류 `aria-invalid` + `aria-describedby`, 터치 영역 44px.
 
@@ -279,9 +301,30 @@ shadcn `TabsList`의 `group-data-horizontal/tabs:h-8`이 `h-auto`보다 우선�
 **19. 예약 항목 삭제가 아무 반응 없이 끝남**
 DB 제한 정책은 오류가 아니라 "0행 삭제"로 막는다. 먼저 예약 항목인지 확인해 이유를 안내하고, 삭제 버튼 자체를 숨겼다.
 
+**20. 역할 판단 함수를 정책보다 먼저 만들어야 함 (파트너·관리자 추가)**
+drizzle-kit이 만든 SQL은 정책을 만들면서 아직 없는 `is_admin()`을 부른다. 함수를 별도 마이그레이션으로 먼저 만들고, 본문은 실행할 때 해석되는 plpgsql로 써서 다음 마이그레이션에서 생길 컬럼(`profiles.role`)도 참조할 수 있게 했다.
+
+**21. 기존 행이 있는 테이블에 NOT NULL 컬럼 추가**
+`products.partner_id`, `order_items.slot_id` 등을 생성본 그대로 적용하면 기존 행 때문에 실패한다. 생성본을 NULL 허용으로 고치고, 이어지는 마이그레이션에서 값을 채운 뒤 NOT NULL로 바꿨다(파일에 이유 주석).
+
+**22. 공개 프로필 테이블에 역할을 넣으면 관리자 계정이 드러남**
+테이블 단위 SELECT 권한이 있으면 컬럼을 골라 막을 수 없다. 프로필 SELECT를 회수하고 공개 컬럼만 다시 준 뒤, 본인 역할은 `my_profile()` 함수로 읽는다.
+
+**23. 생성된 타입이 SQL 함수 인자의 NULL을 허용하지 않음**
+supabase 타입 생성기는 함수 인자를 모두 non-null로 만든다. `any` 대신 이유를 적은 작은 헬퍼(`src/lib/sql-null.ts`)로 타입만 맞췄다.
+
+**24. 바우처 사용 처리가 "structure of query does not match"로 실패**
+`smallint + smallint`는 smallint인데 반환 열을 integer로 선언했다. 적용 후 RLS 검증 스크립트가 잡아냈고, 새 마이그레이션(0015)으로 고쳤다 — 적용된 마이그레이션은 고치지 않는다.
+
+**25. 검증 스크립트가 "멈춘" 것처럼 보임**
+`pg_stat_activity`의 시간은 "트랜잭션이 열린 시간"이었다. 시드니 리전까지 왕복이 약 270ms라 수백 번 왕복하는 검증이 몇 분 걸릴 뿐이었다. 같은 조건의 왕복 측정 스크립트로 확인한 뒤 백그라운드로 돌렸다.
+
+**26. 가로 스크롤 표에 키보드로 접근할 수 없음**
+좁은 화면에서 가로로 스크롤되는 정산 표 안에 포커스 요소가 없어 axe가 `scrollable-region-focusable`로 잡았다. 표 컨테이너에 선택적으로 `tabIndex`·`role="region"`·이름을 주는 옵션을 더했다.
+
 ## 10. 배포
 
-[docs/deploy.md](docs/deploy.md) — Vercel 프로젝트 생성, 환경 변수(빌드 시 박히는 `NEXT_PUBLIC_` 주의, 비밀 키는 Vercel에 넣지 않음), Supabase 인증 URL, 리전, 배포 후 확인 목록.
+[docs/deploy.md](docs/deploy.md) — Vercel 프로젝트 생성, 환경 변수(빌드 시 박히는 `NEXT_PUBLIC_` 주의, 비밀 키는 Vercel에 넣지 않음), Supabase 인증 URL, 리전, pg_cron·Storage 확인, 배포 후 확인 목록.
 
 ---
 
