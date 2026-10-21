@@ -1,5 +1,6 @@
 import type { PartnerBooking } from "@/lib/data/partner-center";
 import type { PartnerApplication, PartnerRow } from "@/lib/data/partners";
+import type { SettlementItem, SettlementRow } from "@/lib/data/settlements";
 
 /** /dev/components 쇼케이스용 파트너 신청서·파트너 목업 */
 const PENDING: PartnerApplication = {
@@ -136,5 +137,83 @@ export const MOCK_PARTNER_BOOKINGS: PartnerBooking[] = [
     bookerPhone: "010-4444-5555",
     bookerEmail: "sora@example.com",
     paidAt: "2026-10-18T03:00:00Z",
+  },
+];
+
+/** 정산 목업 — 이번 달(집계 중) · 지난달(정산 예정) · 두 달 전(정산 완료) */
+const SETTLEMENT_PARTNER = {
+  partnerId: "00000000-0000-4000-8000-000000000013",
+  partnerName: "유키시마 트래블",
+};
+
+export const MOCK_SETTLEMENT_ROWS: SettlementRow[] = [
+  {
+    ...SETTLEMENT_PARTNER,
+    month: "2026-10-01",
+    itemCount: 4,
+    revenue: 356000,
+    commission: 53400,
+    payout: 302600,
+    settledAt: null,
+    state: "open",
+  },
+  {
+    ...SETTLEMENT_PARTNER,
+    month: "2026-09-01",
+    itemCount: 7,
+    revenue: 612000,
+    commission: 91800,
+    payout: 520200,
+    settledAt: null,
+    state: "pending",
+  },
+  {
+    ...SETTLEMENT_PARTNER,
+    month: "2026-08-01",
+    itemCount: 5,
+    revenue: 452000,
+    commission: 67800,
+    payout: 384200,
+    settledAt: "2026-09-03T02:00:00Z",
+    state: "settled",
+  },
+];
+
+export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
+  {
+    itemId: "s1",
+    orderNo: "YO260901-000012",
+    productTitle: "푸른 동굴 스노클링",
+    useDate: "2026-09-12",
+    status: "used",
+    subtotal: 126000,
+    refund: 0,
+    revenue: 126000,
+    commissionRate: 15,
+    commission: 18900,
+  },
+  {
+    itemId: "s2",
+    orderNo: "YO260905-000020",
+    productTitle: "게라마 제도 당일 투어",
+    useDate: "2026-09-20",
+    status: "confirmed",
+    subtotal: 250000,
+    refund: 0,
+    revenue: 250000,
+    commissionRate: 15,
+    commission: 37500,
+  },
+  {
+    itemId: "s3",
+    orderNo: "YO260910-000031",
+    productTitle: "오키나와 북부 버스 투어",
+    useDate: "2026-09-25",
+    status: "cancelled",
+    subtotal: 104000,
+    refund: 52000,
+    revenue: 52000,
+    commissionRate: 15,
+    commission: 7800,
   },
 ];

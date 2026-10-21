@@ -29,6 +29,11 @@ import { PartnerApplyForm } from "@/components/partner/partner-apply-form";
 import { ProductForm } from "@/components/partner/product-form";
 import { ProductStateBadge } from "@/components/partner/product-state-badge";
 import { VoucherForm } from "@/components/partner/voucher-form";
+import {
+  SettlementItemsTable,
+  SettlementMonthList,
+  SettlementStateBadge,
+} from "@/components/settlements/settlement-parts";
 import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
 import {
@@ -36,6 +41,8 @@ import {
   MOCK_PARTNER_BOOKINGS,
   MOCK_PARTNERS,
   MOCK_REVIEWED_APPLICATIONS,
+  MOCK_SETTLEMENT_ITEMS,
+  MOCK_SETTLEMENT_ROWS,
 } from "@/lib/mock/partners";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
 import { addDays } from "@/lib/booking";
@@ -604,6 +611,28 @@ export default function DevComponentsPage() {
             policies={[{ value: "standard", label: "일반 취소 — 7일 전까지 100%" }]}
             suspendedReason={null}
           />
+        </Section>
+
+        <Section id="settlements" title="11. 정산">
+          <p className="text-sm text-muted-foreground">
+            이용월 기준 매출(결제 − 환불) · 수수료(주문 당시 수수료율) · 지급액. 이번 달은 집계 중,
+            지난달은 관리자가 처리하기 전까지 정산 예정.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {(["open", "pending", "settled"] as const).map((state) => (
+              <SettlementStateBadge key={state} state={state} />
+            ))}
+          </div>
+          <SettlementMonthList
+            rows={MOCK_SETTLEMENT_ROWS}
+            selected="2026-09-01"
+            hrefOf={() => "#settlements"}
+          />
+          <h3 className="mt-4 text-lg font-semibold">
+            월 정산 내역 (이용 완료 · 확정 · 일부 환불 취소)
+          </h3>
+          <SettlementItemsTable items={MOCK_SETTLEMENT_ITEMS} />
+          <SettlementItemsTable items={[]} />
         </Section>
       </main>
 
