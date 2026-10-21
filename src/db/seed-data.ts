@@ -1,4 +1,10 @@
-import type { CategorySlug, ThemeSlug, UserItemTypeSlug } from "../lib/constants/taxonomy";
+import type {
+  CategorySlug,
+  ConfirmationMode,
+  OptionUnit,
+  ThemeSlug,
+  UserItemTypeSlug,
+} from "../lib/constants/taxonomy";
 
 /**
  * 시드 데이터 — 일본 6개 도시, 투어·티켓 상품 24개
@@ -1290,3 +1296,72 @@ export const SEED_PRODUCTS: SeedProduct[] = [
     reviews: [],
   },
 ];
+
+/**
+ * 회차·추가 옵션·확정 방식·날짜별 덮어쓰기 (상품 정의와 따로 둔다 — 대부분 상품은 기본값)
+ * - slots가 없으면 상품 시작 시간의 회차 1개(정원 30)
+ * - 목록에 없는 기존 회차는 지우지 않고 판매만 끈다 (주문 항목이 참조할 수 있어서)
+ * - overrides: 오늘 기준 며칠 뒤(daysFromToday)의 정원·마감·가격 — 매진·마감·주말 가격 데모용
+ */
+export type SeedProductExtra = {
+  slots?: [startTime: string | null, capacity: number][];
+  options?: [name: string, price: number, unit: OptionUnit][];
+  confirmationMode?: ConfirmationMode;
+  overrides?: {
+    slot: string | null; // 회차 시작 시간
+    daysFromToday?: number;
+    weekdays?: number[]; // daysFromToday 대신: 앞으로 4주 안의 이 요일들 (ISO 1=월 … 7=일)
+    capacity?: number;
+    closed?: boolean;
+    adultPrice?: number;
+  }[];
+};
+
+export const SEED_PRODUCT_EXTRAS: Record<string, SeedProductExtra> = {
+  "tokyo-teamlab-planets": {
+    // 주말 가격 인상 (토·일)
+    overrides: [{ slot: null, weekdays: [6, 7], adultPrice: 41000 }],
+  },
+  "tokyo-fuji-kawaguchiko-bus": {
+    slots: [["08:00", 40]],
+    options: [
+      ["신주쿠 호텔 픽업", 10000, "per_booking"],
+      ["점심 도시락", 12000, "per_person"],
+    ],
+    // 5일 뒤 매진 (정원 0)
+    overrides: [{ slot: "08:00", daysFromToday: 5, capacity: 0 }],
+  },
+  "kyoto-gion-kimono-rental": {
+    options: [["헤어 세팅", 15000, "per_person"]],
+  },
+  "kyoto-machiya-tea-ceremony": {
+    // 소규모 체험: 하루 두 번, 파트너가 확정
+    slots: [
+      ["10:00", 8],
+      ["14:00", 8],
+    ],
+    options: [["화과자 세트 추가", 8000, "per_person"]],
+    confirmationMode: "manual",
+    overrides: [{ slot: "10:00", daysFromToday: 7, closed: true }],
+  },
+  "osaka-usj-1day": {
+    options: [["익스프레스 패스 4", 120000, "per_person"]],
+  },
+  "osaka-dotonbori-food-walk": {
+    slots: [
+      ["12:00", 12],
+      ["17:30", 12],
+    ],
+  },
+  "okinawa-blue-cave-snorkel": {
+    slots: [
+      ["09:00", 10],
+      ["13:00", 10],
+    ],
+    options: [
+      ["호텔 픽업", 10000, "per_booking"],
+      ["수중 사진 촬영", 15000, "per_booking"],
+    ],
+    confirmationMode: "manual",
+  },
+};

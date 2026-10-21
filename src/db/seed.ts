@@ -3,6 +3,8 @@
  *
  * 여러 번 실행해도 결과가 같다(멱등):
  * - 취소 규정·도시·상품은 코드/slug 기준 upsert, 규정 구간·사진·진행 일정은 지우고 다시 넣는다.
+ * - 회차·옵션·날짜별 재고는 upsert만 한다 (장바구니·주문 항목이 참조하므로 지우지 않는다).
+ *   목록에서 빠진 회차·옵션은 판매만 끈다(active = false).
  * - 데모 사용자는 이메일로 찾아서 없을 때만 만든다.
  * - 데모 주문은 (사용자, 중복 방지 키) 기준으로 한 번만 만든다. 키는 이메일+상품으로 고정 계산한다.
  * - 리뷰는 (작성자, 상품) 기준 upsert. "구매 고객만 리뷰" 규칙에 맞게 리뷰마다 이용 완료 주문을 먼저 만든다.
@@ -17,7 +19,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, notInArray, sql } from "drizzle-orm";
 import { pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -27,6 +29,7 @@ import {
   SEED_CITIES,
   SEED_PARTNERS,
   SEED_POLICIES,
+  SEED_PRODUCT_EXTRAS,
   SEED_PRODUCTS,
   SEED_REVIEWERS,
   type SeedProduct,
@@ -71,7 +74,20 @@ function addDays(ymd: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** DB 기준 오늘(한국) — 날짜별 재고 덮어쓰기를 오늘 기준으로 만든다 */
+async function seoulToday() {
+  const [row] = await db.execute<{ d: string }>(sql`select public.seoul_today()::text as d`);
+  if (!row) throw new Error("오늘 날짜를 읽지 못했습니다");
+  return row.d;
+}
+
+/** ISO 요일 (1=월 … 7=일) */
+function isoWeekday(ymd: string) {
+  return new Date(`${ymd}T00:00:00Z`).getUTCDay() || 7;
+}
+
 async function seedCatalog() {
+  const today = await seoulToday();
   await db.transaction(async (tx) => {
     for (const p of SEED_POLICIES) {
       await tx
@@ -138,7 +154,7 @@ async function seedCatalog() {
       const partnerId = partnerByCity.get(p.city);
       if (!cityId || !partnerId)
         throw new Error(`${p.slug}: 도시 ${p.city}의 도시·파트너가 없습니다`);
-      await upsertProduct(tx, p, cityId, partnerId);
+      await upsertProduct(tx, p, cityId, partnerId, today);
     }
   });
   console.log(
@@ -146,7 +162,14 @@ async function seedCatalog() {
   );
 }
 
-async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string, partnerId: string) {
+async function upsertProduct(
+  tx: Tx,
+  p: SeedProduct,
+  cityId: string,
+  partnerId: string,
+  today: string,
+) {
+  const extra = SEED_PRODUCT_EXTRAS[p.slug] ?? {};
   const [cover] = p.images;
   if (!cover) throw new Error(`${p.slug}: 대표 사진이 없습니다`);
 
@@ -179,6 +202,7 @@ async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string, partnerId: 
     cancelPolicy: p.cancelPolicy,
     unavailableReason: p.unavailableReason ?? null,
     recommendRank: p.recommendRank,
+    confirmationMode: extra.confirmationMode ?? ("instant" as const),
   };
 
   const [row] = await tx
@@ -214,6 +238,89 @@ async function upsertProduct(tx: Tx, p: SeedProduct, cityId: string, partnerId: 
         caution: caution ?? null,
       })),
     );
+  }
+
+  await upsertSlotsAndOptions(tx, row.id, p, today);
+}
+
+/** 회차·옵션·날짜별 재고 (upsert만 — 주문이 참조하는 행을 지우지 않는다) */
+async function upsertSlotsAndOptions(tx: Tx, productId: string, p: SeedProduct, today: string) {
+  const extra = SEED_PRODUCT_EXTRAS[p.slug] ?? {};
+  const slotList = extra.slots ?? [[p.startTime, 30]];
+
+  const slotIds = new Map<string | null, string>();
+  for (const [position, [startTime, capacity]] of slotList.entries()) {
+    const [slot] = await tx
+      .insert(schema.productSlots)
+      .values({ productId, startTime, capacity, position, active: true })
+      .onConflictDoUpdate({
+        target: [schema.productSlots.productId, schema.productSlots.startTime],
+        set: { capacity, position, active: true },
+      })
+      .returning({ id: schema.productSlots.id });
+    if (!slot) throw new Error(`${p.slug}: 회차 upsert 실패`);
+    slotIds.set(startTime, slot.id);
+  }
+  // 목록에 없는 회차(예: 마이그레이션이 만든 기본 회차)는 판매만 끈다
+  await tx
+    .update(schema.productSlots)
+    .set({ active: false })
+    .where(
+      and(
+        eq(schema.productSlots.productId, productId),
+        notInArray(schema.productSlots.id, [...slotIds.values()]),
+      ),
+    );
+
+  const options = extra.options ?? [];
+  for (const [position, [name, price, unit]] of options.entries()) {
+    await tx
+      .insert(schema.productOptions)
+      .values({ productId, name, price, unit, position, active: true })
+      .onConflictDoUpdate({
+        target: [schema.productOptions.productId, schema.productOptions.name],
+        set: { price, unit, position, active: true },
+      });
+  }
+  await tx
+    .update(schema.productOptions)
+    .set({ active: false })
+    .where(
+      options.length > 0
+        ? and(
+            eq(schema.productOptions.productId, productId),
+            notInArray(
+              schema.productOptions.name,
+              options.map(([name]) => name),
+            ),
+          )
+        : eq(schema.productOptions.productId, productId),
+    );
+
+  for (const o of extra.overrides ?? []) {
+    const slotId = slotIds.get(o.slot);
+    if (!slotId) throw new Error(`${p.slug}: 덮어쓰기 회차 ${o.slot}가 없습니다`);
+    const dates =
+      o.daysFromToday !== undefined
+        ? [addDays(today, o.daysFromToday)]
+        : Array.from({ length: 28 }, (_, i) => addDays(today, i + 1)).filter((d) =>
+            (o.weekdays ?? []).includes(isoWeekday(d)),
+          );
+    for (const useDate of dates) {
+      const set = {
+        capacity: o.capacity ?? null,
+        closed: o.closed ?? false,
+        adultPrice: o.adultPrice ?? null,
+      };
+      // booked(예약 인원 카운터)는 건드리지 않는다
+      await tx
+        .insert(schema.slotInventory)
+        .values({ slotId, useDate, ...set })
+        .onConflictDoUpdate({
+          target: [schema.slotInventory.slotId, schema.slotInventory.useDate],
+          set,
+        });
+    }
   }
 }
 
@@ -278,6 +385,17 @@ async function ensurePastOrder(tx: Tx, buyer: Buyer, productSlug: string, useDat
 
   const paidOn = addDays(useDate, -14);
   const subtotal = product.adultPrice * 2; // 성인 2명
+  const [slot] = await tx
+    .select({ id: schema.productSlots.id, startTime: schema.productSlots.startTime })
+    .from(schema.productSlots)
+    .where(and(eq(schema.productSlots.productId, product.id), eq(schema.productSlots.active, true)))
+    .orderBy(asc(schema.productSlots.position))
+    .limit(1);
+  const [partner] = await tx
+    .select({ commissionRate: schema.partners.commissionRate })
+    .from(schema.partners)
+    .where(eq(schema.partners.id, product.partnerId));
+  if (!slot || !partner) throw new Error(`${productSlug}: 회차·파트너가 없습니다`);
   const [order] = await tx
     .insert(schema.orders)
     .values({
@@ -306,7 +424,24 @@ async function ensurePastOrder(tx: Tx, buyer: Buyer, productSlug: string, useDat
     childPrice: product.childPrice,
     subtotal,
     cancelPolicy: product.cancelPolicy,
+    // 지난 이용일의 주문이라 "이용 완료"로 넣는다 (파트너가 바우처를 사용 처리한 상태)
+    status: "used",
+    slotId: slot.id,
+    startTime: slot.startTime,
+    partnerId: product.partnerId,
+    commissionRate: partner.commissionRate,
+    voucherCode: sql`public.generate_voucher_code()`,
+    confirmedAt: sql`${paidOn}::timestamptz`,
+    usedAt: sql`${useDate}::timestamptz`,
   });
+  // 예약 인원 카운터 불변식(booked = 살아 있는 항목 인원 합)을 지킨다
+  await tx
+    .insert(schema.slotInventory)
+    .values({ slotId: slot.id, useDate, booked: 2 })
+    .onConflictDoUpdate({
+      target: [schema.slotInventory.slotId, schema.slotInventory.useDate],
+      set: { booked: sql`${schema.slotInventory.booked} + 2` },
+    });
   return product.id;
 }
 
@@ -358,8 +493,7 @@ async function seedBuyerOrder() {
     return;
   }
 
-  const [today] = await db.execute<{ d: string }>(sql`select public.seoul_today()::text as d`);
-  if (!today) throw new Error("오늘 날짜를 읽지 못했습니다");
+  const today = { d: await seoulToday() };
   await db.transaction((tx) =>
     ensurePastOrder(
       tx,
