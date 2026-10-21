@@ -3,9 +3,19 @@
 import * as React from "react";
 import { cn } from "cn";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+// 여운: scrollLabel을 주면 가로 스크롤 영역을 키보드로 스크롤할 수 있게 포커스 가능한 영역으로 만든다
+// (표 안에 버튼 같은 포커스 요소가 없으면 axe scrollable-region-focusable 위반)
+function Table({
+  className,
+  scrollLabel,
+  ...props
+}: React.ComponentProps<"table"> & { scrollLabel?: string }) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      data-slot="table-container"
+      className="relative w-full overflow-x-auto rounded-[inherit] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      {...(scrollLabel ? { tabIndex: 0, role: "region", "aria-label": scrollLabel } : {})}
+    >
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}

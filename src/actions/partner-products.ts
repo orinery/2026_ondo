@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionResult } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/auth";
 import { errorMessage, knownErrorCode } from "@/lib/order-errors";
+import { sqlNull } from "@/lib/sql-null";
 import { createClient } from "@/lib/supabase/server";
 import { inventoryRangeSchema, productFormSchema } from "@/lib/validation/product";
 
@@ -14,12 +15,6 @@ import { inventoryRangeSchema, productFormSchema } from "@/lib/validation/produc
  * 저장은 DB 함수 save_product 하나(= 한 트랜잭션)로 한다: 상품·사진·일정·회차·옵션이 함께 저장되거나 전부 안 된다.
  * 내 상품인지는 RLS(partner_id = my_partner_id())가, 쓸 수 있는 컬럼은 GRANT가 정한다 — 여기서는 검증·변환만.
  */
-
-/**
- * SQL 함수 인자에 NULL을 넘길 때 쓴다. supabase 생성 타입은 함수 인자의 NULL 허용을 표현하지 못해
- * (모든 인자가 non-null로 생성됨) 타입만 맞춘다 — 실제로 null이 전송되고 함수가 null을 처리한다.
- */
-const sqlNull = <T>(value: T | null): T => value as T;
 
 async function partnerGuard(): Promise<ActionResult<never> | null> {
   const user = await getCurrentUser();
