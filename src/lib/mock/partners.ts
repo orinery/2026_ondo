@@ -1,3 +1,4 @@
+import type { BreakdownRow, DailyStat } from "@/lib/data/admin";
 import type { PartnerBooking } from "@/lib/data/partner-center";
 import type { PartnerApplication, PartnerRow } from "@/lib/data/partners";
 import type { SettlementItem, SettlementRow } from "@/lib/data/settlements";
@@ -216,4 +217,22 @@ export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
     commissionRate: 15,
     commission: 7800,
   },
+];
+
+/** 관리자 대시보드 목업 — 14일 일별 결제·환불 (고정 값이라 화면이 매번 같다) */
+const DAILY_GROSS = [
+  178000, 0, 252000, 98000, 0, 410000, 356000, 126000, 0, 89000, 512000, 238000, 76000, 301000,
+];
+export const MOCK_DAILY_STATS: DailyStat[] = DAILY_GROSS.map((gross, i) => ({
+  day: `2026-10-${String(i + 8).padStart(2, "0")}`,
+  orders: gross === 0 ? 0 : Math.max(1, Math.round(gross / 120000)),
+  gross,
+  refunds: i % 5 === 2 ? Math.round(gross / 2) : 0,
+}));
+
+export const MOCK_BREAKDOWN_CITY: BreakdownRow[] = [
+  { label: "도쿄", items: 9, revenue: 812000 },
+  { label: "오키나와", items: 6, revenue: 640000 },
+  { label: "교토", items: 7, revenue: 388000 },
+  { label: "오사카", items: 3, revenue: 291000 },
 ];

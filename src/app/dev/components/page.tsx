@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { ApplicationList } from "@/components/admin/application-list";
+import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
+import { ProductSuspensionAction } from "@/components/admin/product-suspension-action";
+import { ReportActions } from "@/components/admin/report-actions";
 import { PartnerTable } from "@/components/admin/partner-table";
 import { ConsoleLoading } from "@/components/console/console-loading";
 import { ConsolePageHeader, ConsoleShell } from "@/components/console/console-shell";
@@ -28,6 +31,7 @@ import { InventoryManager } from "@/components/partner/inventory-manager";
 import { PartnerApplyForm } from "@/components/partner/partner-apply-form";
 import { ProductForm } from "@/components/partner/product-form";
 import { ProductStateBadge } from "@/components/partner/product-state-badge";
+import { ReviewReportDialog } from "@/components/product/review-report-dialog";
 import { VoucherForm } from "@/components/partner/voucher-form";
 import {
   SettlementItemsTable,
@@ -38,6 +42,8 @@ import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
 import {
   MOCK_APPLICATIONS,
+  MOCK_BREAKDOWN_CITY,
+  MOCK_DAILY_STATS,
   MOCK_PARTNER_BOOKINGS,
   MOCK_PARTNERS,
   MOCK_REVIEWED_APPLICATIONS,
@@ -633,6 +639,50 @@ export default function DevComponentsPage() {
           </h3>
           <SettlementItemsTable items={MOCK_SETTLEMENT_ITEMS} />
           <SettlementItemsTable items={[]} />
+        </Section>
+
+        <Section id="admin" title="12. 관리자 대시보드 · 신고 · 판매 중지">
+          <p className="text-sm text-muted-foreground">
+            차트 색은 --chart-1~5 (명세 시맨틱 토큰을 가리킴) — 다크 모드에서 함께 바뀐다. 차트마다
+            스크린리더용 표를 숨겨 둔다. 목업이라 버튼은 &quot;로그인 필요&quot;로 실패한다.
+          </p>
+          <div className="rounded-xl border bg-card p-4 md:p-6">
+            <DailyChart data={MOCK_DAILY_STATS} title="14일 일별 결제·환불 (목업)" />
+          </div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="rounded-xl border bg-card p-4 md:p-6">
+              <BreakdownChart data={MOCK_BREAKDOWN_CITY} title="도시별 매출 (목업)" />
+            </div>
+            <div className="rounded-xl border bg-card p-4 md:p-6">
+              <BreakdownChart data={[]} title="종류별 매출 (빈 상태)" />
+            </div>
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">리뷰 신고 · 신고 처리 · 상품 판매 중지</h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <ReviewReportDialog reviewId="00000000-0000-4000-8000-0000000000d1" authorName="하늘" />
+            <ReportActions
+              reportId="00000000-0000-4000-8000-0000000000d2"
+              reviewId="00000000-0000-4000-8000-0000000000d1"
+              pending
+              hidden={false}
+            />
+            <ReportActions
+              reportId="00000000-0000-4000-8000-0000000000d3"
+              reviewId="00000000-0000-4000-8000-0000000000d1"
+              pending={false}
+              hidden
+            />
+            <ProductSuspensionAction
+              productId="00000000-0000-4000-8000-0000000000d4"
+              title="후지산·가와구치코 당일 버스 투어"
+              suspended={false}
+            />
+            <ProductSuspensionAction
+              productId="00000000-0000-4000-8000-0000000000d5"
+              title="니세코 리프트 1일권"
+              suspended
+            />
+          </div>
         </Section>
       </main>
 
