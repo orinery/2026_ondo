@@ -96,3 +96,19 @@ export async function cancelOrder(orderId: string): Promise<ActionResult<{ refun
   revalidatePath("/", "layout");
   return { ok: true, refund: data };
 }
+
+/** 주문 항목 하나 취소 — 확정 대기는 전액, 확정은 취소 규정대로 환불 (DB cancel_order_item) */
+export async function cancelOrderItem(itemId: string): Promise<ActionResult<{ refund: number }>> {
+  if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
+  if (!z.uuid().safeParse(itemId).success) return { ok: false, reason: "invalid" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cancel_order_item", { p_item_id: itemId });
+  if (error) {
+    const code = knownErrorCode(error.message);
+    return { ok: false, reason: code ? "invalid" : "error", message: errorMessage(code) };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true, refund: data };
+}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { cancelOrder } from "@/actions/orders";
+import { cancelOrder, cancelOrderItem } from "@/actions/orders";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -21,22 +21,27 @@ export type RefundPreview = {
   daysBefore: number;
   refundRate: number;
   refundAmount: number;
+  pending?: boolean; // 확정 대기 → 규정과 상관없이 100%
 };
+
+/** 무엇을 취소하나: 주문 전체(취소할 수 있는 항목 모두) 또는 항목 하나 */
+export type CancelTarget = { kind: "order"; orderId: string } | { kind: "item"; itemId: string };
 
 /**
  * 예약 취소 확인 창.
- * 환불 예정액은 서버가 DB 함수 refund_quote로 계산해 넘긴 값이다 — 실제 취소(cancel_order)도 같은 함수를 써서
- * 여기서 본 금액과 실제 환불액이 같다. (단, 자정을 넘기면 남은 일수가 바뀔 수 있어 확인 직후 취소를 권한다)
+ * 환불 예정액은 서버가 DB 함수 refund_quote로 계산해 넘긴 값이다 — 실제 취소(cancel_order·cancel_order_item)도
+ * 같은 함수를 써서 여기서 본 금액과 실제 환불액이 같다. (자정을 넘기면 남은 일수가 바뀔 수 있어 확인 직후 취소를 권한다)
  */
 export function CancelOrderDialog({
-  orderId,
+  target,
   orderNo,
   lines,
 }: {
-  orderId: string;
+  target: CancelTarget;
   orderNo: string;
   lines: RefundPreview[];
 }) {
+  const single = target.kind === "item";
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -45,7 +50,10 @@ export function CancelOrderDialog({
   const confirm = () => {
     setError(null);
     startTransition(async () => {
-      const result = await cancelOrder(orderId);
+      const result =
+        target.kind === "order"
+          ? await cancelOrder(target.orderId)
+          : await cancelOrderItem(target.itemId);
       if (!result.ok) {
         return setError(
           result.reason === "unauthenticated"
@@ -61,15 +69,25 @@ export function CancelOrderDialog({
   return (
     <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" className="h-11 rounded-md px-5 text-base">
-          예약 취소
-        </Button>
+        {single ? (
+          <Button variant="outline" size="sm" className="self-start rounded-md">
+            이 상품만 취소
+          </Button>
+        ) : (
+          <Button variant="outline" className="h-11 rounded-md px-5 text-base">
+            예약 취소
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>예약을 취소할까요?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {single ? "이 상품을 취소할까요?" : "예약을 취소할까요?"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            주문 {orderNo}의 모든 상품이 취소되고, 일정 플래너의 예약 항목도 함께 지워져요.
+            {single
+              ? `주문 ${orderNo}에서 이 상품만 취소되고, 일정 플래너의 예약 항목도 함께 지워져요.`
+              : `주문 ${orderNo}에서 취소할 수 있는 상품이 모두 취소되고, 일정 플래너의 예약 항목도 함께 지워져요.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -91,7 +109,9 @@ export function CancelOrderDialog({
                 <td className="py-2 pr-3">
                   <span className="block">{l.title}</span>
                   <span className="text-xs text-muted-foreground">
-                    이용 {l.daysBefore}일 전 · {l.refundRate}% 환불
+                    {l.pending
+                      ? "확정 대기 · 전액 환불"
+                      : `이용 ${l.daysBefore}일 전 · ${l.refundRate}% 환불`}
                   </span>
                 </td>
                 <td className="py-2 text-right font-medium tabular-nums">

@@ -3,26 +3,45 @@ import "server-only";
 import type { QueryData } from "@supabase/supabase-js";
 import { cache } from "react";
 
-import type { OrderStatus } from "@/lib/constants/taxonomy";
+import { optionLabel } from "@/lib/booking";
+import type { OrderItemStatus, OrderStatus } from "@/lib/constants/taxonomy";
 import type { CancellationPolicy } from "@/lib/data/products";
-import { displayStatus, isCancellable, type DisplayStatus } from "@/lib/order-status";
+import {
+  displayStatus,
+  isCancellable,
+  isItemCancellable,
+  itemDisplayStatus,
+  type DisplayStatus,
+  type ItemDisplayStatus,
+} from "@/lib/order-status";
 import { createClient } from "@/lib/supabase/server";
 import { seoulNow } from "@/lib/trip-dates";
 
 /**
  * 주문 조회 (Data Access Layer)
  * orders·order_items는 RLS가 본인 것만 SELECT하게 한다. 남의 주문번호로 조회하면 null → 404.
+ * 상품이 나중에 비공개(임시 저장)로 바뀌면 상품 정보(사진·주소)는 읽을 수 없어서 null로 둔다 —
+ * 주문 항목에 복사해 둔 상품명·금액으로 내역은 그대로 보인다.
  */
 
 export type OrderItem = {
   id: string;
   productId: string;
-  productSlug: string;
+  productSlug: string | null; // null = 지금은 공개되지 않은 상품
   productTitle: string; // 구매 시점의 상품명 (이후 상품명이 바뀌어도 그대로)
-  imageUrl: string;
+  imageUrl: string | null;
   imageAlt: string;
   cityName: string;
   useDate: string;
+  startTime: string | null; // 구매한 회차 시간
+  status: OrderItemStatus;
+  displayStatus: ItemDisplayStatus;
+  cancellable: boolean;
+  voucherCode: string | null; // 확정되면 발급
+  confirmDeadline: string | null; // 확정 대기의 처리 기한
+  rejectReason: string | null;
+  options: string[]; // "호텔 픽업", "도시락 ×2"
+  optionsAmount: number;
   adultQty: number;
   childQty: number;
   adultPrice: number; // 구매 시점 단가
@@ -56,7 +75,9 @@ export type OrderDetail = OrderSummary & {
 const ORDER_COLUMNS = `id, order_no, status, total_amount, refund_amount, paid_at, cancelled_at,
   booker_name, booker_email, booker_phone, payment_method,
   order_items ( id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, child_price,
-                subtotal, refund_amount,
+                subtotal, refund_amount, status, start_time, voucher_code, confirm_deadline,
+                reject_reason, options_amount,
+                order_item_options ( name, unit, qty ),
                 products ( slug, image_url, image_alt, cities ( name ) ),
                 cancellation_policies ( code, name, summary, cancellation_policy_tiers ( days_before, refund_rate ) ),
                 trip_items ( trip_id ) )`;
@@ -67,17 +88,31 @@ const ordersQuery = (supabase: Awaited<ReturnType<typeof createClient>>) =>
 type OrderRow = QueryData<ReturnType<typeof ordersQuery>>[number];
 
 function toDetail(row: OrderRow, today: string): OrderDetail {
+  const now = new Date();
   const items: OrderItem[] = [...row.order_items]
-    .sort((a, b) => a.use_date.localeCompare(b.use_date))
+    .sort((a, b) => a.use_date.localeCompare(b.use_date) || a.id.localeCompare(b.id))
     .map((i) => ({
       id: i.id,
       productId: i.product_id,
-      productSlug: i.products.slug,
+      productSlug: i.products?.slug ?? null,
       productTitle: i.product_title,
-      imageUrl: i.products.image_url,
-      imageAlt: i.products.image_alt,
-      cityName: i.products.cities.name,
+      imageUrl: i.products?.image_url ?? null,
+      imageAlt: i.products?.image_alt ?? "",
+      cityName: i.products?.cities.name ?? "",
       useDate: i.use_date,
+      startTime: i.start_time ? i.start_time.slice(0, 5) : null,
+      status: i.status,
+      displayStatus: itemDisplayStatus(
+        { status: i.status, useDate: i.use_date, confirmDeadline: i.confirm_deadline },
+        today,
+        now,
+      ),
+      cancellable: isItemCancellable({ status: i.status, useDate: i.use_date }, today),
+      voucherCode: i.voucher_code,
+      confirmDeadline: i.confirm_deadline,
+      rejectReason: i.reject_reason,
+      options: i.order_item_options.map((o) => optionLabel({ name: o.name, unit: o.unit }, o.qty)),
+      optionsAmount: i.options_amount,
       adultQty: i.adult_qty,
       childQty: i.child_qty,
       adultPrice: i.adult_price,
@@ -93,13 +128,12 @@ function toDetail(row: OrderRow, today: string): OrderDetail {
           .map((t) => ({ daysBefore: t.days_before, refundRate: t.refund_rate })),
       },
     }));
-  const useDates = items.map((i) => i.useDate);
   return {
     id: row.id,
     orderNo: row.order_no,
     status: row.status,
-    displayStatus: displayStatus(row.status, useDates, today),
-    cancellable: isCancellable(row.status, useDates, today),
+    displayStatus: displayStatus(row.status, items, today),
+    cancellable: isCancellable(items, today),
     totalAmount: row.total_amount,
     refundAmount: row.refund_amount,
     paidAt: row.paid_at,
@@ -136,6 +170,7 @@ export const getOrderByNo = cache(async (orderNo: string): Promise<OrderDetail |
 
 export type RefundQuoteLine = {
   orderItemId: string;
+  pending: boolean; // 확정 대기 → 항상 100%
   daysBefore: number;
   refundRate: number;
   refundAmount: number;
@@ -148,6 +183,7 @@ export async function getRefundQuote(orderId: string): Promise<RefundQuoteLine[]
   if (error) throw error;
   return (data ?? []).map((q) => ({
     orderItemId: q.order_item_id,
+    pending: q.status === "pending",
     daysBefore: q.days_before,
     refundRate: q.refund_rate,
     refundAmount: q.refund_amount,

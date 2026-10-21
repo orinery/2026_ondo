@@ -7,7 +7,7 @@ import { formatKrw, formatUseDate } from "@/lib/format";
 import { STATUS_FILTERS, type DisplayStatus } from "@/lib/order-status";
 import { cn } from "@/lib/utils";
 
-import { OrderStatusBadge } from "./order-status-badge";
+import { ItemStatusBadge, OrderStatusBadge } from "./order-status-badge";
 
 const paidDate = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeZone: "Asia/Seoul" });
 
@@ -18,15 +18,17 @@ const paidDate = new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeZon
 export function OrderList({
   orders,
   status,
+  label = "예약 내역",
 }: {
   orders: OrderSummary[];
   status: DisplayStatus | "all";
+  label?: string; // 한 화면에 두 번 쓸 때(쇼케이스) 랜드마크 이름이 겹치지 않게
 }) {
   const visible = status === "all" ? orders : orders.filter((o) => o.displayStatus === status);
 
   return (
-    <section aria-label="예약 내역" className="flex flex-col gap-6">
-      <nav aria-label="예약 상태" className="flex flex-wrap gap-2">
+    <section aria-label={label} className="flex flex-col gap-6">
+      <nav aria-label={`${label} 상태`} className="flex flex-wrap gap-2">
         {STATUS_FILTERS.map((f) => {
           const count =
             f.value === "all"
@@ -79,28 +81,34 @@ export function OrderList({
                 {order.items.map((item) => (
                   <li key={item.id} className="flex gap-3 px-4 py-3">
                     <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-muted">
-                      <Image
-                        src={item.imageUrl}
-                        alt=""
-                        fill
-                        sizes="56px"
-                        className="object-cover"
-                      />
+                      {item.imageUrl && (
+                        <Image
+                          src={item.imageUrl}
+                          alt=""
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      )}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-kr font-semibold">{item.productTitle}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatUseDate(item.useDate)} · {item.cityName} ·{" "}
-                        {item.adultQty + item.childQty}명
+                        {formatUseDate(item.useDate)}
+                        {item.startTime && ` ${item.startTime}`} · {item.adultQty + item.childQty}명
                       </p>
                     </div>
+                    {/* 한 주문에 상태가 다른 항목이 섞일 수 있어(부분 취소·확정 대기) 항목마다 표시 */}
+                    {order.items.length > 1 && (
+                      <ItemStatusBadge status={item.displayStatus} className="self-center" />
+                    )}
                   </li>
                 ))}
               </ul>
               <div className="flex items-center justify-between gap-4 border-t px-4 py-3">
                 <p className="text-base font-semibold">
                   {formatKrw(order.totalAmount)}
-                  {order.status === "cancelled" && (
+                  {(order.refundAmount ?? 0) > 0 && (
                     <span className="ml-2 text-sm font-normal text-muted-foreground">
                       환불 {formatKrw(order.refundAmount ?? 0)}
                     </span>
