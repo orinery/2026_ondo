@@ -23,11 +23,22 @@ import { OrderList } from "@/components/orders/order-list";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { ItemStatusBadge } from "@/components/orders/order-status-badge";
 import { VoucherCard } from "@/components/orders/voucher-card";
+import { BookingList } from "@/components/partner/booking-list";
+import { InventoryManager } from "@/components/partner/inventory-manager";
 import { PartnerApplyForm } from "@/components/partner/partner-apply-form";
+import { ProductForm } from "@/components/partner/product-form";
+import { ProductStateBadge } from "@/components/partner/product-state-badge";
+import { VoucherForm } from "@/components/partner/voucher-form";
 import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
-import { MOCK_APPLICATIONS, MOCK_PARTNERS, MOCK_REVIEWED_APPLICATIONS } from "@/lib/mock/partners";
+import {
+  MOCK_APPLICATIONS,
+  MOCK_PARTNER_BOOKINGS,
+  MOCK_PARTNERS,
+  MOCK_REVIEWED_APPLICATIONS,
+} from "@/lib/mock/partners";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
+import { addDays } from "@/lib/booking";
 import { seoulNow } from "@/lib/trip-dates";
 
 import { BookingDemo } from "./_demos/booking-demo";
@@ -519,6 +530,80 @@ export default function DevComponentsPage() {
           <div className="rounded-lg border">
             <ConsoleLoading />
           </div>
+        </Section>
+
+        <Section id="partner" title="10. 파트너 센터">
+          <p className="text-sm text-muted-foreground">
+            명세 밖 화면 — 기존 토큰·컴포넌트로 구성. 목업이라 저장·확정·거절·사용 처리는
+            &quot;로그인 필요&quot;로 실패한다.
+          </p>
+          <h3 className="text-lg font-semibold">상품 판매 상태 배지</h3>
+          <div className="flex flex-wrap gap-2">
+            {(["draft", "on_sale", "paused", "suspended"] as const).map((state) => (
+              <ProductStateBadge key={state} state={state} />
+            ))}
+          </div>
+
+          <h3 className="mt-4 text-lg font-semibold">예약 목록 (확정 대기 · 확정 · 거절)</h3>
+          <BookingList bookings={MOCK_PARTNER_BOOKINGS} emptyText="예약이 없어요" />
+          <BookingList bookings={[]} emptyText="확정을 기다리는 예약이 없어요" />
+
+          <h3 className="mt-4 text-lg font-semibold">
+            재고 관리 (회차 2개 · 마감 · 매진 · 날짜별 가격)
+          </h3>
+          <InventoryManager
+            product={{ adultPrice: 38000, childPrice: 25000, operatingDays: [1, 2, 4, 5, 6, 7] }}
+            slots={[
+              { id: "slot-10", startTime: "10:00", capacity: 8 },
+              { id: "slot-14", startTime: "14:00", capacity: 8 },
+            ]}
+            inventory={[
+              {
+                slotId: "slot-10",
+                useDate: addDays(seoulNow().today, 3),
+                capacity: null,
+                closed: true,
+                adultPrice: null,
+                childPrice: null,
+                booked: 0,
+              },
+              {
+                slotId: "slot-10",
+                useDate: addDays(seoulNow().today, 4),
+                capacity: null,
+                closed: false,
+                adultPrice: null,
+                childPrice: null,
+                booked: 8,
+              },
+              {
+                slotId: "slot-10",
+                useDate: addDays(seoulNow().today, 5),
+                capacity: 4,
+                closed: false,
+                adultPrice: 42000,
+                childPrice: null,
+                booked: 1,
+              },
+            ]}
+            today={seoulNow().today}
+          />
+
+          <h3 className="mt-4 text-lg font-semibold">바우처 사용 처리</h3>
+          <VoucherForm />
+
+          <h3 className="mt-4 text-lg font-semibold">상품 등록 폼 (빈 폼)</h3>
+          <ProductForm
+            productId={null}
+            partnerId="00000000-0000-4000-8000-000000000011"
+            initial={null}
+            cities={[
+              { value: "00000000-0000-4000-8000-0000000000c1", label: "교토" },
+              { value: "00000000-0000-4000-8000-0000000000c2", label: "도쿄" },
+            ]}
+            policies={[{ value: "standard", label: "일반 취소 — 7일 전까지 100%" }]}
+            suspendedReason={null}
+          />
         </Section>
       </main>
 
