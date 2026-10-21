@@ -1819,6 +1819,153 @@ async function main() {
           ).count,
       );
 
+      // ── 정산 (S5): 지난달 항목 상태별 고정 데이터 → 정확한 금액, 파트너 격리, 관리자 정산 완료(스냅숏)
+      // 새 파트너 E(수수료 15%)에 지난달 이용 항목을 관리자 권한으로 직접 넣는다
+      const userE = randomUUID();
+      await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+               values (${userE}, ${`${userE}@rls.test`}, ${sql.json({ name: "검증정산" })}, 'authenticated', 'authenticated')`;
+      await tx`update public.profiles set role = 'partner' where id = ${userE}`;
+      const [partnerE] = await tx<{ id: string }[]>`
+        insert into public.partners (owner_user_id, name, contact_name, contact_phone, contact_email, intro, commission_rate)
+        values (${userE}, '검증 정산 파트너', '검증', '02-000-0000', 'e@rls.test', '정산 검증용 파트너', 15)
+        returning id`;
+      if (!partnerE) throw new Error("정산 파트너 생성 실패");
+      const E: Role = { name: "authenticated", userId: userE };
+      const [months] = await tx<{ last: string; current: string }[]>`
+        select (date_trunc('month', public.seoul_today()) - interval '1 month')::date::text as last,
+               date_trunc('month', public.seoul_today())::date::text as current`;
+      if (!months) throw new Error("월 계산 실패");
+      const [settleOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 70000, ${randomUUID()}, now())
+        returning id`;
+      if (!settleOrder) throw new Error("정산 주문 생성 실패");
+      // [상태, 결제액, 환불액] — 기대: 이용 완료 10,000 + 확정(지난 날) 20,000 + 일부 환불 취소 5,000 = 매출 35,000
+      //   거절·만료·전액 환불 취소는 제외 → 수수료 1,500 + 3,000 + 750 = 5,250 → 지급 29,750
+      const settleFixture: [string, number, number | null][] = [
+        ["used", 10000, null],
+        ["confirmed", 20000, null],
+        ["cancelled", 10000, 5000],
+        ["cancelled", 10000, 10000],
+        ["rejected", 10000, 10000],
+        ["expired", 10000, 10000],
+      ];
+      for (const [i, [status, subtotal, refund]] of settleFixture.entries()) {
+        await tx`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, refund_amount, cancel_policy, slot_id, partner_id, commission_rate, status)
+          values (${settleOrder.id}, ${fuji.id}, ${`정산 ${status}`}, ${months.last}::date + ${i}::int, 1, 0,
+            ${subtotal}, ${subtotal}, ${refund}, 'standard', ${fujiSlot.id}, ${partnerE.id}, 15,
+            ${status}::public.order_item_status)`;
+      }
+      type SummaryRow = {
+        partner_id: string;
+        item_count: number;
+        revenue: number;
+        commission: number;
+        payout: number;
+        settled_at: string | null;
+      };
+      const [summaryE] = await as(
+        tx,
+        E,
+        (sp) =>
+          sp<
+            SummaryRow[]
+          >`select * from public.settlement_summary(null, ${months.last}::date, ${months.last}::date)`,
+      );
+      check(
+        "정산: 상태별 매출·수수료·지급액 (35,000 · 5,250 · 29,750)",
+        summaryE?.item_count === 3 &&
+          summaryE.revenue === 35000 &&
+          summaryE.commission === 5250 &&
+          summaryE.payout === 29750 &&
+          summaryE.settled_at === null,
+        `${summaryE?.item_count}건 · 매출 ${summaryE?.revenue} · 수수료 ${summaryE?.commission} · 지급 ${summaryE?.payout}`,
+      );
+      await expectOk(tx, "파트너: 다른 파트너 id를 넘겨도 자기 정산만", E, async (sp) => {
+        const rows = await sp<{ partner_id: string }[]>`
+          select partner_id from public.settlement_summary(${snorkel.partner_id}, ${months.last}::date, ${months.last}::date)`;
+        if (rows.some((r) => r.partner_id !== partnerE.id))
+          throw new Error("다른 파트너 행이 보임");
+        return `${rows.length}행 (모두 본인)`;
+      });
+      await expectBlocked(
+        tx,
+        "다른 파트너 D: E의 정산 항목 보기",
+        D,
+        async (sp) =>
+          (
+            await sp`select 1 from public.settlement_items(null, ${months.last}::date, ${months.last}::date) where partner_id = ${partnerE.id}`
+          ).length,
+      );
+      await expectError(
+        tx,
+        "고객: 정산 조회",
+        B,
+        "forbidden",
+        (sp) =>
+          sp`select * from public.settlement_summary(null, ${months.last}::date, ${months.last}::date)`,
+      );
+      await expectError(
+        tx,
+        "파트너: 정산 완료 처리",
+        E,
+        "forbidden",
+        (sp) => sp`select public.admin_settle_month(${partnerE.id}, ${months.last}::date)`,
+      );
+      await expectError(
+        tx,
+        "관리자: 이번 달(안 끝난 달) 정산",
+        admin,
+        "month_not_ended",
+        (sp) => sp`select public.admin_settle_month(${partnerE.id}, ${months.current}::date)`,
+      );
+      await expectOk(tx, "관리자: 지난달 정산 완료 처리", admin, async (sp) => {
+        const [r] = await sp<
+          { payout: number }[]
+        >`select public.admin_settle_month(${partnerE.id}, ${months.last}::date) as payout`;
+        if (r?.payout !== 29750) throw new Error(`지급액 ${r?.payout}`);
+        return `지급 ${r.payout.toLocaleString()}원`;
+      });
+      await expectError(
+        tx,
+        "관리자: 같은 달 두 번 정산",
+        admin,
+        "already_settled",
+        (sp) => sp`select public.admin_settle_month(${partnerE.id}, ${months.last}::date)`,
+      );
+      // 정산 후 항목이 바뀌어도(검증용으로 직접 수정) 정산 완료 숫자는 그대로
+      await tx`update public.order_items set refund_amount = 0 where order_id = ${settleOrder.id} and status = 'cancelled'`;
+      const [frozen] = await as(
+        tx,
+        E,
+        (sp) =>
+          sp<
+            SummaryRow[]
+          >`select * from public.settlement_summary(null, ${months.last}::date, ${months.last}::date)`,
+      );
+      check(
+        "정산 완료 후에는 고정된 숫자 (항목이 바뀌어도 그대로)",
+        frozen?.revenue === 35000 && frozen.settled_at !== null,
+        `매출 ${frozen?.revenue} · 완료 ${frozen?.settled_at ? "예" : "아니오"}`,
+      );
+      await expectBlocked(
+        tx,
+        "다른 파트너 D: E의 정산 기록 읽기",
+        D,
+        async (sp) =>
+          (await sp`select 1 from public.settlements where partner_id = ${partnerE.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "파트너: 정산 기록 직접 수정",
+        E,
+        async (sp) =>
+          (await sp`update public.settlements set payout = 0 where partner_id = ${partnerE.id}`)
+            .count,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
