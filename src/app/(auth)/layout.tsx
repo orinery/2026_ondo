@@ -14,7 +14,8 @@ const COVER = {
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="grid min-h-dvh md:grid-cols-2">
-      <div className="relative hidden overflow-hidden bg-muted md:block">
+      {/* 768 이상 왼쪽 계절 사진·문구: 장식 영역이라 보조 기술에서 숨긴다 (랜드마크 밖 콘텐츠 — axe region) */}
+      <div aria-hidden className="relative hidden overflow-hidden bg-muted md:block">
         <Image
           src={COVER.src}
           alt={COVER.alt}

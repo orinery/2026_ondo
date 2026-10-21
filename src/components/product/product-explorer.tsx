@@ -90,6 +90,8 @@ export function ProductExplorer({
       />
 
       <div className="container pt-8 pb-section-sm md:pb-24">
+        {/* 카드 제목(h3) 앞에 구역 제목 — 제목 단계가 h1 → h3으로 건너뛰지 않게 (axe heading-order) */}
+        <h2 className="sr-only">상품 목록</h2>
         <ProductResults
           items={items}
           likedIds={new Set(likedIds)}
