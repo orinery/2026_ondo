@@ -1966,6 +1966,158 @@ async function main() {
             .count,
       );
 
+      // ── 관리자 콘솔 (S6): 리뷰 신고·숨김 · 상품 판매 중지 · 통계
+      const [reportB] = await as(
+        tx,
+        B,
+        (sp) =>
+          sp<{ id: string }[]>`insert into public.review_reports (review_id, reason, detail)
+          values (${reviewA.id}, 'spam', '광고 같아요') returning id`,
+      );
+      check("B: 다른 사람 리뷰 신고", Boolean(reportB), reportB ? "1건" : "실패");
+      if (!reportB) throw new Error("신고 실패");
+      await expectError(
+        tx,
+        "B: 같은 리뷰 두 번 신고",
+        B,
+        "already_reported",
+        (sp) =>
+          sp`insert into public.review_reports (review_id, reason) values (${reviewA.id}, 'abuse')`,
+      );
+      await expectError(
+        tx,
+        "A: 본인 리뷰 신고",
+        A,
+        "own_review",
+        (sp) =>
+          sp`insert into public.review_reports (review_id, reason) values (${reviewA.id}, 'other')`,
+      );
+      await expectBlocked(
+        tx,
+        "A: 남이 한 신고 읽기",
+        A,
+        async (sp) =>
+          (await sp`select 1 from public.review_reports where id = ${reportB.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "B: 신고 상태를 처리 완료로 (컬럼 권한)",
+        B,
+        async (sp) =>
+          (await sp`update public.review_reports set status = 'actioned' where id = ${reportB.id}`)
+            .count,
+      );
+      await expectError(
+        tx,
+        "B: 신고 처리 함수",
+        B,
+        "forbidden",
+        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'hide')`,
+      );
+      const [ratingBefore] = await tx<{ review_count: number }[]>`
+        select review_count from public.products where id = ${tea.id}`;
+      await expectOk(tx, "관리자: 신고 처리 → 리뷰 숨김", admin, async (sp) => {
+        await sp`select public.resolve_review_report(${reportB.id}, 'hide')`;
+        return "숨김";
+      });
+      await expectBlocked(
+        tx,
+        "anon: 숨긴 리뷰 보기",
+        anon,
+        async (sp) => (await sp`select 1 from public.reviews where id = ${reviewA.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "B: 숨긴 리뷰 보기",
+        B,
+        async (sp) => (await sp`select 1 from public.reviews where id = ${reviewA.id}`).length,
+      );
+      await expectOk(tx, "작성자 A: 숨긴 본인 리뷰 보기", A, async (sp) => {
+        const rows = await sp`select 1 from public.reviews where id = ${reviewA.id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+      await expectOk(tx, "관리자: 숨긴 리뷰 보기", admin, async (sp) => {
+        const rows = await sp`select 1 from public.reviews where id = ${reviewA.id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+      const [ratingAfter] = await tx<{ review_count: number }[]>`
+        select review_count from public.products where id = ${tea.id}`;
+      check(
+        "숨긴 리뷰는 평점·리뷰 수 집계에서 빠짐",
+        (ratingAfter?.review_count ?? -1) === (ratingBefore?.review_count ?? 0) - 1,
+        `${ratingBefore?.review_count} → ${ratingAfter?.review_count}`,
+      );
+      await expectError(
+        tx,
+        "관리자: 처리한 신고 다시 처리",
+        admin,
+        "not_pending",
+        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'dismiss')`,
+      );
+      await expectOk(tx, "관리자: 숨김 해제 → 다시 공개", admin, async (sp) => {
+        await sp`select public.admin_set_review_hidden(${reviewA.id}, false)`;
+        return "해제";
+      });
+      await expectOk(tx, "anon: 숨김 해제된 리뷰 보기", anon, async (sp) => {
+        const rows = await sp`select 1 from public.reviews where id = ${reviewA.id}`;
+        return rows.length === 1 ? "1행" : `✗ ${rows.length}행`;
+      });
+
+      // 상품 판매 중지: 중지되면 예약(장바구니 담기)이 막히고, 재개하면 다시 된다
+      await expectError(
+        tx,
+        "파트너 D: 상품 판매 중지 함수",
+        D,
+        "forbidden",
+        (sp) => sp`select public.admin_set_product_suspension(${fuji.id}, '점검')`,
+      );
+      await expectOk(tx, "관리자: 상품 판매 중지", admin, async (sp) => {
+        await sp`select public.admin_set_product_suspension(${fuji.id}, '안전 점검 중')`;
+        return "중지";
+      });
+      const suspendDate = await dayPlus(30);
+      await expectError(
+        tx,
+        "중지된 상품 담기",
+        B,
+        "unavailable",
+        (sp) =>
+          sp`insert into public.cart_items (product_id, use_date) values (${fuji.id}, ${suspendDate})`,
+      );
+      await expectOk(tx, "관리자: 판매 재개 → 다시 담기 가능", admin, async (sp) => {
+        await sp`select public.admin_set_product_suspension(${fuji.id}, null)`;
+        return "재개";
+      });
+      await expectOk(tx, "재개된 상품 담기", B, async (sp) => {
+        const r =
+          await sp`insert into public.cart_items (product_id, use_date) values (${fuji.id}, ${suspendDate})`;
+        return `${r.count}행`;
+      });
+
+      // 통계: 관리자만
+      await expectError(
+        tx,
+        "고객: 대시보드 통계",
+        B,
+        "forbidden",
+        (sp) =>
+          sp`select * from public.admin_kpis(public.seoul_today() - 30, public.seoul_today())`,
+      );
+      await expectError(
+        tx,
+        "파트너: 대시보드 통계",
+        D,
+        "forbidden",
+        (sp) =>
+          sp`select * from public.admin_daily_stats(public.seoul_today() - 30, public.seoul_today())`,
+      );
+      await expectOk(tx, "관리자: 30일 일별 통계", admin, async (sp) => {
+        const rows =
+          await sp`select * from public.admin_daily_stats(public.seoul_today() - 29, public.seoul_today())`;
+        if (rows.length !== 30) throw new Error(`${rows.length}일`);
+        return `${rows.length}일`;
+      });
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
