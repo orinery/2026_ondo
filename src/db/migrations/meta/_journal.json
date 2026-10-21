@@ -78,6 +78,20 @@
       "when": 1792548166961,
       "tag": "0010_partners_backfill_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792550860976,
+      "tag": "0011_slots_options_item_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792550875843,
+      "tag": "0012_slots_backfill_functions",
+      "breakpoints": true
     }
   ]
 }

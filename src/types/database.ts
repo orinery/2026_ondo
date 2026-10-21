@@ -57,7 +57,9 @@ export type Database = {
           child_qty: number;
           created_at: string;
           id: string;
+          option_ids: string[];
           product_id: string;
+          slot_id: string;
           updated_at: string;
           use_date: string;
           user_id: string;
@@ -68,7 +70,9 @@ export type Database = {
           child_qty?: number;
           created_at?: string;
           id?: string;
+          option_ids?: string[];
           product_id: string;
+          slot_id: string;
           updated_at?: string;
           use_date: string;
           user_id?: string;
@@ -78,7 +82,9 @@ export type Database = {
           child_qty?: number;
           created_at?: string;
           id?: string;
+          option_ids?: string[];
           product_id?: string;
+          slot_id?: string;
           updated_at?: string;
           use_date?: string;
           user_id?: string;
@@ -89,6 +95,13 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_slot_id_product_slots_id_fk";
+            columns: ["slot_id"];
+            isOneToOne: false;
+            referencedRelation: "product_slots";
             referencedColumns: ["id"];
           },
           {
@@ -214,49 +227,134 @@ export type Database = {
           },
         ];
       };
+      order_item_options: {
+        Row: {
+          amount: number;
+          name: string;
+          option_id: string | null;
+          order_item_id: string;
+          qty: number;
+          unit: Database["public"]["Enums"]["option_unit"];
+          unit_price: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          amount: number;
+          name: string;
+          option_id?: string | null;
+          order_item_id: string;
+          qty: number;
+          unit: Database["public"]["Enums"]["option_unit"];
+          unit_price: number;
+        };
+        Update: {
+          amount?: number;
+          name?: string;
+          option_id?: string | null;
+          order_item_id?: string;
+          qty?: number;
+          unit?: Database["public"]["Enums"]["option_unit"];
+          unit_price?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_item_options_option_id_product_options_id_fk";
+            columns: ["option_id"];
+            isOneToOne: false;
+            referencedRelation: "product_options";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_item_options_order_item_id_order_items_id_fk";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       order_items: {
         Row: {
           adult_price: number;
           adult_qty: number;
           cancel_policy: string;
+          cancelled_at: string | null;
           child_price: number | null;
           child_qty: number;
+          commission_rate: number;
+          confirm_deadline: string | null;
+          confirmed_at: string | null;
           id: string;
+          options_amount: number;
           order_id: string;
+          partner_id: string;
           product_id: string;
           product_title: string;
           refund_amount: number | null;
+          reject_reason: string | null;
+          rejected_at: string | null;
+          slot_id: string;
+          start_time: string | null;
+          status: Database["public"]["Enums"]["order_item_status"];
           subtotal: number;
           use_date: string;
+          used_at: string | null;
+          voucher_code: string | null;
         };
         ComputedFields: never;
         Insert: {
           adult_price: number;
           adult_qty: number;
           cancel_policy: string;
+          cancelled_at?: string | null;
           child_price?: number | null;
           child_qty: number;
+          commission_rate: number;
+          confirm_deadline?: string | null;
+          confirmed_at?: string | null;
           id?: string;
+          options_amount?: number;
           order_id: string;
+          partner_id: string;
           product_id: string;
           product_title: string;
           refund_amount?: number | null;
+          reject_reason?: string | null;
+          rejected_at?: string | null;
+          slot_id: string;
+          start_time?: string | null;
+          status?: Database["public"]["Enums"]["order_item_status"];
           subtotal: number;
           use_date: string;
+          used_at?: string | null;
+          voucher_code?: string | null;
         };
         Update: {
           adult_price?: number;
           adult_qty?: number;
           cancel_policy?: string;
+          cancelled_at?: string | null;
           child_price?: number | null;
           child_qty?: number;
+          commission_rate?: number;
+          confirm_deadline?: string | null;
+          confirmed_at?: string | null;
           id?: string;
+          options_amount?: number;
           order_id?: string;
+          partner_id?: string;
           product_id?: string;
           product_title?: string;
           refund_amount?: number | null;
+          reject_reason?: string | null;
+          rejected_at?: string | null;
+          slot_id?: string;
+          start_time?: string | null;
+          status?: Database["public"]["Enums"]["order_item_status"];
           subtotal?: number;
           use_date?: string;
+          used_at?: string | null;
+          voucher_code?: string | null;
         };
         Relationships: [
           {
@@ -274,10 +372,24 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "order_items_partner_id_partners_id_fk";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "order_items_product_id_products_id_fk";
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_slot_id_product_slots_id_fk";
+            columns: ["slot_id"];
+            isOneToOne: false;
+            referencedRelation: "product_slots";
             referencedColumns: ["id"];
           },
         ];
@@ -529,6 +641,84 @@ export type Database = {
           },
         ];
       };
+      product_options: {
+        Row: {
+          active: boolean;
+          id: string;
+          name: string;
+          position: number;
+          price: number;
+          product_id: string;
+          unit: Database["public"]["Enums"]["option_unit"];
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          id?: string;
+          name: string;
+          position?: number;
+          price: number;
+          product_id: string;
+          unit?: Database["public"]["Enums"]["option_unit"];
+        };
+        Update: {
+          active?: boolean;
+          id?: string;
+          name?: string;
+          position?: number;
+          price?: number;
+          product_id?: string;
+          unit?: Database["public"]["Enums"]["option_unit"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_options_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_slots: {
+        Row: {
+          active: boolean;
+          capacity: number;
+          created_at: string;
+          id: string;
+          position: number;
+          product_id: string;
+          start_time: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          active?: boolean;
+          capacity?: number;
+          created_at?: string;
+          id?: string;
+          position?: number;
+          product_id: string;
+          start_time?: string | null;
+        };
+        Update: {
+          active?: boolean;
+          capacity?: number;
+          created_at?: string;
+          id?: string;
+          position?: number;
+          product_id?: string;
+          start_time?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_slots_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       products: {
         Row: {
           adult_price: number;
@@ -749,6 +939,45 @@ export type Database = {
           },
         ];
       };
+      slot_inventory: {
+        Row: {
+          adult_price: number | null;
+          booked: number;
+          capacity: number | null;
+          child_price: number | null;
+          closed: boolean;
+          slot_id: string;
+          use_date: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          adult_price?: number | null;
+          booked?: number;
+          capacity?: number | null;
+          child_price?: number | null;
+          closed?: boolean;
+          slot_id: string;
+          use_date: string;
+        };
+        Update: {
+          adult_price?: number | null;
+          booked?: number;
+          capacity?: number | null;
+          child_price?: number | null;
+          closed?: boolean;
+          slot_id?: string;
+          use_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "slot_inventory_slot_id_product_slots_id_fk";
+            columns: ["slot_id"];
+            isOneToOne: false;
+            referencedRelation: "product_slots";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       trip_items: {
         Row: {
           caution: string | null;
@@ -882,12 +1111,37 @@ export type Database = {
       approve_partner_application: { Args: { p_application_id: string }; Returns: string };
       attach_bookings: { Args: { p_trip_id: string }; Returns: number };
       booking_error: {
-        Args: { p_adult: number; p_child: number; p_product_id: string; p_use_date: string };
+        Args: {
+          p_adult: number;
+          p_child: number;
+          p_option_ids?: string[];
+          p_product_id: string;
+          p_slot_id: string;
+          p_use_date: string;
+        };
         Returns: string;
       };
       cancel_order: { Args: { p_order_id: string }; Returns: number };
+      cancel_order_item: { Args: { p_item_id: string }; Returns: number };
+      generate_voucher_code: { Args: Record<PropertyKey, never>; Returns: string };
       has_used_product: { Args: { p_product_id: string }; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      line_price: {
+        Args: {
+          p_adult: number;
+          p_child: number;
+          p_option_ids?: string[];
+          p_product_id: string;
+          p_slot_id: string;
+          p_use_date: string;
+        };
+        Returns: {
+          adult_price: number;
+          child_price: number;
+          options_amount: number;
+          subtotal: number;
+        }[];
+      };
       my_partner_id: { Args: Record<PropertyKey, never>; Returns: string };
       my_profile: {
         Args: Record<PropertyKey, never>;
@@ -919,10 +1173,15 @@ export type Database = {
           order_item_id: string;
           refund_amount: number;
           refund_rate: number;
+          status: string;
         }[];
       };
       reject_partner_application: {
         Args: { p_application_id: string; p_reason: string };
+        Returns: undefined;
+      };
+      release_item: {
+        Args: { p_item_id: string; p_reason?: string; p_refund: number; p_status: string };
         Returns: undefined;
       };
       reorder_trip_items: {
@@ -935,6 +1194,8 @@ export type Database = {
       application_status: "pending" | "approved" | "rejected";
       confirmation_mode: "instant" | "manual";
       itinerary_item_type: "move" | "sight" | "food" | "booking";
+      option_unit: "per_booking" | "per_person";
+      order_item_status: "pending" | "confirmed" | "used" | "rejected" | "cancelled" | "expired";
       order_status: "paid" | "cancelled";
       partner_status: "active" | "suspended";
       product_category: "tour" | "ticket";
@@ -1054,6 +1315,8 @@ export const Constants = {
       application_status: ["pending", "approved", "rejected"],
       confirmation_mode: ["instant", "manual"],
       itinerary_item_type: ["move", "sight", "food", "booking"],
+      option_unit: ["per_booking", "per_person"],
+      order_item_status: ["pending", "confirmed", "used", "rejected", "cancelled", "expired"],
       order_status: ["paid", "cancelled"],
       partner_status: ["active", "suspended"],
       product_category: ["tour", "ticket"],

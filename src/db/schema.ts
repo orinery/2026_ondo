@@ -21,6 +21,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   doublePrecision,
@@ -48,6 +49,8 @@ import {
   CATEGORY_VALUES,
   CONFIRMATION_MODE_VALUES,
   ITEM_TYPE_VALUES,
+  OPTION_UNIT_VALUES,
+  ORDER_ITEM_STATUS_VALUES,
   ORDER_STATUS_VALUES,
   PARTNER_STATUS_VALUES,
   THEME_VALUES,
@@ -63,6 +66,8 @@ export const userRoleEnum = pgEnum("user_role", USER_ROLE_VALUES);
 export const partnerStatusEnum = pgEnum("partner_status", PARTNER_STATUS_VALUES);
 export const applicationStatusEnum = pgEnum("application_status", APPLICATION_STATUS_VALUES);
 export const confirmationModeEnum = pgEnum("confirmation_mode", CONFIRMATION_MODE_VALUES);
+export const orderItemStatusEnum = pgEnum("order_item_status", ORDER_ITEM_STATUS_VALUES);
+export const optionUnitEnum = pgEnum("option_unit", OPTION_UNIT_VALUES);
 
 // ─── 공통 컬럼 ───────────────────────────────────────────────────────────
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -77,6 +82,24 @@ const publicRead = (name: string) =>
 // (select …)로 감싸면 Postgres가 쿼리당 한 번만 평가한다 (행마다 호출하지 않음)
 const isAdmin = sql`(select public.is_admin())`;
 const myPartnerId = sql`(select public.my_partner_id())`;
+
+// 상품에 딸린 데이터(회차·옵션) 쓰기: 상품이 내 파트너 것일 때만
+const ownProduct = (productId: AnyPgColumn) =>
+  sql`exists (select 1 from public.products p where p.id = ${productId} and p.partner_id = ${myPartnerId})`;
+const partnerWrite = (name: string, productCheck: ReturnType<typeof sql>) => [
+  pgPolicy(`${name}_insert_partner`, {
+    for: "insert",
+    to: authenticatedRole,
+    withCheck: productCheck,
+  }),
+  pgPolicy(`${name}_update_partner`, {
+    for: "update",
+    to: authenticatedRole,
+    using: productCheck,
+    withCheck: productCheck,
+  }),
+  pgPolicy(`${name}_delete_partner`, { for: "delete", to: authenticatedRole, using: productCheck }),
+];
 
 // ─── profiles: auth.users와 1:1, 공개 표시 정보만 담는다 ───────────────────
 export const profiles = pgTable(
@@ -409,6 +432,85 @@ export const productItineraryItems = pgTable(
   ],
 );
 
+// ─── product_slots: 회차 (예: 10:00 / 14:00) — 회차마다 기본 정원 ────────────────
+// start_time이 null이면 시간이 없는 상품(종일권·패스)의 단일 회차
+export const productSlots = pgTable(
+  "product_slots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    startTime: time("start_time"),
+    capacity: smallint("capacity").notNull().default(30), // 날짜별로 덮어쓰지 않았을 때의 정원
+    // 예약이 있는 회차는 지우지 않고 판매만 끈다 (주문 항목이 참조한다)
+    active: boolean("active").notNull().default(true),
+    position: smallint("position").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("product_slots_capacity", sql`${t.capacity} between 1 and 999`),
+    // 같은 상품에 같은 시간 회차는 하나 (시간 없는 회차도 하나 — NULL끼리도 중복으로 본다)
+    unique("product_slots_product_time_unique").on(t.productId, t.startTime).nullsNotDistinct(),
+    publicRead("product_slots_select_public"),
+    ...partnerWrite("product_slots", ownProduct(t.productId)),
+  ],
+);
+
+// ─── slot_inventory: 날짜 × 회차 재고 — 덮어쓰기(정원·마감·가격) + 예약된 인원 카운터 ──────
+// 행은 필요할 때 생긴다 (파트너가 덮어쓰거나, 첫 예약이 들어올 때). 행이 없으면 회차 기본값.
+// booked는 place_order·취소·거절·만료 함수만 바꾼다 (GRANT 없음) → 남은 자리 = 정원 - booked
+export const slotInventory = pgTable(
+  "slot_inventory",
+  {
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => productSlots.id, { onDelete: "cascade" }),
+    useDate: date("use_date").notNull(),
+    capacity: smallint("capacity"), // null = 회차 기본 정원
+    closed: boolean("closed").notNull().default(false), // 이 날짜·회차만 판매 마감
+    adultPrice: integer("adult_price"), // null = 상품 기본 가격
+    childPrice: integer("child_price"),
+    booked: smallint("booked").notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ name: "slot_inventory_pkey", columns: [t.slotId, t.useDate] }),
+    check("slot_inventory_capacity", sql`${t.capacity} is null or ${t.capacity} between 0 and 999`),
+    check("slot_inventory_booked", sql`${t.booked} >= 0`),
+    check("slot_inventory_adult_price", sql`${t.adultPrice} is null or ${t.adultPrice} > 0`),
+    check("slot_inventory_child_price", sql`${t.childPrice} is null or ${t.childPrice} >= 0`),
+    publicRead("slot_inventory_select_public"),
+    ...partnerWrite(
+      "slot_inventory",
+      sql`exists (select 1 from public.product_slots s join public.products p on p.id = s.product_id
+                  where s.id = ${t.slotId} and p.partner_id = ${myPartnerId})`,
+    ),
+  ],
+);
+
+// ─── product_options: 추가 옵션 (예: 호텔 픽업 +10,000원/건, 점심 +2,500원/인) ─────────
+export const productOptions = pgTable(
+  "product_options",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    price: integer("price").notNull(),
+    unit: optionUnitEnum("unit").notNull().default("per_booking"),
+    active: boolean("active").notNull().default(true),
+    position: smallint("position").notNull().default(0),
+  },
+  (t) => [
+    check("product_options_name_length", sql`char_length(${t.name}) between 1 and 30`),
+    check("product_options_price", sql`${t.price} between 0 and 1000000`),
+    unique("product_options_product_name_unique").on(t.productId, t.name),
+    publicRead("product_options_select_public"),
+    ...partnerWrite("product_options", ownProduct(t.productId)),
+  ],
+);
+
 // ─── cart_items: 장바구니 (로그인 사용자, DB 저장) ───────────────────────────
 // 가격 컬럼이 없다: 장바구니는 항상 "현재 가격"으로 보여주고, 결제 금액은 place_order가 계산한다.
 // 예약 가능 여부(요일·마감·인원)는 BEFORE 트리거(validate_cart_item)가 검사한다.
@@ -423,9 +525,18 @@ export const cartItems = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id, { onDelete: "cascade" }),
+    // 회차. 비워서 넣으면 트리거가 상품의 첫 회차로 채운다 (회차 선택 전 화면과의 호환)
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => productSlots.id, { onDelete: "cascade" }),
     useDate: date("use_date").notNull(),
     adultQty: smallint("adult_qty").notNull().default(1),
     childQty: smallint("child_qty").notNull().default(0),
+    // 고른 추가 옵션 id. 짧게 머무는 데이터라 배열로 두고, 유효성은 트리거(booking_error)가 확인한다
+    optionIds: uuid("option_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -434,8 +545,8 @@ export const cartItems = pgTable(
       "cart_items_qty",
       sql`${t.adultQty} >= 0 and ${t.childQty} >= 0 and ${t.adultQty} + ${t.childQty} >= 1`,
     ),
-    // 같은 상품·같은 날짜는 한 줄로 합친다 (담기 액션이 수량을 더한다)
-    unique("cart_items_user_product_date_unique").on(t.userId, t.productId, t.useDate),
+    // 같은 회차·같은 날짜는 한 줄로 합친다 (담기 액션이 수량을 더하고 옵션은 새 선택으로 바꾼다)
+    unique("cart_items_user_slot_date_unique").on(t.userId, t.slotId, t.useDate),
     pgPolicy("cart_items_owner_all", {
       for: "all",
       to: authenticatedRole,
@@ -488,6 +599,9 @@ export const orders = pgTable(
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
     }),
+    // 파트너에게는 orders 정책을 주지 않는다: 한 주문에 다른 파트너 상품이 섞이면 총액 등이 보이기 때문.
+    // 파트너는 자기 주문 항목(order_items)과, 예약자 연락처는 함수(partner_bookings, S4)로만 본다
+    pgPolicy("orders_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
   ],
 );
 
@@ -509,22 +623,79 @@ export const orderItems = pgTable(
     childQty: smallint("child_qty").notNull(),
     adultPrice: integer("adult_price").notNull(),
     childPrice: integer("child_price"),
-    subtotal: integer("subtotal").notNull(),
+    subtotal: integer("subtotal").notNull(), // 인원 금액 + 옵션 금액
     cancelPolicy: text("cancel_policy")
       .notNull()
       .references(() => cancellationPolicies.code),
     refundAmount: integer("refund_amount"),
+    // ── 회차·옵션·확정 (S2)
+    status: orderItemStatusEnum("status").notNull().default("confirmed"),
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => productSlots.id, { onDelete: "restrict" }),
+    startTime: time("start_time"), // 구매 시점의 회차 시간 (회차가 바뀌어도 그대로)
+    optionsAmount: integer("options_amount").notNull().default(0),
+    // 정산용 스냅숏: 주문할 때의 판매 파트너와 수수료율
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "restrict" }),
+    commissionRate: numeric("commission_rate", { precision: 4, scale: 2 }).notNull(),
+    voucherCode: text("voucher_code").unique("order_items_voucher_unique"), // 확정되면 발급
+    confirmDeadline: timestamp("confirm_deadline", { withTimezone: true }), // 확정 대기의 처리 기한
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectReason: text("reject_reason"),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   },
   (t) => [
     check("order_items_qty", sql`${t.adultQty} >= 0 and ${t.childQty} >= 0`),
     check("order_items_subtotal", sql`${t.subtotal} > 0`),
+    check("order_items_options_amount", sql`${t.optionsAmount} >= 0`),
     index("order_items_order_idx").on(t.orderId),
+    index("order_items_partner_date_idx").on(t.partnerId, t.useDate),
+    // 기한 지난 확정 대기를 찾는 만료 작업용
+    index("order_items_pending_deadline_idx")
+      .on(t.confirmDeadline)
+      .where(sql`${t.status} = 'pending'`),
     // 리뷰 자격 확인(has_used_product)용
     index("order_items_product_date_idx").on(t.productId, t.useDate),
     pgPolicy("order_items_select_own", {
       for: "select",
       to: authenticatedRole,
       using: sql`exists (select 1 from public.orders o where o.id = ${t.orderId} and o.user_id = ${authUid})`,
+    }),
+    pgPolicy("order_items_select_partner", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
+    pgPolicy("order_items_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+  ],
+);
+
+// ─── order_item_options: 주문 항목에 고른 옵션 — 구매 시점의 이름·단가를 복사해 둔다 ───────
+export const orderItemOptions = pgTable(
+  "order_item_options",
+  {
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "cascade" }),
+    // 옵션을 지워도 주문 기록은 남는다
+    optionId: uuid("option_id").references(() => productOptions.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    unit: optionUnitEnum("unit").notNull(),
+    unitPrice: integer("unit_price").notNull(),
+    qty: smallint("qty").notNull(), // 건당 = 1, 1인당 = 인원 수
+    amount: integer("amount").notNull(),
+  },
+  (t) => [
+    primaryKey({ name: "order_item_options_pkey", columns: [t.orderItemId, t.name] }),
+    // 주문 항목을 볼 수 있는 사람(본인·담당 파트너·관리자)만 — order_items의 RLS를 그대로 따른다
+    pgPolicy("order_item_options_select_visible", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`exists (select 1 from public.order_items oi where oi.id = ${t.orderItemId})`,
     }),
   ],
 );

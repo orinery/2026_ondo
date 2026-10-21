@@ -22,6 +22,20 @@ export const APPLICATION_STATUS_VALUES = ["pending", "approved", "rejected"] as 
 // 예약 확정 방식: instant = 결제 즉시 확정, manual = 파트너가 확정·거절
 export const CONFIRMATION_MODE_VALUES = ["instant", "manual"] as const;
 
+// 주문 항목(예약) 상태. pending = 파트너 확정 대기, rejected·cancelled·expired = 전액/규정 환불로 끝난 상태
+export const ORDER_ITEM_STATUS_VALUES = [
+  "pending",
+  "confirmed",
+  "used",
+  "rejected",
+  "cancelled",
+  "expired",
+] as const;
+// 추가 옵션 가격 단위: 예약 1건당 / 1인당
+export const OPTION_UNIT_VALUES = ["per_booking", "per_person"] as const;
+
+export type OrderItemStatus = (typeof ORDER_ITEM_STATUS_VALUES)[number];
+export type OptionUnit = (typeof OPTION_UNIT_VALUES)[number];
 export type UserRole = (typeof USER_ROLE_VALUES)[number];
 export type PartnerStatus = (typeof PARTNER_STATUS_VALUES)[number];
 export type ApplicationStatus = (typeof APPLICATION_STATUS_VALUES)[number];
