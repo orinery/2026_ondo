@@ -21,6 +21,8 @@ import {
 import { CartView } from "@/components/cart/cart-view";
 import { OrderList } from "@/components/orders/order-list";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
+import { ItemStatusBadge } from "@/components/orders/order-status-badge";
+import { VoucherCard } from "@/components/orders/voucher-card";
 import { PartnerApplyForm } from "@/components/partner/partner-apply-form";
 import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
@@ -423,7 +425,7 @@ export default function DevComponentsPage() {
           <h3 className="mt-4 text-lg font-semibold">예약 취소 확인 창 (환불 예정액)</h3>
           <div>
             <CancelOrderDialog
-              orderId="00000000-0000-0000-0000-000000000000"
+              target={{ kind: "order", orderId: "00000000-0000-0000-0000-000000000000" }}
               orderNo="YO261015-000031"
               lines={[
                 {
@@ -435,10 +437,35 @@ export default function DevComponentsPage() {
               ]}
             />
           </div>
+          <h3 className="mt-4 text-lg font-semibold">상품별 예약 상태 배지</h3>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                "pending",
+                "processing",
+                "confirmed",
+                "used",
+                "rejected",
+                "cancelled",
+                "expired",
+              ] as const
+            ).map((s) => (
+              <ItemStatusBadge key={s} status={s} />
+            ))}
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">모바일 바우처 (예약 확정)</h3>
+          <VoucherCard
+            code="B362D132E0"
+            title="후지산·가와구치코 당일 버스 투어"
+            useDate="2026-11-21"
+            startTime="08:00"
+            people={3}
+            className="max-w-md"
+          />
           <h3 className="mt-4 text-lg font-semibold">빈 상태</h3>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <CartView items={[]} preview />
-            <OrderList orders={[]} status="all" />
+            <OrderList orders={[]} status="all" label="예약 내역 (빈 상태)" />
           </div>
         </Section>
 

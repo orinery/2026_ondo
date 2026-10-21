@@ -1,5 +1,5 @@
 import type { CartItem } from "@/lib/data/cart";
-import type { OrderSummary } from "@/lib/data/orders";
+import type { OrderItem, OrderSummary } from "@/lib/data/orders";
 
 import { unsplash } from "./products";
 
@@ -26,9 +26,9 @@ export const MOCK_CART: CartItem[] = [
     childQty: 1,
     slot: { id: "s1", startTime: "08:00" },
     prices: { adultPrice: 89000, childPrice: 69000 },
-    options: [],
-    optionsAmount: 0,
-    subtotal: 247000,
+    options: [{ id: "o1", name: "신주쿠 호텔 픽업", price: 10000, unit: "per_booking" }],
+    optionsAmount: 10000,
+    subtotal: 257000,
     error: null,
     product: {
       id: "p1",
@@ -86,7 +86,8 @@ const orderItem = (
   cityName: string,
   useDate: string,
   subtotal: number,
-) => ({
+  extra: Partial<OrderItem> = {},
+): OrderItem => ({
   id,
   productId: id,
   productSlug: slug,
@@ -102,6 +103,16 @@ const orderItem = (
   subtotal,
   refundAmount: null,
   cancelPolicy: standard,
+  startTime: null,
+  status: "confirmed",
+  displayStatus: "used",
+  cancellable: false,
+  voucherCode: null,
+  confirmDeadline: null,
+  rejectReason: null,
+  options: [],
+  optionsAmount: 0,
+  ...extra,
 });
 
 export const MOCK_ORDERS: OrderSummary[] = [
@@ -124,6 +135,43 @@ export const MOCK_ORDERS: OrderSummary[] = [
         "도쿄",
         "2026-11-21",
         178000,
+        {
+          startTime: "08:00",
+          displayStatus: "confirmed",
+          cancellable: true,
+          voucherCode: "B362D132E0",
+          options: ["신주쿠 호텔 픽업"],
+          optionsAmount: 10000,
+        },
+      ),
+    ],
+  },
+  {
+    id: "o4",
+    orderNo: "YO261020-000040",
+    status: "paid",
+    displayStatus: "pending",
+    cancellable: true,
+    totalAmount: 76000,
+    refundAmount: null,
+    paidAt: "2026-10-20T03:00:00Z",
+    cancelledAt: null,
+    items: [
+      orderItem(
+        "i4",
+        "교토 마치야 다도 체험",
+        "kyoto-machiya-tea-ceremony",
+        "1743515483156-6bf698521774",
+        "교토",
+        "2026-11-05",
+        76000,
+        {
+          startTime: "10:00",
+          status: "pending",
+          displayStatus: "pending",
+          cancellable: true,
+          confirmDeadline: "2026-10-22T03:00:00Z",
+        },
       ),
     ],
   },
@@ -146,6 +194,7 @@ export const MOCK_ORDERS: OrderSummary[] = [
         "오사카",
         "2026-09-11",
         138000,
+        { startTime: "17:30", voucherCode: "7F31C0A9D2" },
       ),
     ],
   },
@@ -168,6 +217,7 @@ export const MOCK_ORDERS: OrderSummary[] = [
         "오키나와",
         "2026-09-20",
         72000,
+        { status: "cancelled", displayStatus: "cancelled", refundAmount: 72000 },
       ),
     ],
   },

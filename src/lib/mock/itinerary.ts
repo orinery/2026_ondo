@@ -63,6 +63,7 @@ export const MOCK_ITINERARY: ItineraryDay[] = [
       },
       {
         // 주문으로 자동 추가된 예약 항목: "예약" 태그 + 예약 보기 링크, 삭제 버튼 없음
+        // 파트너 확정 상품이라 아직 "확정 대기"
         id: "i7",
         time: "14:00",
         title: "교토 마치야 다도 체험",
@@ -70,6 +71,7 @@ export const MOCK_ITINERARY: ItineraryDay[] = [
         type: "booking",
         status: "upcoming",
         bookingHref: "/my/orders/YO261015-000031",
+        bookingPending: true,
       },
     ],
   },
