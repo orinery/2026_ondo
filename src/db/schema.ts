@@ -6,7 +6,11 @@
  * - 앱 실행 중 읽기·쓰기: supabase-js(사용자 JWT)로만 한다. → 아래 RLS 정책이 항상 적용된다.
  *
  * RLS 요약
- * - 공개 데이터(도시·상품·사진·진행 일정·취소 규정·리뷰·프로필): 누구나 읽기, 쓰기는 정책 없음(= 거부)
+ * - 역할(profiles.role): customer · partner · admin. 판단은 is_admin()·my_partner_id() 함수로 한다 (0008)
+ *   → 로그인 사용자는 모두 DB 역할 authenticated라서 컬럼 GRANT로는 파트너·관리자를 나눌 수 없기 때문
+ * - 공개 데이터(도시·공개된 상품·사진·진행 일정·취소 규정·리뷰·프로필): 누구나 읽기
+ * - 상품: 파트너는 본인 상품만 만들고 고친다. 관리자는 전체 읽기, 판매 중지는 함수로
+ * - 파트너·파트너 신청: 본인 + 관리자만 읽기. 승인·거절·정지는 관리자 함수로만
  * - 개인 데이터(장바구니·찜·찜 폴더·여행·일정 항목): 본인만 읽기·쓰기
  * - 주문·주문 항목: 본인 것 **읽기만**. 만들기·취소는 DB 함수(place_order·cancel_order)로만 한다
  *   → 금액을 클라이언트가 정할 수 없게 하기 위해서다 (가격은 함수가 products에서 다시 계산)
@@ -32,6 +36,7 @@ import {
   time,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
@@ -39,10 +44,14 @@ import { anonRole, authenticatedRole, authUid, authUsers } from "drizzle-orm/sup
 
 // drizzle-kit이 tsconfig 경로 별칭을 해석하지 못할 수 있어 상대 경로로 가져온다
 import {
+  APPLICATION_STATUS_VALUES,
   CATEGORY_VALUES,
+  CONFIRMATION_MODE_VALUES,
   ITEM_TYPE_VALUES,
   ORDER_STATUS_VALUES,
+  PARTNER_STATUS_VALUES,
   THEME_VALUES,
+  USER_ROLE_VALUES,
 } from "../lib/constants/taxonomy";
 
 // ─── enum ───────────────────────────────────────────────────────────────
@@ -50,6 +59,10 @@ export const categoryEnum = pgEnum("product_category", CATEGORY_VALUES);
 export const themeEnum = pgEnum("product_theme", THEME_VALUES);
 export const orderStatusEnum = pgEnum("order_status", ORDER_STATUS_VALUES);
 export const itemTypeEnum = pgEnum("itinerary_item_type", ITEM_TYPE_VALUES);
+export const userRoleEnum = pgEnum("user_role", USER_ROLE_VALUES);
+export const partnerStatusEnum = pgEnum("partner_status", PARTNER_STATUS_VALUES);
+export const applicationStatusEnum = pgEnum("application_status", APPLICATION_STATUS_VALUES);
+export const confirmationModeEnum = pgEnum("confirmation_mode", CONFIRMATION_MODE_VALUES);
 
 // ─── 공통 컬럼 ───────────────────────────────────────────────────────────
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -59,6 +72,11 @@ const updatedAt = () => timestamp("updated_at", { withTimezone: true }).notNull(
 // 공개 읽기 정책: 비로그인(anon)과 로그인(authenticated) 모두 SELECT 허용
 const publicRead = (name: string) =>
   pgPolicy(name, { for: "select", to: [anonRole, authenticatedRole], using: sql`true` });
+
+// 역할 헬퍼 (0008 커스텀 마이그레이션의 security definer 함수).
+// (select …)로 감싸면 Postgres가 쿼리당 한 번만 평가한다 (행마다 호출하지 않음)
+const isAdmin = sql`(select public.is_admin())`;
+const myPartnerId = sql`(select public.my_partner_id())`;
 
 // ─── profiles: auth.users와 1:1, 공개 표시 정보만 담는다 ───────────────────
 export const profiles = pgTable(
@@ -71,6 +89,8 @@ export const profiles = pgTable(
     displayName: text("display_name").notNull(),
     avatarUrl: text("avatar_url"),
     termsAgreedAt: timestamp("terms_agreed_at", { withTimezone: true }),
+    // 프로필은 공개지만 이 컬럼만 읽기 권한을 주지 않는다(0010). 바꾸는 길은 관리자 함수뿐
+    role: userRoleEnum("role").notNull().default("customer"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -84,6 +104,100 @@ export const profiles = pgTable(
       to: authenticatedRole,
       using: sql`${t.id} = ${authUid}`,
       withCheck: sql`${t.id} = ${authUid}`,
+    }),
+  ],
+);
+
+// ─── partners: 판매자(파트너) ─────────────────────────────────────────────
+// owner_user_id가 비어 있으면 로그인 계정이 없는 파트너다 (여운 직영, 시드 데모 파트너)
+export const partners = pgTable(
+  "partners",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerUserId: uuid("owner_user_id")
+      .unique("partners_owner_unique")
+      .references(() => profiles.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    contactName: text("contact_name").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    intro: text("intro").notNull(),
+    status: partnerStatusEnum("status").notNull().default("active"),
+    // 플랫폼 수수료율(%). 주문할 때 주문 항목에 복사해 두므로 바꿔도 지난 주문 정산은 그대로다
+    commissionRate: numeric("commission_rate", { precision: 4, scale: 2 }).notNull().default("15"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("partners_name_length", sql`char_length(${t.name}) between 1 and 40`),
+    check("partners_commission_rate", sql`${t.commissionRate} between 0 and 50`),
+    pgPolicy("partners_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.ownerUserId} = ${authUid}`,
+    }),
+    pgPolicy("partners_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+  ],
+);
+
+// ─── partner_applications: 파트너 신청 → 관리자 승인/거절 ─────────────────────
+export const partnerApplications = pgTable(
+  "partner_applications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .default(sql`auth.uid()`)
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    businessName: text("business_name").notNull(),
+    contactName: text("contact_name").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    intro: text("intro").notNull(),
+    status: applicationStatusEnum("status").notNull().default("pending"),
+    rejectReason: text("reject_reason"),
+    reviewedBy: uuid("reviewed_by").references(() => profiles.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      "partner_applications_business_name",
+      sql`char_length(${t.businessName}) between 1 and 40`,
+    ),
+    check("partner_applications_contact_name", sql`char_length(${t.contactName}) between 1 and 30`),
+    // 사업자 연락처라 휴대폰뿐 아니라 일반 전화(02-123-4567)도 허용한다
+    check(
+      "partner_applications_contact_phone",
+      sql`${t.contactPhone} ~ '^0[0-9]{1,2}-[0-9]{3,4}-[0-9]{4}$'`,
+    ),
+    check(
+      "partner_applications_contact_email",
+      sql`char_length(${t.contactEmail}) <= 254 and ${t.contactEmail} like '%_@_%'`,
+    ),
+    check("partner_applications_intro", sql`char_length(${t.intro}) between 10 and 500`),
+    check(
+      "partner_applications_reject_reason",
+      sql`${t.rejectReason} is null or char_length(${t.rejectReason}) between 1 and 200`,
+    ),
+    // 검토 중인 신청은 한 사람당 하나 (거절된 뒤에는 다시 신청할 수 있다)
+    uniqueIndex("partner_applications_pending_unique")
+      .on(t.userId)
+      .where(sql`${t.status} = 'pending'`),
+    index("partner_applications_status_idx").on(t.status, t.createdAt),
+    pgPolicy("partner_applications_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.userId} = ${authUid}`,
+    }),
+    pgPolicy("partner_applications_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+    pgPolicy("partner_applications_select_admin", {
+      for: "select",
+      to: authenticatedRole,
+      using: isAdmin,
     }),
   ],
 );
@@ -137,12 +251,18 @@ export const cancellationPolicyTiers = pgTable(
   ],
 );
 
-// ─── products: 판매 상품 (관리자 데이터, 앱에서는 읽기 전용) ────────────────────
+// ─── products: 판매 상품 — 파트너가 본인 상품을 만들고 고친다 ──────────────────────
 export const products = pgTable(
   "products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     slug: text("slug").notNull().unique(),
+    // 기본값: 파트너가 상품을 만들면 본인 파트너로 저장된다 (user_id default auth.uid()와 같은 방식).
+    // 사용자는 이 컬럼을 쓸 수 없다(GRANT 없음)
+    partnerId: uuid("partner_id")
+      .notNull()
+      .default(sql`public.my_partner_id()`)
+      .references(() => partners.id, { onDelete: "restrict" }),
     cityId: uuid("city_id")
       .notNull()
       .references(() => cities.id, { onDelete: "restrict" }),
@@ -190,6 +310,13 @@ export const products = pgTable(
     // 값이 있으면 판매 중지 — 카드 disabled 상태(명세 5.1)와 예약 불가에 쓴다
     unavailableReason: text("unavailable_reason"),
     recommendRank: smallint("recommend_rank"), // 추천순 정렬·메인 노출 (작을수록 먼저)
+    // 예약 확정 방식 — manual이면 결제 후 파트너가 확정할 때까지 "확정 대기"
+    confirmationMode: confirmationModeEnum("confirmation_mode").notNull().default("instant"),
+    // null = 임시 저장(파트너·관리자만 볼 수 있음), 값이 있으면 공개(판매 시작)
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    // 관리자 판매 중지 — 파트너는 이 컬럼을 쓸 수 없다(GRANT 없음)
+    suspendedReason: text("suspended_reason"),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
     // 리뷰 집계 캐시 — reviews 트리거가 갱신한다. 목록에서 매번 집계하지 않기 위해 저장한다
     ratingAvg: numeric("rating_avg", { precision: 2, scale: 1 }).notNull().default("0"),
     reviewCount: integer("review_count").notNull().default(0),
@@ -209,11 +336,37 @@ export const products = pgTable(
     ),
     check("products_cutoff_days", sql`${t.cutoffDays} between 0 and 30`),
     check("products_max_qty", sql`${t.maxQty} between 1 and 20`),
+    // 파트너 확정이 필요한 상품은 이용일 하루 전에는 마감해야 확정할 시간이 생긴다
+    check("products_manual_cutoff", sql`${t.confirmationMode} = 'instant' or ${t.cutoffDays} >= 1`),
     check("products_latitude", sql`${t.latitude} between -90 and 90`),
     check("products_longitude", sql`${t.longitude} between -180 and 180`),
     index("products_city_idx").on(t.cityId),
     index("products_category_theme_idx").on(t.category, t.theme),
-    publicRead("products_select_public"),
+    index("products_partner_idx").on(t.partnerId),
+    // 공개된 상품만 누구나 볼 수 있다. 임시 저장 상품은 소유 파트너와 관리자만
+    pgPolicy("products_select_public", {
+      for: "select",
+      to: [anonRole, authenticatedRole],
+      using: sql`${t.publishedAt} is not null`,
+    }),
+    pgPolicy("products_select_partner_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
+    pgPolicy("products_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+    // 활동 중인 파트너만 본인 상품을 만들고 고칠 수 있다 (my_partner_id()는 정지된 파트너면 null)
+    pgPolicy("products_insert_partner", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
+    pgPolicy("products_update_partner", {
+      for: "update",
+      to: authenticatedRole,
+      using: sql`${t.partnerId} = ${myPartnerId}`,
+      withCheck: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
   ],
 );
 

@@ -345,6 +345,115 @@ export type Database = {
           },
         ];
       };
+      partner_applications: {
+        Row: {
+          business_name: string;
+          contact_email: string;
+          contact_name: string;
+          contact_phone: string;
+          created_at: string;
+          id: string;
+          intro: string;
+          reject_reason: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          status: Database["public"]["Enums"]["application_status"];
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          business_name: string;
+          contact_email: string;
+          contact_name: string;
+          contact_phone: string;
+          created_at?: string;
+          id?: string;
+          intro: string;
+          reject_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          user_id?: string;
+        };
+        Update: {
+          business_name?: string;
+          contact_email?: string;
+          contact_name?: string;
+          contact_phone?: string;
+          created_at?: string;
+          id?: string;
+          intro?: string;
+          reject_reason?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          status?: Database["public"]["Enums"]["application_status"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_applications_reviewed_by_profiles_id_fk";
+            columns: ["reviewed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_applications_user_id_profiles_id_fk";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partners: {
+        Row: {
+          commission_rate: number;
+          contact_email: string;
+          contact_name: string;
+          contact_phone: string;
+          created_at: string;
+          id: string;
+          intro: string;
+          name: string;
+          owner_user_id: string | null;
+          status: Database["public"]["Enums"]["partner_status"];
+        };
+        ComputedFields: never;
+        Insert: {
+          commission_rate?: number;
+          contact_email: string;
+          contact_name: string;
+          contact_phone: string;
+          created_at?: string;
+          id?: string;
+          intro: string;
+          name: string;
+          owner_user_id?: string | null;
+          status?: Database["public"]["Enums"]["partner_status"];
+        };
+        Update: {
+          commission_rate?: number;
+          contact_email?: string;
+          contact_name?: string;
+          contact_phone?: string;
+          created_at?: string;
+          id?: string;
+          intro?: string;
+          name?: string;
+          owner_user_id?: string | null;
+          status?: Database["public"]["Enums"]["partner_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partners_owner_user_id_profiles_id_fk";
+            columns: ["owner_user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_images: {
         Row: {
           alt: string;
@@ -427,6 +536,7 @@ export type Database = {
           category: Database["public"]["Enums"]["product_category"];
           child_price: number | null;
           city_id: string;
+          confirmation_mode: Database["public"]["Enums"]["confirmation_mode"];
           created_at: string;
           cutoff_days: number;
           description: string;
@@ -443,12 +553,16 @@ export type Database = {
           max_qty: number;
           meeting_point: string;
           operating_days: number[];
+          partner_id: string;
+          published_at: string | null;
           rating_avg: number;
           recommend_rank: number | null;
           review_count: number;
           slug: string;
           start_time: string | null;
           summary: string;
+          suspended_at: string | null;
+          suspended_reason: string | null;
           theme: Database["public"]["Enums"]["product_theme"];
           title: string;
           unavailable_reason: string | null;
@@ -461,6 +575,7 @@ export type Database = {
           category: Database["public"]["Enums"]["product_category"];
           child_price?: number | null;
           city_id: string;
+          confirmation_mode?: Database["public"]["Enums"]["confirmation_mode"];
           created_at?: string;
           cutoff_days?: number;
           description: string;
@@ -477,12 +592,16 @@ export type Database = {
           max_qty?: number;
           meeting_point: string;
           operating_days: number[];
+          partner_id?: string;
+          published_at?: string | null;
           rating_avg?: number;
           recommend_rank?: number | null;
           review_count?: number;
           slug: string;
           start_time?: string | null;
           summary: string;
+          suspended_at?: string | null;
+          suspended_reason?: string | null;
           theme: Database["public"]["Enums"]["product_theme"];
           title: string;
           unavailable_reason?: string | null;
@@ -494,6 +613,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["product_category"];
           child_price?: number | null;
           city_id?: string;
+          confirmation_mode?: Database["public"]["Enums"]["confirmation_mode"];
           created_at?: string;
           cutoff_days?: number;
           description?: string;
@@ -510,12 +630,16 @@ export type Database = {
           max_qty?: number;
           meeting_point?: string;
           operating_days?: number[];
+          partner_id?: string;
+          published_at?: string | null;
           rating_avg?: number;
           recommend_rank?: number | null;
           review_count?: number;
           slug?: string;
           start_time?: string | null;
           summary?: string;
+          suspended_at?: string | null;
+          suspended_reason?: string | null;
           theme?: Database["public"]["Enums"]["product_theme"];
           title?: string;
           unavailable_reason?: string | null;
@@ -536,6 +660,13 @@ export type Database = {
             referencedRelation: "cities";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "products_partner_id_partners_id_fk";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
         ];
       };
       profiles: {
@@ -544,6 +675,7 @@ export type Database = {
           created_at: string;
           display_name: string;
           id: string;
+          role: Database["public"]["Enums"]["user_role"];
           terms_agreed_at: string | null;
           updated_at: string;
         };
@@ -553,6 +685,7 @@ export type Database = {
           created_at?: string;
           display_name: string;
           id: string;
+          role?: Database["public"]["Enums"]["user_role"];
           terms_agreed_at?: string | null;
           updated_at?: string;
         };
@@ -561,6 +694,7 @@ export type Database = {
           created_at?: string;
           display_name?: string;
           id?: string;
+          role?: Database["public"]["Enums"]["user_role"];
           terms_agreed_at?: string | null;
           updated_at?: string;
         };
@@ -741,6 +875,11 @@ export type Database = {
         Args: { p_order_item_id: string; p_trip_id: string };
         Returns: undefined;
       };
+      admin_set_partner_status: {
+        Args: { p_partner_id: string; p_status: string };
+        Returns: undefined;
+      };
+      approve_partner_application: { Args: { p_application_id: string }; Returns: string };
       attach_bookings: { Args: { p_trip_id: string }; Returns: number };
       booking_error: {
         Args: { p_adult: number; p_child: number; p_product_id: string; p_use_date: string };
@@ -748,6 +887,19 @@ export type Database = {
       };
       cancel_order: { Args: { p_order_id: string }; Returns: number };
       has_used_product: { Args: { p_product_id: string }; Returns: boolean };
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      my_partner_id: { Args: Record<PropertyKey, never>; Returns: string };
+      my_profile: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          avatar_url: string;
+          display_name: string;
+          partner_id: string;
+          partner_name: string;
+          partner_status: string;
+          role: string;
+        }[];
+      };
       place_order: {
         Args: {
           p_booker_email: string;
@@ -769,6 +921,10 @@ export type Database = {
           refund_rate: number;
         }[];
       };
+      reject_partner_application: {
+        Args: { p_application_id: string; p_reason: string };
+        Returns: undefined;
+      };
       reorder_trip_items: {
         Args: { p_day_index: number; p_item_ids: string[]; p_trip_id: string };
         Returns: undefined;
@@ -776,10 +932,14 @@ export type Database = {
       seoul_today: { Args: Record<PropertyKey, never>; Returns: string };
     };
     Enums: {
+      application_status: "pending" | "approved" | "rejected";
+      confirmation_mode: "instant" | "manual";
       itinerary_item_type: "move" | "sight" | "food" | "booking";
       order_status: "paid" | "cancelled";
+      partner_status: "active" | "suspended";
       product_category: "tour" | "ticket";
       product_theme: "sea" | "city" | "nature" | "culture";
+      user_role: "customer" | "partner" | "admin";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -891,10 +1051,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      application_status: ["pending", "approved", "rejected"],
+      confirmation_mode: ["instant", "manual"],
       itinerary_item_type: ["move", "sight", "food", "booking"],
       order_status: ["paid", "cancelled"],
+      partner_status: ["active", "suspended"],
       product_category: ["tour", "ticket"],
       product_theme: ["sea", "city", "nature", "culture"],
+      user_role: ["customer", "partner", "admin"],
     },
   },
 } as const;

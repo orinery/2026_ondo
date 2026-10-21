@@ -15,6 +15,18 @@ export const ORDER_STATUS_VALUES = ["paid", "cancelled"] as const;
 export const ITEM_TYPE_VALUES = ["move", "sight", "food", "booking"] as const;
 export const USER_ITEM_TYPE_VALUES = ["move", "sight", "food"] as const;
 
+// 계정 역할: 1계정 1역할. partner·admin은 콘솔(/partner, /admin)에 들어갈 수 있다
+export const USER_ROLE_VALUES = ["customer", "partner", "admin"] as const;
+export const PARTNER_STATUS_VALUES = ["active", "suspended"] as const;
+export const APPLICATION_STATUS_VALUES = ["pending", "approved", "rejected"] as const;
+// 예약 확정 방식: instant = 결제 즉시 확정, manual = 파트너가 확정·거절
+export const CONFIRMATION_MODE_VALUES = ["instant", "manual"] as const;
+
+export type UserRole = (typeof USER_ROLE_VALUES)[number];
+export type PartnerStatus = (typeof PARTNER_STATUS_VALUES)[number];
+export type ApplicationStatus = (typeof APPLICATION_STATUS_VALUES)[number];
+export type ConfirmationMode = (typeof CONFIRMATION_MODE_VALUES)[number];
+
 export type CategorySlug = (typeof CATEGORY_VALUES)[number];
 export type ThemeSlug = (typeof THEME_VALUES)[number];
 export type SeasonSlug = (typeof SEASON_VALUES)[number];
@@ -58,6 +70,20 @@ export const ITEM_TYPES = USER_ITEM_TYPE_VALUES.map((value) => ({
   value,
   label: ITEM_TYPE_LABELS[value],
 }));
+
+const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  pending: "검토 중",
+  approved: "승인",
+  rejected: "거절",
+};
+
+const PARTNER_STATUS_LABELS: Record<PartnerStatus, string> = {
+  active: "활동 중",
+  suspended: "이용 정지",
+};
+
+export const applicationStatusLabel = (s: ApplicationStatus) => APPLICATION_STATUS_LABELS[s];
+export const partnerStatusLabel = (s: PartnerStatus) => PARTNER_STATUS_LABELS[s];
 
 export const categoryLabel = (slug: CategorySlug) => CATEGORY_LABELS[slug];
 export const themeLabel = (slug: ThemeSlug) => THEME_LABELS[slug];

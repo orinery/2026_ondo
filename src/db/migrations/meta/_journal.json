@@ -57,6 +57,27 @@
       "when": 1792462920489,
       "tag": "0007_attach_bookings_time_order",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792548118898,
+      "tag": "0008_role_helpers",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792548120950,
+      "tag": "0009_partners_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792548166961,
+      "tag": "0010_partners_backfill_grants",
+      "breakpoints": true
     }
   ]
 }
