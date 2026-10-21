@@ -677,6 +677,36 @@ export const orderItems = pgTable(
   ],
 );
 
+// ─── settlements: 월별 정산 완료 기록 (스냅숏) ─────────────────────────────────
+// 행이 있으면 "정산 완료"(그 시점 숫자로 고정), 없으면 "정산 예정"(주문 항목에서 실시간 계산).
+// 쓰기는 관리자 함수(admin_settle_month)만 — 사용자에게 INSERT/UPDATE 권한이 없다
+export const settlements = pgTable(
+  "settlements",
+  {
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "restrict" }),
+    month: date("month").notNull(), // 그 달 1일 (이용일 기준 월)
+    itemCount: integer("item_count").notNull(),
+    revenue: integer("revenue").notNull(), // 결제액 - 환불액
+    commission: integer("commission").notNull(),
+    payout: integer("payout").notNull(), // revenue - commission (실제 송금 없음 — 포트폴리오 모의)
+    settledAt: timestamp("settled_at", { withTimezone: true }).notNull().defaultNow(),
+    settledBy: uuid("settled_by").references(() => profiles.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    primaryKey({ name: "settlements_pkey", columns: [t.partnerId, t.month] }),
+    check("settlements_month_first_day", sql`extract(day from ${t.month}) = 1`),
+    check("settlements_amounts", sql`${t.payout} = ${t.revenue} - ${t.commission}`),
+    pgPolicy("settlements_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
+    pgPolicy("settlements_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+  ],
+);
+
 // ─── order_item_options: 주문 항목에 고른 옵션 — 구매 시점의 이름·단가를 복사해 둔다 ───────
 export const orderItemOptions = pgTable(
   "order_item_options",

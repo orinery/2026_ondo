@@ -113,6 +113,20 @@
       "when": 1792564169472,
       "tag": "0015_fix_mark_used",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792564671827,
+      "tag": "0016_settlements",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792564674094,
+      "tag": "0017_settlement_functions",
+      "breakpoints": true
     }
   ]
 }

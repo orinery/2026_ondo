@@ -939,6 +939,55 @@ export type Database = {
           },
         ];
       };
+      settlements: {
+        Row: {
+          commission: number;
+          item_count: number;
+          month: string;
+          partner_id: string;
+          payout: number;
+          revenue: number;
+          settled_at: string;
+          settled_by: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          commission: number;
+          item_count: number;
+          month: string;
+          partner_id: string;
+          payout: number;
+          revenue: number;
+          settled_at?: string;
+          settled_by?: string | null;
+        };
+        Update: {
+          commission?: number;
+          item_count?: number;
+          month?: string;
+          partner_id?: string;
+          payout?: number;
+          revenue?: number;
+          settled_at?: string;
+          settled_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "settlements_partner_id_partners_id_fk";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "settlements_settled_by_profiles_id_fk";
+            columns: ["settled_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       slot_inventory: {
         Row: {
           adult_price: number | null;
@@ -1108,6 +1157,7 @@ export type Database = {
         Args: { p_partner_id: string; p_status: string };
         Returns: undefined;
       };
+      admin_settle_month: { Args: { p_month: string; p_partner: string }; Returns: number };
       approve_partner_application: { Args: { p_application_id: string }; Returns: string };
       attach_bookings: { Args: { p_trip_id: string }; Returns: number };
       booking_error: {
@@ -1250,6 +1300,37 @@ export type Database = {
           p_weekdays: number[];
         };
         Returns: number;
+      };
+      settlement_items: {
+        Args: { p_from: string; p_partner: string; p_to: string };
+        Returns: {
+          commission: number;
+          commission_rate: number;
+          item_id: string;
+          month: string;
+          order_no: string;
+          partner_id: string;
+          product_title: string;
+          refund: number;
+          revenue: number;
+          status: string;
+          subtotal: number;
+          use_date: string;
+        }[];
+      };
+      settlement_scope: { Args: { p_partner: string }; Returns: Record<string, unknown> };
+      settlement_summary: {
+        Args: { p_from: string; p_partner: string; p_to: string };
+        Returns: {
+          commission: number;
+          item_count: number;
+          month: string;
+          partner_id: string;
+          partner_name: string;
+          payout: number;
+          revenue: number;
+          settled_at: string;
+        }[];
       };
     };
     Enums: {
