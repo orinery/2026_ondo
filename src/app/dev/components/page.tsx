@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
+import { ApplicationList } from "@/components/admin/application-list";
+import { PartnerTable } from "@/components/admin/partner-table";
+import { ConsoleLoading } from "@/components/console/console-loading";
+import { ConsolePageHeader, ConsoleShell } from "@/components/console/console-shell";
+import { UrlTabs } from "@/components/console/url-tabs";
 import { ItineraryTimeline, TimelineSkeleton } from "@/components/itinerary/itinerary-timeline";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteNav } from "@/components/layout/site-nav";
@@ -16,8 +21,10 @@ import {
 import { CartView } from "@/components/cart/cart-view";
 import { OrderList } from "@/components/orders/order-list";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
+import { PartnerApplyForm } from "@/components/partner/partner-apply-form";
 import { MOCK_ITINERARY, MOCK_LONG_ITINERARY } from "@/lib/mock/itinerary";
 import { MOCK_CART, MOCK_ORDERS } from "@/lib/mock/orders";
+import { MOCK_APPLICATIONS, MOCK_PARTNERS, MOCK_REVIEWED_APPLICATIONS } from "@/lib/mock/partners";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
 import { seoulNow } from "@/lib/trip-dates";
 
@@ -349,7 +356,7 @@ export default function DevComponentsPage() {
           <State label="로그인">
             <NavFrame>
               <SiteNav
-                user={{ name: "여운", avatarUrl: null }}
+                user={{ name: "여운", avatarUrl: null, role: "customer" }}
                 preview
                 searchItems={SEARCH_ITEMS}
                 cartCount={2}
@@ -432,6 +439,58 @@ export default function DevComponentsPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <CartView items={[]} preview />
             <OrderList orders={[]} status="all" />
+          </div>
+        </Section>
+
+        <Section id="console" title="9. 파트너 신청 · 관리자 콘솔">
+          <p className="text-sm text-muted-foreground">
+            명세 밖 화면 — 기존 토큰·컴포넌트로 구성. 콘솔은 767 이하에서 상단 바 + 메뉴 시트, 768
+            이상에서 왼쪽 사이드바. 목업이라 승인·거절·제출 버튼은 &quot;로그인 필요&quot;로
+            실패한다.
+          </p>
+          <h3 className="text-lg font-semibold">파트너 신청서</h3>
+          <div className="max-w-3xl rounded-lg border p-4 md:p-6">
+            <PartnerApplyForm defaults={{ name: "여운", email: "me@example.com" }} />
+          </div>
+
+          <h3 className="mt-4 text-lg font-semibold">관리자 콘솔 · 검토 대기</h3>
+          <NavFrame>
+            <ConsoleShell section="admin" userName="관리자" preview>
+              <div className="flex flex-col gap-6 px-4 py-8 md:px-8">
+                <ConsolePageHeader
+                  as="h2"
+                  eyebrow="Partners"
+                  title="파트너 관리"
+                  description="파트너 신청을 검토하고, 활동 중인 파트너를 관리해요."
+                />
+                <UrlTabs
+                  label="파트너 관리 메뉴 (미리보기)"
+                  current="pending"
+                  tabs={[
+                    { value: "pending", label: "검토 대기", href: "#console", count: 1 },
+                    { value: "done", label: "처리된 신청", href: "#console" },
+                    { value: "partners", label: "파트너", href: "#console" },
+                  ]}
+                />
+                <ApplicationList applications={MOCK_APPLICATIONS} reviewable />
+              </div>
+            </ConsoleShell>
+          </NavFrame>
+
+          <h3 className="mt-4 text-lg font-semibold">처리된 신청 · 빈 상태</h3>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <ApplicationList applications={MOCK_REVIEWED_APPLICATIONS} />
+            <ApplicationList applications={[]} reviewable />
+          </div>
+
+          <h3 className="mt-4 text-lg font-semibold">
+            파트너 목록 (활동 중 · 이용 정지 · 계정 없음)
+          </h3>
+          <PartnerTable partners={MOCK_PARTNERS} />
+
+          <h3 className="mt-4 text-lg font-semibold">콘솔 로딩</h3>
+          <div className="rounded-lg border">
+            <ConsoleLoading />
           </div>
         </Section>
       </main>
