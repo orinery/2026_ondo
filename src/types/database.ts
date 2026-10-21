@@ -890,10 +890,70 @@ export type Database = {
         };
         Relationships: [];
       };
+      review_reports: {
+        Row: {
+          created_at: string;
+          detail: string | null;
+          handled_at: string | null;
+          handled_by: string | null;
+          id: string;
+          reason: Database["public"]["Enums"]["report_reason"];
+          reporter_id: string;
+          review_id: string;
+          status: Database["public"]["Enums"]["report_status"];
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          detail?: string | null;
+          handled_at?: string | null;
+          handled_by?: string | null;
+          id?: string;
+          reason: Database["public"]["Enums"]["report_reason"];
+          reporter_id?: string;
+          review_id: string;
+          status?: Database["public"]["Enums"]["report_status"];
+        };
+        Update: {
+          created_at?: string;
+          detail?: string | null;
+          handled_at?: string | null;
+          handled_by?: string | null;
+          id?: string;
+          reason?: Database["public"]["Enums"]["report_reason"];
+          reporter_id?: string;
+          review_id?: string;
+          status?: Database["public"]["Enums"]["report_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "review_reports_handled_by_profiles_id_fk";
+            columns: ["handled_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "review_reports_reporter_id_profiles_id_fk";
+            columns: ["reporter_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "review_reports_review_id_reviews_id_fk";
+            columns: ["review_id"];
+            isOneToOne: false;
+            referencedRelation: "reviews";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reviews: {
         Row: {
           content: string;
           created_at: string;
+          hidden_at: string | null;
           id: string;
           photo_path: string | null;
           product_id: string;
@@ -905,6 +965,7 @@ export type Database = {
         Insert: {
           content: string;
           created_at?: string;
+          hidden_at?: string | null;
           id?: string;
           photo_path?: string | null;
           product_id: string;
@@ -915,6 +976,7 @@ export type Database = {
         Update: {
           content?: string;
           created_at?: string;
+          hidden_at?: string | null;
           id?: string;
           photo_path?: string | null;
           product_id?: string;
@@ -1153,8 +1215,46 @@ export type Database = {
         Args: { p_order_item_id: string; p_trip_id: string };
         Returns: undefined;
       };
+      admin_breakdown: {
+        Args: { p_by: string; p_from: string; p_to: string };
+        Returns: {
+          items: number;
+          label: string;
+          revenue: number;
+        }[];
+      };
+      admin_daily_stats: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          day: string;
+          gross: number;
+          orders: number;
+          refunds: number;
+        }[];
+      };
+      admin_kpis: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          closed_items: number;
+          gross: number;
+          items: number;
+          open_reports: number;
+          orders: number;
+          pending_applications: number;
+          pending_items: number;
+          refunds: number;
+        }[];
+      };
       admin_set_partner_status: {
         Args: { p_partner_id: string; p_status: string };
+        Returns: undefined;
+      };
+      admin_set_product_suspension: {
+        Args: { p_product_id: string; p_reason: string };
+        Returns: undefined;
+      };
+      admin_set_review_hidden: {
+        Args: { p_hidden: boolean; p_review_id: string };
         Returns: undefined;
       };
       admin_settle_month: { Args: { p_month: string; p_partner: string }; Returns: number };
@@ -1276,6 +1376,10 @@ export type Database = {
         Args: { p_day_index: number; p_item_ids: string[]; p_trip_id: string };
         Returns: undefined;
       };
+      resolve_review_report: {
+        Args: { p_action: string; p_report_id: string };
+        Returns: undefined;
+      };
       save_product: {
         Args: {
           p_images: Json;
@@ -1343,6 +1447,8 @@ export type Database = {
       partner_status: "active" | "suspended";
       product_category: "tour" | "ticket";
       product_theme: "sea" | "city" | "nature" | "culture";
+      report_reason: "spam" | "abuse" | "irrelevant" | "privacy" | "other";
+      report_status: "pending" | "dismissed" | "actioned";
       user_role: "customer" | "partner" | "admin";
     };
     CompositeTypes: {
@@ -1464,6 +1570,8 @@ export const Constants = {
       partner_status: ["active", "suspended"],
       product_category: ["tour", "ticket"],
       product_theme: ["sea", "city", "nature", "culture"],
+      report_reason: ["spam", "abuse", "irrelevant", "privacy", "other"],
+      report_status: ["pending", "dismissed", "actioned"],
       user_role: ["customer", "partner", "admin"],
     },
   },

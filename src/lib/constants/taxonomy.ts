@@ -34,6 +34,12 @@ export const ORDER_ITEM_STATUS_VALUES = [
 // 추가 옵션 가격 단위: 예약 1건당 / 1인당
 export const OPTION_UNIT_VALUES = ["per_booking", "per_person"] as const;
 
+// 리뷰 신고 사유·처리 상태
+export const REPORT_REASON_VALUES = ["spam", "abuse", "irrelevant", "privacy", "other"] as const;
+export const REPORT_STATUS_VALUES = ["pending", "dismissed", "actioned"] as const;
+
+export type ReportReason = (typeof REPORT_REASON_VALUES)[number];
+export type ReportStatus = (typeof REPORT_STATUS_VALUES)[number];
 export type OrderItemStatus = (typeof ORDER_ITEM_STATUS_VALUES)[number];
 export type OptionUnit = (typeof OPTION_UNIT_VALUES)[number];
 export type UserRole = (typeof USER_ROLE_VALUES)[number];
@@ -95,6 +101,19 @@ const PARTNER_STATUS_LABELS: Record<PartnerStatus, string> = {
   active: "활동 중",
   suspended: "이용 정지",
 };
+
+const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  spam: "광고·스팸",
+  abuse: "욕설·비방",
+  irrelevant: "상품과 관계없는 내용",
+  privacy: "개인정보 노출",
+  other: "기타",
+};
+export const REPORT_REASONS = REPORT_REASON_VALUES.map((value) => ({
+  value,
+  label: REPORT_REASON_LABELS[value],
+}));
+export const reportReasonLabel = (r: ReportReason) => REPORT_REASON_LABELS[r];
 
 export const applicationStatusLabel = (s: ApplicationStatus) => APPLICATION_STATUS_LABELS[s];
 export const partnerStatusLabel = (s: PartnerStatus) => PARTNER_STATUS_LABELS[s];

@@ -53,6 +53,8 @@ import {
   ORDER_ITEM_STATUS_VALUES,
   ORDER_STATUS_VALUES,
   PARTNER_STATUS_VALUES,
+  REPORT_REASON_VALUES,
+  REPORT_STATUS_VALUES,
   THEME_VALUES,
   USER_ROLE_VALUES,
 } from "../lib/constants/taxonomy";
@@ -68,6 +70,8 @@ export const applicationStatusEnum = pgEnum("application_status", APPLICATION_ST
 export const confirmationModeEnum = pgEnum("confirmation_mode", CONFIRMATION_MODE_VALUES);
 export const orderItemStatusEnum = pgEnum("order_item_status", ORDER_ITEM_STATUS_VALUES);
 export const optionUnitEnum = pgEnum("option_unit", OPTION_UNIT_VALUES);
+export const reportReasonEnum = pgEnum("report_reason", REPORT_REASON_VALUES);
+export const reportStatusEnum = pgEnum("report_status", REPORT_STATUS_VALUES);
 
 // ─── 공통 컬럼 ───────────────────────────────────────────────────────────
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -900,6 +904,8 @@ export const reviews = pgTable(
     content: text("content").notNull(),
     // Storage(review-photos 버킷)의 객체 경로: "{user_id}/{파일명}"
     photoPath: text("photo_path"),
+    // 관리자가 신고를 받아 숨김 처리한 시각 — 작성자·관리자에게만 보이고 평점 집계에서 빠진다
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -909,6 +915,20 @@ export const reviews = pgTable(
     unique("reviews_user_product_unique").on(t.userId, t.productId),
     index("reviews_product_created_idx").on(t.productId, t.createdAt),
     publicRead("reviews_select_public"),
+    // 제한(restrictive) 정책: 위 공개 읽기와 AND — 숨긴 리뷰는 작성자·관리자만 본다.
+    // anon에게는 is_admin() 실행 권한이 없어서 역할별로 나눈다
+    pgPolicy("reviews_hide_from_anon", {
+      as: "restrictive",
+      for: "select",
+      to: anonRole,
+      using: sql`${t.hiddenAt} is null`,
+    }),
+    pgPolicy("reviews_hide_from_others", {
+      as: "restrictive",
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.hiddenAt} is null or ${t.userId} = ${authUid} or ${isAdmin}`,
+    }),
     // 구매 인증: 이용일이 지난(취소되지 않은) 주문이 있어야 쓸 수 있다. 함수는 0005에 있다
     pgPolicy("reviews_insert_own", {
       for: "insert",
@@ -925,6 +945,49 @@ export const reviews = pgTable(
       for: "delete",
       to: authenticatedRole,
       using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+);
+
+// ─── review_reports: 리뷰 신고 → 관리자가 기각하거나 리뷰를 숨긴다 ──────────────────
+export const reviewReports = pgTable(
+  "review_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => reviews.id, { onDelete: "cascade" }),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .default(sql`auth.uid()`)
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    reason: reportReasonEnum("reason").notNull(),
+    detail: text("detail"),
+    status: reportStatusEnum("status").notNull().default("pending"),
+    handledBy: uuid("handled_by").references(() => profiles.id, { onDelete: "set null" }),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("review_reports_detail", sql`${t.detail} is null or char_length(${t.detail}) <= 300`),
+    // 같은 리뷰를 한 사람이 두 번 신고할 수 없다
+    unique("review_reports_review_reporter_unique").on(t.reviewId, t.reporterId),
+    index("review_reports_status_idx").on(t.status, t.createdAt),
+    // 본인 리뷰 신고는 트리거(check_review_report)가 막는다
+    pgPolicy("review_reports_insert_own", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${t.reporterId} = ${authUid}`,
+    }),
+    pgPolicy("review_reports_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.reporterId} = ${authUid}`,
+    }),
+    pgPolicy("review_reports_select_admin", {
+      for: "select",
+      to: authenticatedRole,
+      using: isAdmin,
     }),
   ],
 );

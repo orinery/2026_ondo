@@ -127,6 +127,20 @@
       "when": 1792564674094,
       "tag": "0017_settlement_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792565566254,
+      "tag": "0018_review_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792565579886,
+      "tag": "0019_admin_console_functions",
+      "breakpoints": true
     }
   ]
 }
