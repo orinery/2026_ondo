@@ -118,6 +118,7 @@ export function PlannerView({ trips, trip, likes, now }: PlannerViewProps) {
           status: statuses[k] ?? "upcoming",
           closedReason: i.caution,
           bookingHref: i.isBooking && i.orderNo ? `/my/orders/${i.orderNo}` : null,
+          bookingPending: i.bookingPending,
         })),
       };
     });

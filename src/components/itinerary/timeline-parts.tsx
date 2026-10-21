@@ -146,12 +146,19 @@ export function TimelineCard({
           </p>
         )}
         {item.bookingHref && (
-          <Link
-            href={item.bookingHref}
-            className="mt-1 inline-block text-sm font-semibold text-primary underline-offset-3 hover:underline"
-          >
-            예약 보기<span className="sr-only"> ({item.title})</span> →
-          </Link>
+          <p className="mt-1 flex flex-wrap items-center gap-2">
+            {item.bookingPending && (
+              <span className="rounded-sm border border-warning/40 bg-card px-2 py-0.5 text-xs font-semibold text-warning">
+                확정 대기
+              </span>
+            )}
+            <Link
+              href={item.bookingHref}
+              className="text-sm font-semibold text-primary underline-offset-3 hover:underline"
+            >
+              예약 보기<span className="sr-only"> ({item.title})</span> →
+            </Link>
+          </p>
         )}
         {/* 배지 배경은 bg-card: 휴무 카드(bg-muted) 위에 warning 10%를 겹치면 대비가 4.5:1 아래로 떨어진다 (8단계 axe) */}
         {closed && (

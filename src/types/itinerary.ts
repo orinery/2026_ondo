@@ -23,6 +23,7 @@ export type ItineraryItem = {
   closedReason?: string | null;
   // 주문으로 자동 추가된 예약 항목이면 예약 상세 주소 — 삭제 버튼 대신 이 링크를 보여준다
   bookingHref?: string | null;
+  bookingPending?: boolean; // 파트너 확정 대기 중인 예약 (확정 전이라 바뀔 수 있음을 표시)
 };
 
 export type ItineraryDay = {
