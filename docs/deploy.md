@@ -40,9 +40,46 @@ npm run db:verify-rls
 
 ## 2. Vercel 프로젝트 만들기
 
+웹 화면이나 CLI 중 하나로 만든다. 이 프로젝트는 **CLI로 배포**했다 (2026-10-21, https://2026-ondo.vercel.app).
+
+### 방법 A — 웹 화면
+
 1. [vercel.com/new](https://vercel.com/new) → GitHub 저장소 `2026_ondo` → **Import**
-2. Framework Preset: **Next.js** (자동 인식). Build Command·Output Directory는 기본값 그대로
+2. Framework Preset: **Next.js**. Build Command·Output Directory는 기본값 그대로
 3. **Deploy를 누르기 전에** 아래 환경 변수를 먼저 입력한다
+
+### 방법 B — CLI (실제로 사용한 방법)
+
+```bash
+npx vercel login
+```
+
+```bash
+npx vercel project create 2026-ondo
+```
+
+```bash
+npx vercel link --yes --project 2026-ondo
+```
+
+환경 변수 3개를 넣은 뒤(아래 표, `npx vercel env add <이름> production` — 값은 입력 프롬프트에 붙여 넣는다) 배포한다.
+
+```bash
+npx vercel deploy --prod
+```
+
+```bash
+npx vercel git connect
+```
+
+마지막 명령으로 GitHub 저장소를 연결하면 이후에는 `main`에 푸시할 때마다 자동으로 배포된다.
+
+**저장소에 둔 배포 설정**
+
+- [`vercel.json`](../vercel.json) — `framework: "nextjs"`, `regions: ["syd1"]`. CLI로 빈 프로젝트를 먼저 만들면 프레임워크가 비어 "Output Directory `public` is empty"로 실패한다(실제로 겪음). 파일로 고정해 두면 어떤 방법으로 만들어도 같다.
+- [`.vercelignore`](../.vercelignore) — CLI 배포 시 업로드 제외 목록. `.env*`(비밀 값)을 절대 올리지 않는다. Git 연결 배포는 커밋된 파일만 쓰지만, CLI 배포는 로컬 폴더를 올리기 때문에 필요하다.
+
+> `vercel link`는 `.env.local`에 `VERCEL_OIDC_TOKEN`을 추가하고 `.gitignore`에 규칙을 덧붙인다. 기존 값은 유지되며, `.gitignore`에 이미 있는 규칙이면 덧붙인 줄은 되돌려도 된다.
 
 ### 환경 변수
 
@@ -77,7 +114,8 @@ Preview 배포(브랜치·PR마다 생기는 주소)에서도 인증 메일을 �
 서버 함수와 Supabase가 멀리 떨어져 있으면 요청마다 왕복 시간이 쌓인다(8단계 점검: 페이지당 200~600ms가 대부분 DB 왕복).
 
 - 현재 Supabase 프로젝트 리전: **ap-southeast-2 (시드니)**
-- Vercel 프로젝트 → **Settings → Functions → Function Region**에서 Supabase와 가까운 리전을 고른다. (플랜별 선택 가능 범위는 Vercel 대시보드에서 확인)
+- 서버 함수 리전은 [`vercel.json`](../vercel.json)의 `regions: ["syd1"]`(시드니)로 Supabase와 맞췄다. 응답 헤더 `x-vercel-id: icn1::syd1::…`(서울 엣지 → 시드니 함수)로 확인할 수 있다.
+- 배포 후 한국에서 측정한 응답: 페이지당 0.6~1.1초 (서울 ↔ 시드니 왕복 포함)
 - 사용자 대부분이 한국이라면 Supabase를 서울(ap-northeast-2)에 새로 만들고 Vercel도 서울 리전으로 맞추는 것이 가장 빠르다. Supabase는 프로젝트 리전을 옮길 수 없으므로 새 프로젝트에 마이그레이션·시드를 다시 실행해야 한다.
 
 ## 5. 배포 후 확인
