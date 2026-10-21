@@ -2,9 +2,12 @@
 
 import {
   ArrowLeftIcon,
+  CalendarCheckIcon,
   LayoutDashboardIcon,
   MenuIcon,
+  PackageIcon,
   StoreIcon,
+  TicketCheckIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,11 +27,16 @@ import { cn } from "@/lib/utils";
 type ConsoleSection = "partner" | "admin";
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
 
-// 메뉴는 단계마다 늘어난다 (S4 상품·예약, S5 정산, S6 대시보드·주문·신고)
+// 메뉴는 단계마다 늘어난다 (S5 정산, S6 대시보드·주문·신고)
 const NAV: Record<ConsoleSection, { title: string; items: NavItem[] }> = {
   partner: {
     title: "파트너 센터",
-    items: [{ href: "/partner", label: "홈", icon: LayoutDashboardIcon, exact: true }],
+    items: [
+      { href: "/partner", label: "홈", icon: LayoutDashboardIcon, exact: true },
+      { href: "/partner/products", label: "상품", icon: PackageIcon },
+      { href: "/partner/bookings", label: "예약", icon: CalendarCheckIcon },
+      { href: "/partner/vouchers", label: "바우처 사용 처리", icon: TicketCheckIcon },
+    ],
   },
   admin: {
     title: "관리자 콘솔",

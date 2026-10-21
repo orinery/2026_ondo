@@ -16,7 +16,11 @@ export function UrlTabs({
   current: string;
 }) {
   return (
-    <nav aria-label={label} className="flex w-full max-w-xl rounded-md bg-muted p-1">
+    // 탭이 많아 360에서 넘치면 줄바꿈 대신 가로로 스크롤한다 (탭 높이를 고정하기 위해)
+    <nav
+      aria-label={label}
+      className="flex w-full max-w-xl overflow-x-auto rounded-md bg-muted p-1"
+    >
       {tabs.map((t) => (
         <Link
           key={t.value}
@@ -24,7 +28,7 @@ export function UrlTabs({
           scroll={false}
           aria-current={current === t.value ? "page" : undefined}
           className={cn(
-            "flex h-11 flex-1 items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium text-muted-foreground transition-colors duration-fast",
+            "flex h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-sm px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-fast",
             current === t.value && "bg-card font-semibold text-foreground shadow-sm",
           )}
         >

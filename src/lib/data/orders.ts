@@ -147,6 +147,15 @@ function toDetail(row: OrderRow, today: string): OrderDetail {
   };
 }
 
+/**
+ * 기한 지난 확정 대기를 자동 취소 (pg_cron의 보완 — 프로젝트가 일시 정지되면 cron이 멈추므로 화면을 열 때 한 번).
+ * 멱등 함수라 여러 번 불러도 결과가 같다. 실패해도 화면은 그대로 보여준다(오류를 던지지 않음).
+ */
+export async function expirePendingItems() {
+  const supabase = await createClient();
+  await supabase.rpc("expire_pending_items");
+}
+
 /** 나의 여행 > 예약 내역 — 최근 결제 순 (포트폴리오 규모라 50건까지 한 번에) */
 export async function getMyOrders(): Promise<OrderSummary[]> {
   const supabase = await createClient();

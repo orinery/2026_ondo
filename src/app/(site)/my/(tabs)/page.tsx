@@ -11,7 +11,7 @@ import { PlannerView } from "@/components/planner/planner-view";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth";
 import { getMyLikes } from "@/lib/data/likes";
-import { getMyOrders } from "@/lib/data/orders";
+import { expirePendingItems, getMyOrders } from "@/lib/data/orders";
 import { getMyTrips, getTrip } from "@/lib/data/trips";
 import { STATUS_FILTERS, type DisplayStatus } from "@/lib/order-status";
 import { seoulNow } from "@/lib/trip-dates";
@@ -92,6 +92,7 @@ export default async function MyPage({ searchParams }: PageProps<"/my">) {
 }
 
 async function OrdersTab({ status }: { status: DisplayStatus | "all" }) {
+  await expirePendingItems();
   const orders = await getMyOrders();
   return <OrderList orders={orders} status={status} />;
 }
