@@ -29,3 +29,23 @@ export function formatDotDate(ymd: string) {
   const [y, m, d] = ymd.split("-");
   return `${y}.${m}.${d}`;
 }
+
+// 서버(UTC)와 브라우저 어디서 그려도 같은 값이 나오도록 시간대를 한국으로 고정한다
+const seoulDateTime = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** 타임스탬프(ISO) → "2026.10.21" 또는 "2026.10.21 14:30" (한국 시간) */
+export function formatTimestamp(iso: string, withTime = false) {
+  const parts = Object.fromEntries(
+    seoulDateTime.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  const date = `${parts.year}.${parts.month}.${parts.day}`;
+  return withTime ? `${date} ${parts.hour}:${parts.minute}` : date;
+}

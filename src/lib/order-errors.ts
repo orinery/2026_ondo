@@ -23,6 +23,13 @@ const MESSAGES: Record<string, string> = {
   booking_locked: "예약 항목은 날짜를 옮길 수 없어요. 날짜를 바꾸려면 예약을 취소해 주세요.",
   booking_out_of_range:
     "예약한 날짜가 여행 기간 밖으로 나가요. 예약 날짜를 포함하도록 기간을 정해 주세요.",
+  // 파트너 신청·관리자 (0010)
+  forbidden: "이 작업을 할 권한이 없어요.",
+  already_partner: "이미 파트너이거나 관리자인 계정이에요.",
+  application_pending: "검토 중인 신청이 있어요. 결과가 나온 뒤에 다시 신청할 수 있어요.",
+  not_pending: "이미 처리된 신청이에요. 목록을 새로 고쳐 주세요.",
+  invalid_reason: "거절 사유를 1~200자로 입력해 주세요.",
+  invalid_status: "알 수 없는 상태예요.",
 };
 
 export const FALLBACK_MESSAGE = "잠시 후 다시 시도해 주세요.";

@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
 import { placeOrder, type CheckoutState } from "@/actions/orders";
+import { FormField as Field } from "@/components/form/form-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { formatKrw } from "@/lib/format";
 
 type CheckoutFormProps = {
@@ -198,33 +198,5 @@ export function CheckoutForm({
         </div>
       </aside>
     </form>
-  );
-}
-
-function Field({
-  id,
-  label,
-  error,
-  className,
-  children,
-}: {
-  id: string;
-  label: string;
-  error?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <Label htmlFor={id} className="mb-1.5 text-sm font-medium">
-        {label}
-      </Label>
-      {children}
-      {error && (
-        <p id={`${id}-error`} className="mt-1.5 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }
