@@ -33,9 +33,20 @@ const MESSAGES: Record<string, string> = {
   forbidden: "이 작업을 할 권한이 없어요.",
   already_partner: "이미 파트너이거나 관리자인 계정이에요.",
   application_pending: "검토 중인 신청이 있어요. 결과가 나온 뒤에 다시 신청할 수 있어요.",
-  not_pending: "이미 처리된 신청이에요. 목록을 새로 고쳐 주세요.",
+  not_pending: "이미 처리됐어요. 목록을 새로 고쳐 주세요.",
   invalid_reason: "거절 사유를 1~200자로 입력해 주세요.",
   invalid_status: "알 수 없는 상태예요.",
+  // 파트너 센터 (0014)
+  invalid_images:
+    "사진은 1~8장, 이 사이트에 올린 사진만 쓸 수 있어요. 사진마다 설명을 적어 주세요.",
+  invalid_slots: "회차는 1~6개, 같은 시간을 두 번 넣을 수 없어요.",
+  invalid_options: "옵션은 10개까지, 같은 이름을 두 번 넣을 수 없어요.",
+  invalid_itinerary: "진행 일정은 15개까지 넣을 수 있어요.",
+  invalid_range: "오늘부터 180일 안의 기간을 골라 주세요.",
+  voucher_not_found: "이 파트너의 바우처 코드가 아니에요. 코드를 다시 확인해 주세요.",
+  already_used: "이미 사용 처리한 바우처예요.",
+  voucher_cancelled: "취소되었거나 확정되지 않은 예약의 바우처예요.",
+  not_use_date: "이용일 당일부터 사용 처리할 수 있어요.",
 };
 
 export const FALLBACK_MESSAGE = "잠시 후 다시 시도해 주세요.";

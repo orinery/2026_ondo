@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
               hostname: supabaseHost,
               pathname: "/storage/v1/object/public/review-photos/**",
             },
+            // 파트너가 올린 상품 사진 (S4)
+            {
+              protocol: "https" as const,
+              hostname: supabaseHost,
+              pathname: "/storage/v1/object/public/product-images/**",
+            },
           ]
         : []),
     ],
