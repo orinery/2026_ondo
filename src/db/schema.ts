@@ -408,6 +408,8 @@ export const productImages = pgTable(
   (t) => [
     unique("product_images_position_unique").on(t.productId, t.position),
     publicRead("product_images_select_public"),
+    // 파트너는 본인 상품의 사진을 바꾼다 (save_product 함수가 지우고 다시 넣는다)
+    ...partnerWrite("product_images", ownProduct(t.productId)),
   ],
 );
 
@@ -429,6 +431,7 @@ export const productItineraryItems = pgTable(
   (t) => [
     unique("product_itinerary_items_order_unique").on(t.productId, t.position),
     publicRead("product_itinerary_items_select_public"),
+    ...partnerWrite("product_itinerary_items", ownProduct(t.productId)),
   ],
 );
 

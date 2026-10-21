@@ -1123,6 +1123,8 @@ export type Database = {
       };
       cancel_order: { Args: { p_order_id: string }; Returns: number };
       cancel_order_item: { Args: { p_item_id: string }; Returns: number };
+      confirm_item: { Args: { p_item_id: string }; Returns: string };
+      expire_pending_items: { Args: Record<PropertyKey, never>; Returns: number };
       generate_voucher_code: { Args: Record<PropertyKey, never>; Returns: string };
       has_used_product: { Args: { p_product_id: string }; Returns: boolean };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -1142,6 +1144,17 @@ export type Database = {
           subtotal: number;
         }[];
       };
+      lock_partner_item: { Args: { p_item_id: string }; Returns: Record<string, unknown> };
+      mark_used: {
+        Args: { p_code: string };
+        Returns: {
+          booker_name: string;
+          item_id: string;
+          people: number;
+          product_title: string;
+          use_date: string;
+        }[];
+      };
       my_partner_id: { Args: Record<PropertyKey, never>; Returns: string };
       my_profile: {
         Args: Record<PropertyKey, never>;
@@ -1152,6 +1165,30 @@ export type Database = {
           partner_name: string;
           partner_status: string;
           role: string;
+        }[];
+      };
+      partner_bookings: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          adult_qty: number;
+          booker_email: string;
+          booker_name: string;
+          booker_phone: string;
+          child_qty: number;
+          confirm_deadline: string;
+          item_id: string;
+          options: string;
+          order_no: string;
+          paid_at: string;
+          product_id: string;
+          product_title: string;
+          refund_amount: number;
+          reject_reason: string;
+          start_time: string;
+          status: string;
+          subtotal: number;
+          use_date: string;
+          voucher_code: string;
         }[];
       };
       place_order: {
@@ -1176,6 +1213,7 @@ export type Database = {
           status: string;
         }[];
       };
+      reject_item: { Args: { p_item_id: string; p_reason: string }; Returns: undefined };
       reject_partner_application: {
         Args: { p_application_id: string; p_reason: string };
         Returns: undefined;
@@ -1188,7 +1226,31 @@ export type Database = {
         Args: { p_day_index: number; p_item_ids: string[]; p_trip_id: string };
         Returns: undefined;
       };
+      save_product: {
+        Args: {
+          p_images: Json;
+          p_itinerary: Json;
+          p_options: Json;
+          p_product: Json;
+          p_product_id: string;
+          p_slots: Json;
+        };
+        Returns: string;
+      };
       seoul_today: { Args: Record<PropertyKey, never>; Returns: string };
+      set_inventory_range: {
+        Args: {
+          p_adult_price: number;
+          p_capacity: number;
+          p_child_price: number;
+          p_closed: boolean;
+          p_from: string;
+          p_slot_id: string;
+          p_to: string;
+          p_weekdays: number[];
+        };
+        Returns: number;
+      };
     };
     Enums: {
       application_status: "pending" | "approved" | "rejected";
