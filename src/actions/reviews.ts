@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getCurrentUser } from "@/lib/auth";
+import { REPORT_REASON_VALUES } from "@/lib/constants/taxonomy";
+import { errorMessage, knownErrorCode } from "@/lib/order-errors";
 import { createClient } from "@/lib/supabase/server";
 import { REVIEW_PHOTO, reviewSchema } from "@/lib/validation/review";
 
@@ -101,5 +103,34 @@ export async function deleteReview(reviewId: string, slug: string): Promise<Acti
   if (data?.photo_path) await supabase.storage.from(REVIEW_PHOTO.bucket).remove([data.photo_path]);
 
   refresh(slug);
+  return { ok: true };
+}
+
+const reportSchema = z.object({
+  reviewId: z.uuid(),
+  reason: z.enum(REPORT_REASON_VALUES, { error: "신고 사유를 골라 주세요" }),
+  detail: z.string().trim().max(300, "300자 이하로 적어 주세요"),
+});
+
+/** 리뷰 신고 — 본인 리뷰·중복 신고는 DB 트리거가 막는다. 처리는 관리자 콘솔에서 */
+export async function reportReview(input: unknown): Promise<ActionResult> {
+  if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
+  const parsed = reportSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, reason: "invalid", message: parsed.error.issues[0]?.message };
+  }
+
+  const supabase = await createClient();
+  // reporter_id는 기본값(auth.uid())으로 채워진다
+  const { error } = await supabase.from("review_reports").insert({
+    review_id: parsed.data.reviewId,
+    reason: parsed.data.reason,
+    detail: parsed.data.detail || null,
+  });
+  if (error) {
+    const code = knownErrorCode(error.message);
+    return { ok: false, reason: code ? "invalid" : "error", message: errorMessage(code) };
+  }
+  revalidatePath("/admin/reports");
   return { ok: true };
 }

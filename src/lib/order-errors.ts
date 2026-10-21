@@ -50,6 +50,9 @@ const MESSAGES: Record<string, string> = {
   // 정산 (0017)
   month_not_ended: "이용월이 끝난 달만 정산 완료로 처리할 수 있어요.",
   already_settled: "이미 정산 완료로 처리한 달이에요.",
+  // 리뷰 신고 (0019)
+  own_review: "내 리뷰는 신고할 수 없어요.",
+  already_reported: "이미 신고한 리뷰예요. 관리자가 확인하고 있어요.",
 };
 
 export const FALLBACK_MESSAGE = "잠시 후 다시 시도해 주세요.";

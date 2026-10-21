@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ReviewItem } from "@/lib/data/products";
 
+import { ReviewReportDialog } from "./review-report-dialog";
+
 type ReviewSectionProps = {
   rating: number;
   reviewCount: number;
@@ -96,6 +98,12 @@ export function ReviewSection({
                           내 리뷰
                         </span>
                       )}
+                      {r.hidden && (
+                        // 숨긴 리뷰는 작성자(와 관리자)에게만 보인다 — 왜 남에게 안 보이는지 알려 준다
+                        <span className="rounded-sm border border-warning/50 px-1.5 py-0.5 text-xs font-medium text-warning">
+                          숨김 처리됨 · 다른 사람에게 보이지 않아요
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       <time dateTime={r.createdAt}>{dateFormat.format(new Date(r.createdAt))}</time>
@@ -103,6 +111,12 @@ export function ReviewSection({
                   </div>
                   <Stars rating={r.rating} className="ml-auto" />
                 </div>
+                {/* 로그인한 사용자가 남의 리뷰를 신고할 수 있다 */}
+                {currentUserId && r.userId !== currentUserId && !r.hidden && (
+                  <div className="-mt-2 flex justify-end">
+                    <ReviewReportDialog reviewId={r.id} authorName={r.author.name} />
+                  </div>
+                )}
                 <p className="text-base whitespace-pre-line">{r.content}</p>
                 {r.photoUrl && (
                   <div className="relative size-40 overflow-hidden rounded-md bg-muted">

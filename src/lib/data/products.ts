@@ -416,6 +416,8 @@ export type ReviewItem = {
   photoPath: string | null;
   createdAt: string;
   author: { name: string; avatarUrl: string | null };
+  // 관리자가 신고를 받아 숨긴 리뷰 — 작성자·관리자에게만 조회된다(RLS)
+  hidden: boolean;
 };
 
 /** 리뷰 목록 + 별점 분포. 리뷰는 구매 고객만 쓸 수 있으므로(DB 정책) 모든 리뷰가 "구매 인증" 리뷰다 */
@@ -424,7 +426,7 @@ export async function getReviews(productId: string) {
   const { data, error } = await supabase
     .from("reviews")
     .select(
-      "id, user_id, rating, content, photo_path, created_at, profiles ( display_name, avatar_url )",
+      "id, user_id, rating, content, photo_path, created_at, hidden_at, profiles ( display_name, avatar_url )",
     )
     .eq("product_id", productId)
     .order("created_at", { ascending: false })
@@ -445,6 +447,7 @@ export async function getReviews(productId: string) {
       name: r.profiles?.display_name ?? "여행자",
       avatarUrl: r.profiles?.avatar_url ?? null,
     },
+    hidden: r.hidden_at !== null,
   }));
 
   // 5점 → 1점 순서의 개수
