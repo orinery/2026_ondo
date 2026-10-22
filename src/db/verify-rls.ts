@@ -1059,12 +1059,37 @@ async function main() {
         "B: 파트너 정지 함수 호출",
         B,
         "forbidden",
-        (sp) => sp`select public.admin_set_partner_status(${partnerA}, 'suspended')`,
+        (sp) => sp`select public.admin_set_partner_status(${partnerA}, 'suspended', '약관 위반')`,
       );
-      await expectOk(tx, "관리자: 파트너 이용 정지", admin, async (sp) => {
-        await sp`select public.admin_set_partner_status(${partnerA}, 'suspended')`;
-        return "정지";
+      await expectError(
+        tx,
+        "관리자: 사유 없이 파트너 이용 정지",
+        admin,
+        "invalid_status_reason",
+        (sp) => sp`select public.admin_set_partner_status(${partnerA}, 'suspended', ' ')`,
+      );
+      await expectOk(tx, "관리자: 파트너 이용 정지 → 상품 함께 중지", admin, async (sp) => {
+        const [r] = await sp<{ n: number }[]>`
+          select public.admin_set_partner_status(${partnerA}, 'suspended', '고객 민원 반복') as n`;
+        return `상품 ${r?.n}개 중지`;
       });
+      const [cascaded] = await tx<
+        { suspended_kind: string | null; suspended_reason: string | null }[]
+      >`
+        select suspended_kind::text, suspended_reason from public.products where id = ${draftRow.id}`;
+      check(
+        "파트너 정지: 그 파트너 상품이 partner_suspended로 중지",
+        cascaded?.suspended_kind === "partner_suspended" &&
+          cascaded.suspended_reason === "파트너 이용 정지",
+        `${cascaded?.suspended_kind} · ${cascaded?.suspended_reason}`,
+      );
+      const [partnerLog] = await tx<{ reason: string | null }[]>`
+        select reason from public.audit_logs where entity_id = ${partnerA} and action = 'partner.suspended'`;
+      check(
+        "감사 로그: 파트너 정지 사유",
+        partnerLog?.reason === "고객 민원 반복",
+        partnerLog?.reason ?? "없음",
+      );
       await expectBlocked(
         tx,
         "정지된 파트너 A: 본인 상품 수정",
@@ -2012,12 +2037,19 @@ async function main() {
         "B: 신고 처리 함수",
         B,
         "forbidden",
-        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'hide')`,
+        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'hide', '광고')`,
       );
       const [ratingBefore] = await tx<{ review_count: number }[]>`
         select review_count from public.products where id = ${tea.id}`;
+      await expectError(
+        tx,
+        "관리자: 사유 없이 신고 처리",
+        admin,
+        "invalid_note",
+        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'hide', '')`,
+      );
       await expectOk(tx, "관리자: 신고 처리 → 리뷰 숨김", admin, async (sp) => {
-        await sp`select public.resolve_review_report(${reportB.id}, 'hide')`;
+        await sp`select public.resolve_review_report(${reportB.id}, 'hide', '광고성 리뷰 확인')`;
         return "숨김";
       });
       await expectBlocked(
@@ -2052,10 +2084,10 @@ async function main() {
         "관리자: 처리한 신고 다시 처리",
         admin,
         "not_pending",
-        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'dismiss')`,
+        (sp) => sp`select public.resolve_review_report(${reportB.id}, 'dismiss', '중복')`,
       );
       await expectOk(tx, "관리자: 숨김 해제 → 다시 공개", admin, async (sp) => {
-        await sp`select public.admin_set_review_hidden(${reviewA.id}, false)`;
+        await sp`select public.admin_set_review_hidden(${reviewA.id}, false, '재검토 결과 문제 없음')`;
         return "해제";
       });
       await expectOk(tx, "anon: 숨김 해제된 리뷰 보기", anon, async (sp) => {
@@ -2069,10 +2101,11 @@ async function main() {
         "파트너 D: 상품 판매 중지 함수",
         D,
         "forbidden",
-        (sp) => sp`select public.admin_set_product_suspension(${fuji.id}, '점검')`,
+        (sp) =>
+          sp`select public.admin_set_product_suspension(${fuji.id}, true, 'info_fix', '점검')`,
       );
       await expectOk(tx, "관리자: 상품 판매 중지", admin, async (sp) => {
-        await sp`select public.admin_set_product_suspension(${fuji.id}, '안전 점검 중')`;
+        await sp`select public.admin_set_product_suspension(${fuji.id}, true, 'info_fix', '안전 점검 중')`;
         return "중지";
       });
       const suspendDate = await dayPlus(30);
@@ -2085,7 +2118,7 @@ async function main() {
           sp`insert into public.cart_items (product_id, use_date) values (${fuji.id}, ${suspendDate})`,
       );
       await expectOk(tx, "관리자: 판매 재개 → 다시 담기 가능", admin, async (sp) => {
-        await sp`select public.admin_set_product_suspension(${fuji.id}, null)`;
+        await sp`select public.admin_set_product_suspension(${fuji.id}, false, null, '점검 완료')`;
         return "재개";
       });
       await expectOk(tx, "재개된 상품 담기", B, async (sp) => {
@@ -2585,6 +2618,165 @@ async function main() {
         admin,
         "invalid_range",
         (sp) => sp`select * from public.admin_orders('', 'all', null, null, null, 5001, 0)`,
+      );
+
+      // ── 판매 중지 종류 · 파트너 정지 일괄 처리 · 사유 (관리자 개선 S4)
+      const [hideLog] = await tx<{ reason: string | null }[]>`
+        select reason from public.audit_logs where entity_id = ${reviewA.id} and action = 'review.hide'`;
+      check(
+        "감사 로그: 리뷰 숨김 사유",
+        hideLog?.reason === "광고성 리뷰 확인",
+        hideLog?.reason ?? "없음",
+      );
+      await expectError(
+        tx,
+        "관리자: 사유 없이 리뷰 숨김 해제",
+        admin,
+        "invalid_note",
+        (sp) => sp`select public.admin_set_review_hidden(${reviewA.id}, false, '')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 종류 없이 판매 중지",
+        admin,
+        "invalid_suspend_kind",
+        (sp) => sp`select public.admin_set_product_suspension(${tea.id}, true, null, '점검')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 사유 없이 판매 재개",
+        admin,
+        "invalid_suspend_reason",
+        (sp) => sp`select public.admin_set_product_suspension(${fuji.id}, false, null, '')`,
+      );
+
+      // 운영 불가 중지: 다도 체험의 이용 전 예약(확정 대기 · 확정)은 전액 환불 취소, 지난 예약은 그대로
+      const [unsafeOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 90000, ${randomUUID()}, now())
+        returning id`;
+      if (!unsafeOrder) throw new Error("운영 불가 주문 생성 실패");
+      const unsafeDate = await dayPlus(12);
+      const teaItem = async (useDate: string, status: string) => {
+        const [row] = await tx<{ id: string }[]>`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+          select ${unsafeOrder.id}, p.id, '다도 검증', ${useDate}::date, 1, 0, 30000, 30000, 'standard',
+            ${teaSlot.id}, p.partner_id, 15, ${status}::public.order_item_status
+          from public.products p where p.id = ${tea.id}
+          returning id`;
+        if (status !== "used") {
+          await tx`insert into public.slot_inventory (slot_id, use_date, booked) values (${teaSlot.id}, ${useDate}::date, 1)
+                   on conflict (slot_id, use_date) do update set booked = public.slot_inventory.booked + 1`;
+        }
+        if (!row) throw new Error("다도 항목 생성 실패");
+        return row.id;
+      };
+      const teaPending = await teaItem(unsafeDate, "pending");
+      const teaConfirmed = await teaItem(unsafeDate, "confirmed");
+      const teaUsed = await teaItem(dates.past, "used");
+      await expectError(
+        tx,
+        "고객: 판매 중지 영향 미리보기",
+        A,
+        "forbidden",
+        (sp) => sp`select * from public.admin_product_impact(${tea.id})`,
+      );
+      const [teaImpact] = await as(
+        tx,
+        admin,
+        (sp) =>
+          sp<
+            { pending_count: number; confirmed_count: number; refund_total: number }[]
+          >`select * from public.admin_product_impact(${tea.id})`,
+      );
+      const teaLive = (teaImpact?.pending_count ?? 0) + (teaImpact?.confirmed_count ?? 0);
+      check(
+        "영향 미리보기: 이용 전 예약 수 · 전액 환불 금액",
+        teaLive >= 2 && (teaImpact?.refund_total ?? 0) >= 60000,
+        `${teaLive}건 · ${teaImpact?.refund_total?.toLocaleString()}원`,
+      );
+      const bookedBeforeUnsafe = await bookedOf(teaSlot.id, unsafeDate);
+      await expectOk(tx, "관리자: 운영 불가로 판매 중지 → 이용 전 예약 취소", admin, async (sp) => {
+        const [r] = await sp<{ n: number }[]>`
+          select public.admin_set_product_suspension(${tea.id}, true, 'unsafe', '시설 안전 점검 불합격') as n`;
+        if (r?.n !== teaLive) throw new Error(`${r?.n}건 (예상 ${teaLive})`);
+        return `${r.n}건 취소`;
+      });
+      const teaRows = await tx<
+        { id: string; status: string; refund_amount: number | null; cancel_reason: string | null }[]
+      >`select id, status::text, refund_amount, cancel_reason from public.order_items
+        where id in (${teaPending}, ${teaConfirmed}, ${teaUsed})`;
+      const byId = new Map(teaRows.map((r) => [r.id, r]));
+      check(
+        "운영 불가 중지: 확정 대기·확정 → 전액 환불 취소 · 사유, 지난 예약은 그대로 · 좌석 반환",
+        [teaPending, teaConfirmed].every(
+          (id) =>
+            byId.get(id)?.status === "cancelled" &&
+            byId.get(id)?.refund_amount === 30000 &&
+            byId.get(id)?.cancel_reason === "판매 중지(운영 불가) — 시설 안전 점검 불합격",
+        ) &&
+          byId.get(teaUsed)?.status === "used" &&
+          (await bookedOf(teaSlot.id, unsafeDate)) === bookedBeforeUnsafe - 2,
+        teaRows.map((r) => `${r.status}/${r.refund_amount ?? "-"}`).join(", "),
+      );
+      const [unsafeLog] = await tx<{ actor_role: string; reason_code: string | null }[]>`
+        select actor_role, reason_code from public.audit_logs
+        where entity_id = ${teaConfirmed} and action = 'item.cancelled'`;
+      check(
+        "감사 로그: 운영 불가 취소 → 관리자 · product_unsafe",
+        unsafeLog?.actor_role === "admin" && unsafeLog.reason_code === "product_unsafe",
+        `${unsafeLog?.actor_role} · ${unsafeLog?.reason_code}`,
+      );
+      await expectBlocked(
+        tx,
+        "운영 불가 중지 → 공개 목록 조건(판매 중지 아님)에서 제외",
+        anon,
+        async (sp) =>
+          (
+            await sp`select 1 from public.products where id = ${tea.id} and published_at is not null and suspended_reason is null`
+          ).length,
+      );
+      await expectOk(tx, "관리자: 사유와 함께 판매 재개", admin, async (sp) => {
+        await sp`select public.admin_set_product_suspension(${tea.id}, false, null, '재점검 통과')`;
+        const [p] = await sp<{ k: string | null }[]>`
+          select suspended_kind::text as k from public.products where id = ${tea.id}`;
+        if (p?.k !== null) throw new Error(`종류 ${p?.k}`);
+        return "재개 · 종류 비움";
+      });
+
+      // 파트너 정지 해제: 정지로 함께 중지된 상품만 다시 열고, 관리자가 따로 중지한 상품은 그대로
+      await tx`update public.partners set status = 'active' where id = ${snorkel.partner_id}`;
+      await as(
+        tx,
+        admin,
+        (sp) =>
+          sp`select public.admin_set_product_suspension(${snorkel.id}, true, 'info_fix', '사진 교체 필요')`,
+      );
+      const [{ n: openBefore } = { n: -1 }] = await tx<{ n: number }[]>`
+        select count(*)::int as n from public.products
+        where partner_id = ${snorkel.partner_id} and suspended_reason is null`;
+      await expectOk(tx, "관리자: 파트너 정지 → 판매 중 상품만 함께 중지", admin, async (sp) => {
+        const [r] = await sp<{ n: number }[]>`
+          select public.admin_set_partner_status(${snorkel.partner_id}, 'suspended', '정산 서류 미제출') as n`;
+        if (r?.n !== openBefore) throw new Error(`${r?.n}개 (예상 ${openBefore})`);
+        return `${r.n}개`;
+      });
+      await expectOk(tx, "관리자: 정지 해제 → 정지로 중지된 상품만 재개", admin, async (sp) => {
+        const [r] = await sp<{ n: number }[]>`
+          select public.admin_set_partner_status(${snorkel.partner_id}, 'active', '서류 제출 확인') as n`;
+        const [still] = await sp<{ k: string | null }[]>`
+          select suspended_kind::text as k from public.products where id = ${snorkel.id}`;
+        if (r?.n !== openBefore || still?.k !== "info_fix")
+          throw new Error(`재개 ${r?.n}개 · 스노클링 ${still?.k}`);
+        return `${r.n}개 재개 · 따로 중지한 상품은 그대로`;
+      });
+      await expectError(
+        tx,
+        "파트너: 파트너 영향 미리보기",
+        D,
+        "forbidden",
+        (sp) => sp`select * from public.admin_partner_impact(${snorkel.partner_id})`,
       );
 
       // 검증이 끝나면 모든 변경을 되돌린다

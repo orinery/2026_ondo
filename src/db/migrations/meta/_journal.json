@@ -183,6 +183,20 @@
       "when": 1792646073269,
       "tag": "0025_admin_orders_list",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792651128372,
+      "tag": "0026_suspension_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792651137344,
+      "tag": "0027_suspension_functions",
+      "breakpoints": true
     }
   ]
 }

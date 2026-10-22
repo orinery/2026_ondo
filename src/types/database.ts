@@ -849,6 +849,7 @@ export type Database = {
           start_time: string | null;
           summary: string;
           suspended_at: string | null;
+          suspended_kind: Database["public"]["Enums"]["suspension_kind"] | null;
           suspended_reason: string | null;
           theme: Database["public"]["Enums"]["product_theme"];
           title: string;
@@ -888,6 +889,7 @@ export type Database = {
           start_time?: string | null;
           summary: string;
           suspended_at?: string | null;
+          suspended_kind?: Database["public"]["Enums"]["suspension_kind"] | null;
           suspended_reason?: string | null;
           theme: Database["public"]["Enums"]["product_theme"];
           title: string;
@@ -926,6 +928,7 @@ export type Database = {
           start_time?: string | null;
           summary?: string;
           suspended_at?: string | null;
+          suspended_kind?: Database["public"]["Enums"]["suspension_kind"] | null;
           suspended_reason?: string | null;
           theme?: Database["public"]["Enums"]["product_theme"];
           title?: string;
@@ -1484,16 +1487,33 @@ export type Database = {
           used_count: number;
         }[];
       };
+      admin_partner_impact: {
+        Args: { p_partner_id: string };
+        Returns: {
+          confirmed_count: number;
+          open_products: number;
+          partner_suspended_products: number;
+          pending_count: number;
+        }[];
+      };
+      admin_product_impact: {
+        Args: { p_product_id: string };
+        Returns: {
+          confirmed_count: number;
+          pending_count: number;
+          refund_total: number;
+        }[];
+      };
       admin_set_partner_status: {
-        Args: { p_partner_id: string; p_status: string };
-        Returns: undefined;
+        Args: { p_partner_id: string; p_reason: string; p_status: string };
+        Returns: number;
       };
       admin_set_product_suspension: {
-        Args: { p_product_id: string; p_reason: string };
-        Returns: undefined;
+        Args: { p_kind: string; p_product_id: string; p_reason: string; p_suspend: boolean };
+        Returns: number;
       };
       admin_set_review_hidden: {
-        Args: { p_hidden: boolean; p_review_id: string };
+        Args: { p_hidden: boolean; p_reason: string; p_review_id: string };
         Returns: undefined;
       };
       admin_settle_month: { Args: { p_month: string; p_partner: string }; Returns: number };
@@ -1616,7 +1636,7 @@ export type Database = {
         Returns: undefined;
       };
       resolve_review_report: {
-        Args: { p_action: string; p_report_id: string };
+        Args: { p_action: string; p_note: string; p_report_id: string };
         Returns: undefined;
       };
       save_product: {
@@ -1702,6 +1722,7 @@ export type Database = {
       product_theme: "sea" | "city" | "nature" | "culture";
       report_reason: "spam" | "abuse" | "irrelevant" | "privacy" | "other";
       report_status: "pending" | "dismissed" | "actioned";
+      suspension_kind: "info_fix" | "unsafe" | "partner_suspended";
       user_role: "customer" | "partner" | "admin";
     };
     CompositeTypes: {
@@ -1825,6 +1846,7 @@ export const Constants = {
       product_theme: ["sea", "city", "nature", "culture"],
       report_reason: ["spam", "abuse", "irrelevant", "privacy", "other"],
       report_status: ["pending", "dismissed", "actioned"],
+      suspension_kind: ["info_fix", "unsafe", "partner_suspended"],
       user_role: ["customer", "partner", "admin"],
     },
   },

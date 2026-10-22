@@ -56,6 +56,7 @@ import {
   PARTNER_STATUS_VALUES,
   REPORT_REASON_VALUES,
   REPORT_STATUS_VALUES,
+  SUSPENSION_KIND_VALUES,
   THEME_VALUES,
   USER_ROLE_VALUES,
 } from "../lib/constants/taxonomy";
@@ -73,6 +74,7 @@ export const orderItemStatusEnum = pgEnum("order_item_status", ORDER_ITEM_STATUS
 export const optionUnitEnum = pgEnum("option_unit", OPTION_UNIT_VALUES);
 export const reportReasonEnum = pgEnum("report_reason", REPORT_REASON_VALUES);
 export const reportStatusEnum = pgEnum("report_status", REPORT_STATUS_VALUES);
+export const suspensionKindEnum = pgEnum("suspension_kind", SUSPENSION_KIND_VALUES);
 
 // ─── 공통 컬럼 ───────────────────────────────────────────────────────────
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -345,6 +347,7 @@ export const products = pgTable(
     // 관리자 판매 중지 — 파트너는 이 컬럼을 쓸 수 없다(GRANT 없음)
     suspendedReason: text("suspended_reason"),
     suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    suspendedKind: suspensionKindEnum("suspended_kind"), // 판매 중지 종류 (중지가 아니면 null)
     // 리뷰 집계 캐시 — reviews 트리거가 갱신한다. 목록에서 매번 집계하지 않기 위해 저장한다
     ratingAvg: numeric("rating_avg", { precision: 2, scale: 1 }).notNull().default("0"),
     reviewCount: integer("review_count").notNull().default(0),

@@ -38,8 +38,12 @@ export const OPTION_UNIT_VALUES = ["per_booking", "per_person"] as const;
 export const REPORT_REASON_VALUES = ["spam", "abuse", "irrelevant", "privacy", "other"] as const;
 export const REPORT_STATUS_VALUES = ["pending", "dismissed", "actioned"] as const;
 
+// 관리자 판매 중지 종류: 정보 수정 필요(신규 판매만 중지) · 운영 불가·위험(기존 예약도 전액 환불 취소) · 파트너 이용 정지(일괄)
+export const SUSPENSION_KIND_VALUES = ["info_fix", "unsafe", "partner_suspended"] as const;
+
 export type ReportReason = (typeof REPORT_REASON_VALUES)[number];
 export type ReportStatus = (typeof REPORT_STATUS_VALUES)[number];
+export type SuspensionKind = (typeof SUSPENSION_KIND_VALUES)[number];
 export type OrderItemStatus = (typeof ORDER_ITEM_STATUS_VALUES)[number];
 export type OptionUnit = (typeof OPTION_UNIT_VALUES)[number];
 export type UserRole = (typeof USER_ROLE_VALUES)[number];
