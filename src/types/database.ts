@@ -333,6 +333,7 @@ export type Database = {
           adult_qty: number;
           cancel_policy: string;
           cancel_reason: string | null;
+          cancel_tiers: NonNullable<Json>;
           cancelled_at: string | null;
           child_price: number | null;
           child_qty: number;
@@ -362,6 +363,7 @@ export type Database = {
           adult_qty: number;
           cancel_policy: string;
           cancel_reason?: string | null;
+          cancel_tiers: NonNullable<Json>;
           cancelled_at?: string | null;
           child_price?: number | null;
           child_qty: number;
@@ -390,6 +392,7 @@ export type Database = {
           adult_qty?: number;
           cancel_policy?: string;
           cancel_reason?: string | null;
+          cancel_tiers?: NonNullable<Json>;
           cancelled_at?: string | null;
           child_price?: number | null;
           child_qty?: number;

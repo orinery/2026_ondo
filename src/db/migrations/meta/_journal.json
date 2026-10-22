@@ -197,6 +197,20 @@
       "when": 1792651137344,
       "tag": "0027_suspension_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792654986483,
+      "tag": "0028_cancel_tiers_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792655006437,
+      "tag": "0029_refund_quote_snapshot",
+      "breakpoints": true
     }
   ]
 }

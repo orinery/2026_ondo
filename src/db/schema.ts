@@ -638,6 +638,9 @@ export const orderItems = pgTable(
     cancelPolicy: text("cancel_policy")
       .notNull()
       .references(() => cancellationPolicies.code),
+    // 주문 시점의 환불 구간 스냅숏 [{ days_before, refund_rate }] (많은 날 순) — 규정이 바뀌어도 동의한 조건대로 환불.
+    // 넣을 때 트리거(snapshot_cancel_tiers, 0029)가 cancel_policy의 구간을 복사한다
+    cancelTiers: jsonb("cancel_tiers").notNull(),
     refundAmount: integer("refund_amount"),
     // ── 회차·옵션·확정 (S2)
     status: orderItemStatusEnum("status").notNull().default("confirmed"),

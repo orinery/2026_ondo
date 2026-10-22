@@ -424,6 +424,7 @@ async function ensurePastOrder(tx: Tx, buyer: Buyer, productSlug: string, useDat
     childPrice: product.childPrice,
     subtotal,
     cancelPolicy: product.cancelPolicy,
+    cancelTiers: sql`null`, // 트리거(snapshot_cancel_tiers)가 규정 구간을 복사한다
     // 지난 이용일의 주문이라 "이용 완료"로 넣는다 (파트너가 바우처를 사용 처리한 상태)
     status: "used",
     slotId: slot.id,

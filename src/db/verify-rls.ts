@@ -2779,6 +2779,56 @@ async function main() {
         (sp) => sp`select * from public.admin_partner_impact(${snorkel.partner_id})`,
       );
 
+      // ── 취소 규정 스냅숏 (P0 A-03): 결제 뒤 규정을 바꿔도 이미 산 예약은 동의한 구간대로 환불
+      const [tierOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 60000, ${randomUUID()}, now())
+        returning id`;
+      if (!tierOrder) throw new Error("규정 스냅숏 주문 생성 실패");
+      const tierDate = await dayPlus(4);
+      const tierItem = async () => {
+        const [row] = await tx<{ id: string; tiers: { days_before: number }[] }[]>`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+          select ${tierOrder.id}, p.id, '규정 검증', ${tierDate}::date, 1, 0, 30000, 30000, 'standard',
+            ${fujiSlot.id}, p.partner_id, 15, 'confirmed'
+          from public.products p where p.id = ${fuji.id}
+          returning id, cancel_tiers as tiers`;
+        await tx`insert into public.slot_inventory (slot_id, use_date, booked) values (${fujiSlot.id}, ${tierDate}::date, 1)
+                 on conflict (slot_id, use_date) do update set booked = public.slot_inventory.booked + 1`;
+        if (!row) throw new Error("규정 스냅숏 항목 생성 실패");
+        return row;
+      };
+      const oldTierItem = await tierItem();
+      check(
+        "규정 스냅숏: 주문 항목에 그때 구간 복사 (일반 취소 7·3·1일)",
+        oldTierItem.tiers.map((t) => t.days_before).join(",") === "7,3,1",
+        JSON.stringify(oldTierItem.tiers),
+      );
+      // 규정을 바꾼다 (검증용으로 직접): 일반 취소의 모든 구간을 환불 0%로
+      await tx`update public.cancellation_policy_tiers set refund_rate = 0 where policy_code = 'standard'`;
+      const newTierItem = await tierItem();
+      const quoteOf = async (itemId: string) => {
+        const [q] = await as(
+          tx,
+          A,
+          (sp) => sp<{ refund_amount: number }[]>`
+            select refund_amount from public.refund_quote(${tierOrder.id}) where order_item_id = ${itemId}`,
+        );
+        return q?.refund_amount;
+      };
+      check(
+        "규정 변경 후: 전에 산 예약은 동의한 구간(4일 전 50%), 새 예약은 바뀐 구간(0%)",
+        (await quoteOf(oldTierItem.id)) === 15000 && (await quoteOf(newTierItem.id)) === 0,
+        `전 ${await quoteOf(oldTierItem.id)} · 후 ${await quoteOf(newTierItem.id)}`,
+      );
+      await expectOk(tx, "고객: 규정 변경 전에 산 예약 취소 → 50% 환불", A, async (sp) => {
+        const [r] = await sp<{ refund: number }[]>`
+          select public.cancel_order_item(${oldTierItem.id}) as refund`;
+        if (r?.refund !== 15000) throw new Error(`환불 ${r?.refund}`);
+        return `환불 ${r.refund.toLocaleString()}원`;
+      });
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
