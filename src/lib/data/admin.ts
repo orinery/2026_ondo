@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { AuditActorRole } from "@/lib/audit-labels";
 import type {
   CategorySlug,
   OrderStatus,
@@ -210,4 +211,55 @@ export async function getReports(tab: "pending" | "done"): Promise<AdminReport[]
         }
       : null,
   }));
+}
+
+export type TimelineEntry = {
+  id: string;
+  at: string;
+  action: string;
+  actorRole: AuditActorRole;
+  actorName: string | null;
+  partnerName: string | null; // 항목 기록이면 그 항목의 판매 파트너
+  itemId: string | null; // 주문 항목 기록이면 항목 id (주문 전체 기록은 null)
+  reasonCode: string | null;
+  reason: string | null;
+  refundAmount: number | null;
+  backfilled: boolean; // 감사 로그 도입 전 기록을 타임스탬프로 복원한 것
+};
+
+/** 관리자: 주문 처리 이력 (결제 → 확정 → 사용·취소 …) — 오래된 순 */
+export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]> {
+  const supabase = await createClient();
+  const [logs, items] = await Promise.all([
+    supabase
+      .from("audit_logs")
+      .select(
+        `id, created_at, action, actor_role, entity, entity_id, reason_code, reason, after,
+         actor:profiles!audit_logs_actor_id_profiles_id_fk ( display_name )`,
+      )
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true }),
+    supabase.from("order_items").select("id, partners ( name )").eq("order_id", orderId),
+  ]);
+  if (logs.error) throw logs.error;
+  if (items.error) throw items.error;
+
+  const partnerOf = new Map(items.data.map((i) => [i.id, i.partners.name]));
+  return logs.data.map((l) => {
+    const after = (l.after ?? {}) as { refund_amount?: number | null; backfilled?: boolean };
+    const itemId = l.entity === "order_item" ? l.entity_id : null;
+    return {
+      id: l.id,
+      at: l.created_at,
+      action: l.action,
+      actorRole: l.actor_role as AuditActorRole,
+      actorName: l.actor?.display_name ?? null,
+      partnerName: itemId ? (partnerOf.get(itemId) ?? null) : null,
+      itemId,
+      reasonCode: l.reason_code,
+      reason: l.reason,
+      refundAmount: after.refund_amount ?? null,
+      backfilled: after.backfilled === true,
+    };
+  });
 }

@@ -3,17 +3,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { OrderTimeline } from "@/components/admin/order-timeline";
 import { OrderItemList } from "@/components/checkout/order-item-list";
 import { ConsolePageHeader } from "@/components/console/console-shell";
 import { ItemStatusBadge, OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { requireRole } from "@/lib/auth";
+import { getOrderTimeline } from "@/lib/data/admin";
 import { getOrderByNo } from "@/lib/data/orders";
 import { formatKrw, formatTimestamp } from "@/lib/format";
 
 export const metadata: Metadata = { title: "주문 상세" };
 
 /**
- * 관리자: 주문 상세 (/admin/orders/[orderNo]) — 읽기 전용.
+ * 관리자: 주문 상세 (/admin/orders/[orderNo]) — 항목·예약자·결제 + 처리 이력(audit_logs).
  * 고객 화면과 같은 조회 함수를 쓴다: 관리자는 RLS(orders/order_items_select_admin)로 모든 주문을 읽을 수 있다.
  */
 export default async function AdminOrderDetailPage({
@@ -23,6 +25,7 @@ export default async function AdminOrderDetailPage({
   await requireRole("admin", `/admin/orders/${orderNo}`);
   const order = await getOrderByNo(orderNo);
   if (!order) notFound();
+  const timeline = await getOrderTimeline(order.id);
 
   return (
     <div className="flex flex-col gap-6 px-4 py-8 md:px-8 md:py-10">
@@ -84,6 +87,10 @@ export default async function AdminOrderDetailPage({
           </dd>
         </div>
       </dl>
+      <OrderTimeline
+        entries={timeline}
+        itemTitles={new Map(order.items.map((i) => [i.id, i.productTitle]))}
+      />
     </div>
   );
 }
