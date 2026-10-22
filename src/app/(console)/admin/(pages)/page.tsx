@@ -75,7 +75,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
             <TodoLink href="/admin/reports">리뷰 신고 {kpis.openReports}건 처리</TodoLink>
           )}
           {kpis.pendingItems > 0 && (
-            <TodoLink href="/admin/orders">파트너 확정 대기 {kpis.pendingItems}건</TodoLink>
+            <TodoLink href="/admin/orders?status=pending">파트너 확정 대기 {kpis.pendingItems}건</TodoLink>
           )}
         </ul>
       )}

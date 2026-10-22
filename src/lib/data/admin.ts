@@ -1,14 +1,16 @@
 import "server-only";
 
 import type { AuditActorRole } from "@/lib/audit-labels";
-import type {
-  CategorySlug,
-  OrderStatus,
-  ReportReason,
-  ReportStatus,
-} from "@/lib/constants/taxonomy";
+import type { CategorySlug, ReportReason, ReportStatus } from "@/lib/constants/taxonomy";
 import { categoryLabel } from "@/lib/constants/taxonomy";
+import type { DisplayStatus } from "@/lib/order-status";
+import { sqlNull } from "@/lib/sql-null";
 import { createClient } from "@/lib/supabase/server";
+import {
+  ADMIN_PAGE_SIZE,
+  type AdminOrderFilters,
+  type AdminProductFilters,
+} from "@/lib/validation/admin-filters";
 
 /**
  * 관리자 콘솔 조회 (Data Access Layer)
@@ -90,73 +92,142 @@ export type AdminProductRow = {
   reviewCount: number;
 };
 
-/** 관리자: 전체 상품 (임시 저장 포함) — 판매 중지된 상품을 먼저 */
-export async function getAdminProducts(): Promise<AdminProductRow[]> {
+/** 관리자: 상품 목록 (임시 저장 포함) — 판매 중지된 상품을 먼저, 검색·필터 + 페이지 */
+export async function getAdminProducts(
+  filters: AdminProductFilters,
+  page: number,
+): Promise<{ rows: AdminProductRow[]; total: number }> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      `id, slug, title, adult_price, published_at, unavailable_reason, suspended_reason, suspended_at,
+  let query = supabase.from("products").select(
+    `id, slug, title, adult_price, published_at, unavailable_reason, suspended_reason, suspended_at,
        review_count, partners ( name ), cities ( name )`,
-    )
+    { count: "exact" },
+  );
+  const search = sanitize(filters.q);
+  if (search) query = query.ilike("title", `%${search}%`);
+  if (filters.partner) query = query.eq("partner_id", filters.partner);
+  if (filters.city) query = query.eq("city_id", filters.city);
+  // 상태 우선순위: 판매 중지(관리자) > 임시 저장 > 판매 일시 중단 > 판매 중
+  switch (filters.state) {
+    case "suspended":
+      query = query.not("suspended_reason", "is", null);
+      break;
+    case "draft":
+      query = query.is("suspended_reason", null).is("published_at", null);
+      break;
+    case "paused":
+      query = query
+        .is("suspended_reason", null)
+        .not("published_at", "is", null)
+        .not("unavailable_reason", "is", null);
+      break;
+    case "on_sale":
+      query = query
+        .is("suspended_reason", null)
+        .not("published_at", "is", null)
+        .is("unavailable_reason", null);
+      break;
+  }
+  const from = (page - 1) * ADMIN_PAGE_SIZE;
+  const { data, error, count } = await query
     .order("suspended_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id")
+    .range(from, from + ADMIN_PAGE_SIZE - 1);
   if (error) throw error;
-  return data.map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    title: p.title,
-    partnerName: p.partners.name,
-    cityName: p.cities.name,
-    adultPrice: p.adult_price,
-    published: p.published_at !== null,
-    unavailableReason: p.unavailable_reason,
-    suspendedReason: p.suspended_reason,
-    suspendedAt: p.suspended_at,
-    reviewCount: p.review_count,
-  }));
+  return {
+    total: count ?? 0,
+    rows: data.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      partnerName: p.partners.name,
+      cityName: p.cities.name,
+      adultPrice: p.adult_price,
+      published: p.published_at !== null,
+      unavailableReason: p.unavailable_reason,
+      suspendedReason: p.suspended_reason,
+      suspendedAt: p.suspended_at,
+      reviewCount: p.review_count,
+    })),
+  };
 }
+
+// 쿼리 문법으로 해석될 수 있는 문자를 지운 뒤 검색한다 (상품 검색과 같은 이유)
+const sanitize = (q: string) => q.replace(/[,()%_*\\:"']/g, " ").trim();
 
 export type AdminOrderRow = {
   id: string;
   orderNo: string;
-  status: OrderStatus;
+  displayStatus: DisplayStatus;
+  partial: boolean; // 끝난 항목과 살아 있는 항목이 섞임 (부분 취소)
   bookerName: string;
   totalAmount: number;
   refundAmount: number | null;
   paidAt: string;
-  itemCount: number;
-  pendingCount: number;
   firstTitle: string;
+  partnerNames: string;
+  counts: { items: number; pending: number; upcoming: number; used: number; closed: number };
 };
 
-/** 관리자: 최근 주문 50건 (주문번호·예약자 이름으로 찾기) */
-export async function getAdminOrders(q: string): Promise<AdminOrderRow[]> {
+/**
+ * 관리자: 주문 목록 — 검색·상태·파트너·결제일 필터 + 페이지 (DB 함수 admin_orders).
+ * limit을 크게 주면 CSV 내려받기에도 같은 함수를 쓴다 (최대 5,000건).
+ */
+export async function getAdminOrders(
+  filters: AdminOrderFilters,
+  { limit, offset }: { limit: number; offset: number },
+): Promise<{ rows: AdminOrderRow[]; total: number }> {
   const supabase = await createClient();
-  let query = supabase
-    .from("orders")
-    .select(
-      "id, order_no, status, booker_name, total_amount, refund_amount, paid_at, order_items ( product_title, status )",
-    )
-    .order("paid_at", { ascending: false })
-    .limit(50);
-  // 쿼리 문법으로 해석될 수 있는 문자를 지운 뒤 검색한다 (상품 검색과 같은 이유)
-  const search = q.replace(/[,()%_*\\:"']/g, " ").trim();
-  if (search) query = query.or(`order_no.ilike.%${search}%,booker_name.ilike.%${search}%`);
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("admin_orders", {
+    p_q: filters.q,
+    p_status: filters.status,
+    p_partner: sqlNull(filters.partner),
+    p_from: sqlNull(filters.from),
+    p_to: sqlNull(filters.to),
+    p_limit: limit,
+    p_offset: offset,
+  });
   if (error) throw error;
-  return data.map((o) => ({
-    id: o.id,
-    orderNo: o.order_no,
-    status: o.status,
-    bookerName: o.booker_name,
-    totalAmount: o.total_amount,
-    refundAmount: o.refund_amount,
-    paidAt: o.paid_at,
-    itemCount: o.order_items.length,
-    pendingCount: o.order_items.filter((i) => i.status === "pending").length,
-    firstTitle: o.order_items[0]?.product_title ?? "",
-  }));
+  return {
+    total: data[0]?.total_count ?? 0,
+    rows: data.map((o) => ({
+      id: o.id,
+      orderNo: o.order_no,
+      displayStatus: o.display_status as DisplayStatus,
+      partial: o.partial,
+      bookerName: o.booker_name,
+      totalAmount: o.total_amount,
+      refundAmount: o.refund_amount,
+      paidAt: o.paid_at,
+      firstTitle: o.first_title,
+      partnerNames: o.partner_names,
+      counts: {
+        items: o.item_count,
+        pending: o.pending_count,
+        upcoming: o.upcoming_count,
+        used: o.used_count,
+        closed: o.closed_count,
+      },
+    })),
+  };
+}
+
+export type FilterOption = { id: string; name: string };
+
+/** 관리자 목록 필터용 파트너·도시 목록 */
+export async function getFilterOptions(): Promise<{
+  partners: FilterOption[];
+  cities: FilterOption[];
+}> {
+  const supabase = await createClient();
+  const [partners, cities] = await Promise.all([
+    supabase.from("partners").select("id, name").order("name"),
+    supabase.from("cities").select("id, name").order("position"),
+  ]);
+  if (partners.error) throw partners.error;
+  if (cities.error) throw cities.error;
+  return { partners: partners.data, cities: cities.data };
 }
 
 export type AdminReport = {
