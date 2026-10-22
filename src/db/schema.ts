@@ -655,6 +655,8 @@ export const orderItems = pgTable(
     rejectReason: text("reject_reason"),
     usedAt: timestamp("used_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // 운영자 취소(admin_cancel_item) 사유 — 고객 예약 내역에 보인다. 고객 본인 취소는 null
+    cancelReason: text("cancel_reason"),
   },
   (t) => [
     check("order_items_qty", sql`${t.adultQty} >= 0 and ${t.childQty} >= 0`),
@@ -1020,5 +1022,95 @@ export const auditLogs = pgTable(
     index("audit_logs_entity_idx").on(t.entity, t.entityId, t.createdAt),
     index("audit_logs_order_idx").on(t.orderId, t.createdAt),
     pgPolicy("audit_logs_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+  ],
+);
+
+// ─── order_memos: 주문 CS 메모 (관리자 내부용) ─────────────────────────────────
+// 고치거나 지울 수 없다 — 덧붙이기만 하므로 메모 자체가 처리 기록이 된다
+export const orderMemos = pgTable(
+  "order_memos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdBy: uuid("created_by")
+      .default(sql`auth.uid()`)
+      .references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("order_memos_body", sql`char_length(btrim(${t.body})) between 1 and 500`),
+    index("order_memos_order_idx").on(t.orderId, t.createdAt),
+    pgPolicy("order_memos_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
+    pgPolicy("order_memos_insert_admin", {
+      for: "insert",
+      to: authenticatedRole,
+      withCheck: sql`${isAdmin} and ${t.createdBy} = ${authUid}`,
+    }),
+  ],
+);
+
+// ─── refund_adjustments: 관리자 환불 조정 기록 (규정 밖 추가 환불) ─────────────────
+// 쓰기는 관리자 함수(admin_adjust_refund)만. 환불액은 늘리기만 한다
+export const refundAdjustments = pgTable(
+  "refund_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "cascade" }),
+    beforeAmount: integer("before_amount").notNull(),
+    afterAmount: integer("after_amount").notNull(),
+    reason: text("reason").notNull(),
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("refund_adjustments_amounts", sql`${t.afterAmount} > ${t.beforeAmount}`),
+    index("refund_adjustments_item_idx").on(t.orderItemId),
+    pgPolicy("refund_adjustments_select_admin", {
+      for: "select",
+      to: authenticatedRole,
+      using: isAdmin,
+    }),
+  ],
+);
+
+// ─── settlement_adjustments: 정산 완료 뒤 생긴 변동 (조정 전표) ──────────────────────
+// 정산 완료된 달 숫자는 그대로 두고, 차액을 조정한 시점의 달(항상 아직 정산 전)에 넣는다 (사용자 확정).
+// 쓰기는 관리자 함수(admin_adjust_refund)만
+export const settlementAdjustments = pgTable(
+  "settlement_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    partnerId: uuid("partner_id")
+      .notNull()
+      .references(() => partners.id, { onDelete: "restrict" }),
+    month: date("month").notNull(), // 반영할 달 1일
+    orderItemId: uuid("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "restrict" }),
+    revenueDelta: integer("revenue_delta").notNull(), // 매출 변동 (환불 증액이면 음수)
+    commissionDelta: integer("commission_delta").notNull(),
+    source: text("source").notNull(), // refund_adjustment
+    createdBy: uuid("created_by").references(() => profiles.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check("settlement_adjustments_month_first_day", sql`extract(day from ${t.month}) = 1`),
+    index("settlement_adjustments_partner_month_idx").on(t.partnerId, t.month),
+    index("settlement_adjustments_item_idx").on(t.orderItemId),
+    pgPolicy("settlement_adjustments_select_own", {
+      for: "select",
+      to: authenticatedRole,
+      using: sql`${t.partnerId} = ${myPartnerId}`,
+    }),
+    pgPolicy("settlement_adjustments_select_admin", {
+      for: "select",
+      to: authenticatedRole,
+      using: isAdmin,
+    }),
   ],
 );

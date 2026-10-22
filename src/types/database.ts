@@ -332,6 +332,7 @@ export type Database = {
           adult_price: number;
           adult_qty: number;
           cancel_policy: string;
+          cancel_reason: string | null;
           cancelled_at: string | null;
           child_price: number | null;
           child_qty: number;
@@ -360,6 +361,7 @@ export type Database = {
           adult_price: number;
           adult_qty: number;
           cancel_policy: string;
+          cancel_reason?: string | null;
           cancelled_at?: string | null;
           child_price?: number | null;
           child_qty: number;
@@ -387,6 +389,7 @@ export type Database = {
           adult_price?: number;
           adult_qty?: number;
           cancel_policy?: string;
+          cancel_reason?: string | null;
           cancelled_at?: string | null;
           child_price?: number | null;
           child_qty?: number;
@@ -444,6 +447,46 @@ export type Database = {
             columns: ["slot_id"];
             isOneToOne: false;
             referencedRelation: "product_slots";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_memos: {
+        Row: {
+          body: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          order_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          body: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          order_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          order_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_memos_created_by_profiles_id_fk";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_memos_order_id_orders_id_fk";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
             referencedColumns: ["id"];
           },
         ];
@@ -944,6 +987,52 @@ export type Database = {
         };
         Relationships: [];
       };
+      refund_adjustments: {
+        Row: {
+          after_amount: number;
+          before_amount: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          order_item_id: string;
+          reason: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          after_amount: number;
+          before_amount: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          order_item_id: string;
+          reason: string;
+        };
+        Update: {
+          after_amount?: number;
+          before_amount?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          order_item_id?: string;
+          reason?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "refund_adjustments_created_by_profiles_id_fk";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "refund_adjustments_order_item_id_order_items_id_fk";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       review_reports: {
         Row: {
           created_at: string;
@@ -1051,6 +1140,65 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      settlement_adjustments: {
+        Row: {
+          commission_delta: number;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          month: string;
+          order_item_id: string;
+          partner_id: string;
+          revenue_delta: number;
+          source: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          commission_delta: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          month: string;
+          order_item_id: string;
+          partner_id: string;
+          revenue_delta: number;
+          source: string;
+        };
+        Update: {
+          commission_delta?: number;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          month?: string;
+          order_item_id?: string;
+          partner_id?: string;
+          revenue_delta?: number;
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "settlement_adjustments_created_by_profiles_id_fk";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "settlement_adjustments_order_item_id_order_items_id_fk";
+            columns: ["order_item_id"];
+            isOneToOne: false;
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "settlement_adjustments_partner_id_partners_id_fk";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
             referencedColumns: ["id"];
           },
         ];
@@ -1269,6 +1417,10 @@ export type Database = {
         Args: { p_order_item_id: string; p_trip_id: string };
         Returns: undefined;
       };
+      admin_adjust_refund: {
+        Args: { p_amount: number; p_item_id: string; p_reason: string };
+        Returns: number;
+      };
       admin_breakdown: {
         Args: { p_by: string; p_from: string; p_to: string };
         Returns: {
@@ -1276,6 +1428,10 @@ export type Database = {
           label: string;
           revenue: number;
         }[];
+      };
+      admin_cancel_item: {
+        Args: { p_item_id: string; p_note: string; p_reason_code: string };
+        Returns: number;
       };
       admin_daily_stats: {
         Args: { p_from: string; p_to: string };

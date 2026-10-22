@@ -2204,6 +2204,326 @@ async function main() {
           (await sp`select public.write_audit('order', ${capItemA.id}, null, 'order.paid')`).count,
       );
 
+      // ── 관리자 주문 처리 (관리자 개선 S2): 운영자 취소 · 환불 조정 · 조정 전표 · CS 메모
+      // A의 주문에 후지산(일반 취소 규정, 3만 원) 항목 4개: 10일 뒤 · 4일 뒤 · 오늘 · 지난 날
+      const [opsOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userA}, '검증A', 'a@rls.test', '010-1234-5678', 120000, ${randomUUID()}, now())
+        returning id`;
+      if (!opsOrder) throw new Error("운영 주문 생성 실패");
+      const opsItem = async (useDate: string) => {
+        const [row] = await tx<{ id: string }[]>`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+          select ${opsOrder.id}, p.id, '운영 검증', ${useDate}::date, 1, 0, 30000, 30000, 'standard',
+            ${fujiSlot.id}, p.partner_id, 15, 'confirmed'
+          from public.products p where p.id = ${fuji.id}
+          returning id`;
+        // 직접 넣은 항목도 좌석 카운터를 맞춘다 (booked = 살아 있는 항목 인원 합)
+        await tx`insert into public.slot_inventory (slot_id, use_date, booked) values (${fujiSlot.id}, ${useDate}::date, 1)
+                 on conflict (slot_id, use_date) do update set booked = public.slot_inventory.booked + 1`;
+        if (!row) throw new Error("운영 항목 생성 실패");
+        return row.id;
+      };
+      const opsFar = await opsItem(await dayPlus(10));
+      const opsNear = await opsItem(await dayPlus(4));
+      const opsToday = await opsItem(dates.today);
+      const opsPast = await opsItem(dates.past);
+
+      await expectError(
+        tx,
+        "고객: 운영자 취소 함수",
+        A,
+        "forbidden",
+        (sp) => sp`select public.admin_cancel_item(${opsFar}, 'weather', '태풍')`,
+      );
+      await expectError(
+        tx,
+        "파트너: 운영자 취소 함수",
+        D,
+        "forbidden",
+        (sp) => sp`select public.admin_cancel_item(${opsFar}, 'weather', '태풍')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 모르는 취소 사유 코드",
+        admin,
+        "invalid_cancel_reason",
+        (sp) => sp`select public.admin_cancel_item(${opsFar}, 'whatever', '태풍')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 고객 안내 없이 운영자 취소",
+        admin,
+        "invalid_cancel_note",
+        (sp) => sp`select public.admin_cancel_item(${opsFar}, 'weather', '  ')`,
+      );
+      const farDate = await dayPlus(10);
+      const bookedBeforeOps = await bookedOf(fujiSlot.id, farDate);
+      await expectOk(tx, "관리자: 기상 사유 운영자 취소 → 전액 환불", admin, async (sp) => {
+        const [r] = await sp<{ refund: number }[]>`
+          select public.admin_cancel_item(${opsFar}, 'weather', '태풍 접근으로 운항 취소') as refund`;
+        if (r?.refund !== 30000) throw new Error(`환불 ${r?.refund}`);
+        return `환불 ${r.refund.toLocaleString()}원`;
+      });
+      const [farRow] = await tx<{ status: string; cancel_reason: string | null }[]>`
+        select status::text, cancel_reason from public.order_items where id = ${opsFar}`;
+      check(
+        "운영자 취소: 취소 상태 · 고객에게 보일 사유 · 좌석 반환",
+        farRow?.status === "cancelled" &&
+          farRow.cancel_reason === "기상·천재지변 — 태풍 접근으로 운항 취소" &&
+          (await bookedOf(fujiSlot.id, farDate)) === bookedBeforeOps - 1,
+        `${farRow?.status} · ${farRow?.cancel_reason}`,
+      );
+      const [opsLog] = await tx<{ actor_role: string; reason_code: string | null }[]>`
+        select actor_role, reason_code from public.audit_logs
+        where entity_id = ${opsFar} and action = 'item.cancelled'`;
+      check(
+        "감사 로그: 운영자 취소 → 관리자 · 사유 코드",
+        opsLog?.actor_role === "admin" && opsLog.reason_code === "weather",
+        `${opsLog?.actor_role} · ${opsLog?.reason_code}`,
+      );
+      await expectOk(
+        tx,
+        "관리자: 고객 요청 대행 → 취소 규정대로 (4일 전 50%)",
+        admin,
+        async (sp) => {
+          const [r] = await sp<{ refund: number }[]>`
+          select public.admin_cancel_item(${opsNear}, 'customer_request', '고객 전화 요청') as refund`;
+          if (r?.refund !== 15000) throw new Error(`환불 ${r?.refund}`);
+          return `환불 ${r.refund.toLocaleString()}원`;
+        },
+      );
+      await expectError(
+        tx,
+        "관리자: 이용일 당일 고객 요청 대행",
+        admin,
+        "not_cancellable",
+        (sp) => sp`select public.admin_cancel_item(${opsToday}, 'customer_request', '요청')`,
+      );
+      await expectOk(tx, "관리자: 이용일 당일 기상 취소 → 전액", admin, async (sp) => {
+        const [r] = await sp<{ refund: number }[]>`
+          select public.admin_cancel_item(${opsToday}, 'weather', '당일 폭우') as refund`;
+        if (r?.refund !== 30000) throw new Error(`환불 ${r?.refund}`);
+        return `환불 ${r.refund.toLocaleString()}원`;
+      });
+      await expectError(
+        tx,
+        "관리자: 지난 날 항목 운영자 취소",
+        admin,
+        "not_cancellable",
+        (sp) => sp`select public.admin_cancel_item(${opsPast}, 'partner_operation', '사정')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 이미 취소한 항목 다시 취소",
+        admin,
+        "already_cancelled",
+        (sp) => sp`select public.admin_cancel_item(${opsFar}, 'weather', '다시')`,
+      );
+
+      // 환불 조정: 끝난 항목만, 늘리기만
+      await expectError(
+        tx,
+        "고객: 환불 조정 함수",
+        A,
+        "forbidden",
+        (sp) => sp`select public.admin_adjust_refund(${opsNear}, 30000, '면제')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 사유 없이 환불 조정",
+        admin,
+        "invalid_adjust_reason",
+        (sp) => sp`select public.admin_adjust_refund(${opsNear}, 30000, '')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 환불 줄이기",
+        admin,
+        "invalid_amount",
+        (sp) => sp`select public.admin_adjust_refund(${opsNear}, 10000, '감액')`,
+      );
+      await expectError(
+        tx,
+        "관리자: 결제액보다 많이 환불",
+        admin,
+        "invalid_amount",
+        (sp) => sp`select public.admin_adjust_refund(${opsNear}, 30001, '초과')`,
+      );
+      await expectOk(tx, "관리자: 취소 수수료 면제 (1.5만 → 3만)", admin, async (sp) => {
+        const [r] = await sp<{ refund: number }[]>`
+          select public.admin_adjust_refund(${opsNear}, 30000, '질병 진단서 확인 — 수수료 면제') as refund`;
+        return `환불 ${r?.refund.toLocaleString()}원`;
+      });
+      const [opsOrderRow] = await tx<{ refund_amount: number }[]>`
+        select refund_amount from public.orders where id = ${opsOrder.id}`;
+      const [adjRow] = await tx<{ before_amount: number; after_amount: number }[]>`
+        select before_amount, after_amount from public.refund_adjustments where order_item_id = ${opsNear}`;
+      check(
+        "환불 조정: 주문 환불 합계 · 조정 기록 (3만 + 3만 + 3만)",
+        opsOrderRow?.refund_amount === 90000 &&
+          adjRow?.before_amount === 15000 &&
+          adjRow.after_amount === 30000,
+        `주문 환불 ${opsOrderRow?.refund_amount} · ${adjRow?.before_amount} → ${adjRow?.after_amount}`,
+      );
+      await expectError(
+        tx,
+        "관리자: 지난 날 확정 항목 전액 환불 뒤 다시 조정",
+        admin,
+        "invalid_amount",
+        async (sp) => {
+          await sp`select public.admin_adjust_refund(${opsPast}, 30000, '현장 미운영 확인')`;
+          return sp`select public.admin_adjust_refund(${opsPast}, 30000, '중복')`;
+        },
+      );
+      const [notAdjustable] = await tx<{ id: string }[]>`
+        insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+          adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+        select ${opsOrder.id}, p.id, '미래 확정', public.seoul_today() + 20, 1, 0, 10000, 10000, 'standard',
+          ${fujiSlot.id}, p.partner_id, 15, 'confirmed'
+        from public.products p where p.id = ${fuji.id}
+        returning id`;
+      await expectError(
+        tx,
+        "관리자: 이용 전 확정 항목 환불 조정 (운영자 취소로)",
+        admin,
+        "not_adjustable",
+        (sp) => sp`select public.admin_adjust_refund(${notAdjustable?.id ?? null}, 5000, '선환불')`,
+      );
+
+      // 정산 완료된 달(E의 지난달, 지급 29,750)의 이용 완료 항목 1만 원에 4천 원 환불
+      // → 지난달 숫자 그대로, 이번 달에 매출 −4,000 · 수수료 −600(1,500 → 900) 조정 전표
+      const [usedE] = await tx<{ id: string }[]>`
+        select id from public.order_items where order_id = ${settleOrder.id} and status::text = 'used'`;
+      if (!usedE) throw new Error("정산 항목 없음");
+      await expectOk(tx, "관리자: 정산 완료 달 항목 환불 조정", admin, async (sp) => {
+        await sp`select public.admin_adjust_refund(${usedE.id}, 4000, '현장 일부 프로그램 취소')`;
+        return "4,000원";
+      });
+      const [lastE] = await as(
+        tx,
+        E,
+        (sp) =>
+          sp<
+            SummaryRow[]
+          >`select * from public.settlement_summary(null, ${months.last}::date, ${months.last}::date)`,
+      );
+      const lastItems = await as(
+        tx,
+        E,
+        (sp) => sp<{ item_id: string; refund: number; revenue: number }[]>`
+          select item_id, refund, revenue from public.settlement_items(null, ${months.last}::date, ${months.last}::date)`,
+      );
+      check(
+        "조정 전표: 정산 완료 달 숫자·항목은 조정 전 그대로 (지급 29,750 · 환불 0)",
+        // (위 정산 검증이 취소 항목 환불을 직접 0으로 바꿔 두어 실시간 합계는 스냅숏과 다르다 → 조정 항목만 본다)
+        lastE?.payout === 29750 &&
+          lastE.settled_at !== null &&
+          lastItems.find((i) => i.item_id === usedE.id)?.refund === 0,
+        `지급 ${lastE?.payout} · 항목 환불 ${lastItems.find((i) => i.item_id === usedE.id)?.refund}`,
+      );
+      const [currentE] = await as(
+        tx,
+        E,
+        (sp) =>
+          sp<
+            SummaryRow[]
+          >`select * from public.settlement_summary(null, ${months.current}::date, ${months.current}::date)`,
+      );
+      const adjustmentRows = await as(
+        tx,
+        E,
+        (sp) => sp<{ status: string; refund: number; revenue: number; commission: number }[]>`
+          select status, refund, revenue, commission
+          from public.settlement_items(null, ${months.current}::date, ${months.current}::date)`,
+      );
+      check(
+        "조정 전표: 이번 달에 매출 −4,000 · 수수료 −600 · 지급 −3,400 (건수 0)",
+        currentE?.revenue === -4000 &&
+          currentE.commission === -600 &&
+          currentE.payout === -3400 &&
+          currentE.item_count === 0 &&
+          adjustmentRows.length === 1 &&
+          adjustmentRows[0]?.status === "adjustment" &&
+          adjustmentRows[0].refund === 4000,
+        `매출 ${currentE?.revenue} · 수수료 ${currentE?.commission} · 지급 ${currentE?.payout} · ${currentE?.item_count}건`,
+      );
+      await expectOk(tx, "파트너 E: 자기 조정 전표 읽기", E, async (sp) => {
+        const rows =
+          await sp`select 1 from public.settlement_adjustments where partner_id = ${partnerE.id}`;
+        if (rows.length !== 1) throw new Error(`${rows.length}행`);
+        return "1행";
+      });
+      await expectBlocked(
+        tx,
+        "다른 파트너 D: E의 조정 전표 읽기",
+        D,
+        async (sp) =>
+          (await sp`select 1 from public.settlement_adjustments where partner_id = ${partnerE.id}`)
+            .length,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: 조정 전표 직접 쓰기",
+        admin,
+        async (sp) =>
+          (
+            await sp`insert into public.settlement_adjustments (partner_id, month, order_item_id, revenue_delta, commission_delta, source)
+                     values (${partnerE.id}, ${months.current}::date, ${usedE.id}, -1, 0, 'x')`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: 환불 조정 기록 직접 쓰기",
+        admin,
+        async (sp) =>
+          (
+            await sp`insert into public.refund_adjustments (order_item_id, before_amount, after_amount, reason)
+                     values (${usedE.id}, 0, 1, 'x')`
+          ).count,
+      );
+
+      // CS 메모: 관리자만 남기고 읽는다, 고칠 수 없다
+      await expectOk(tx, "관리자: CS 메모 남기기", admin, async (sp) => {
+        const r =
+          await sp`insert into public.order_memos (order_id, body) values (${opsOrder.id}, '고객 전화 — 픽업 변경')`;
+        return `${r.count}행`;
+      });
+      await expectBlocked(
+        tx,
+        "고객: 본인 주문에 CS 메모 남기기",
+        A,
+        async (sp) =>
+          (
+            await sp`insert into public.order_memos (order_id, body) values (${opsOrder.id}, '메모')`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "고객: 본인 주문 CS 메모 읽기",
+        A,
+        async (sp) =>
+          (await sp`select 1 from public.order_memos where order_id = ${opsOrder.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: CS 메모 고치기",
+        admin,
+        async (sp) =>
+          (await sp`update public.order_memos set body = 'x' where order_id = ${opsOrder.id}`)
+            .count,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: 다른 사람 이름으로 CS 메모",
+        admin,
+        async (sp) =>
+          (
+            await sp`insert into public.order_memos (order_id, body, created_by) values (${opsOrder.id}, '메모', ${userA})`
+          ).count,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })

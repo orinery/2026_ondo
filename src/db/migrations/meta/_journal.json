@@ -162,6 +162,20 @@
       "when": 1792573033282,
       "tag": "0022_audit_actor_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792637936241,
+      "tag": "0023_order_ops",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792637979970,
+      "tag": "0024_order_ops_functions",
+      "breakpoints": true
     }
   ]
 }
