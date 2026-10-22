@@ -77,16 +77,23 @@ const ORDER_COLUMNS = `id, order_no, status, total_amount, refund_amount, paid_a
   booker_name, booker_email, booker_phone, payment_method,
   order_items ( id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, child_price,
                 subtotal, refund_amount, status, start_time, voucher_code, confirm_deadline,
-                reject_reason, cancel_reason, options_amount,
+                reject_reason, cancel_reason, options_amount, cancel_tiers,
                 order_item_options ( name, unit, qty ),
                 products ( slug, image_url, image_alt, cities ( name ) ),
-                cancellation_policies ( code, name, summary, cancellation_policy_tiers ( days_before, refund_rate ) ),
+                cancellation_policies ( code, name, summary ),
                 trip_items ( trip_id ) )`;
 
 // select 문자열에서 추론한 행 타입 (trip_items는 order_item_id가 unique라 1:1 → 객체 또는 null)
 const ordersQuery = (supabase: Awaited<ReturnType<typeof createClient>>) =>
   supabase.from("orders").select(ORDER_COLUMNS);
 type OrderRow = QueryData<ReturnType<typeof ordersQuery>>[number];
+
+type TierSnapshot = { days_before: number; refund_rate: number }[];
+
+const tiersOf = (snapshot: unknown) =>
+  [...((snapshot ?? []) as TierSnapshot)]
+    .sort((a, b) => b.days_before - a.days_before)
+    .map((t) => ({ daysBefore: t.days_before, refundRate: t.refund_rate }));
 
 function toDetail(row: OrderRow, today: string): OrderDetail {
   const now = new Date();
@@ -125,9 +132,8 @@ function toDetail(row: OrderRow, today: string): OrderDetail {
         code: i.cancellation_policies.code,
         name: i.cancellation_policies.name,
         summary: i.cancellation_policies.summary,
-        tiers: [...i.cancellation_policies.cancellation_policy_tiers]
-          .sort((a, b) => b.days_before - a.days_before)
-          .map((t) => ({ daysBefore: t.days_before, refundRate: t.refund_rate })),
+        // 구간은 주문할 때 복사해 둔 값 (규정이 나중에 바뀌어도 동의한 조건 그대로)
+        tiers: tiersOf(i.cancel_tiers),
       },
     }));
   return {

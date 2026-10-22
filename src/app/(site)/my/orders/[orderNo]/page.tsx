@@ -233,6 +233,10 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
         <h2 id="policy-title" className="font-kr text-xl font-semibold">
           취소 규정
         </h2>
+        <p className="-mt-2 text-sm text-muted-foreground">
+          결제할 때 동의한 환불 구간이에요. 나중에 상품 규정이 바뀌어도 이 예약은 이 구간대로
+          환불돼요.
+        </p>
         <div className="grid gap-6 md:grid-cols-2">
           {policies.map((p) => (
             <CancellationPolicyTable
