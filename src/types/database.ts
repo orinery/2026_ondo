@@ -1455,6 +1455,35 @@ export type Database = {
           refunds: number;
         }[];
       };
+      admin_orders: {
+        Args: {
+          p_from: string;
+          p_limit: number;
+          p_offset: number;
+          p_partner: string;
+          p_q: string;
+          p_status: string;
+          p_to: string;
+        };
+        Returns: {
+          booker_name: string;
+          closed_count: number;
+          display_status: string;
+          first_title: string;
+          id: string;
+          item_count: number;
+          order_no: string;
+          paid_at: string;
+          partial: boolean;
+          partner_names: string;
+          pending_count: number;
+          refund_amount: number;
+          total_amount: number;
+          total_count: number;
+          upcoming_count: number;
+          used_count: number;
+        }[];
+      };
       admin_set_partner_status: {
         Args: { p_partner_id: string; p_status: string };
         Returns: undefined;

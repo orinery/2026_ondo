@@ -2524,6 +2524,69 @@ async function main() {
           ).count,
       );
 
+      // ── 관리자 주문 목록 (관리자 개선 S3): admin_orders 상태·파트너 필터
+      // 위 운영 주문: 취소 3(기상·고객 요청·당일 기상) + 이용 완료 1(지난 날 확정) + 이용 예정 1(20일 뒤) → 이용 예정 · 부분 취소
+      const [opsNo] = await tx<{ order_no: string }[]>`
+        select order_no from public.orders where id = ${opsOrder.id}`;
+      const [settleNo] = await tx<{ order_no: string }[]>`
+        select order_no from public.orders where id = ${settleOrder.id}`;
+      if (!opsNo || !settleNo) throw new Error("주문번호 없음");
+      const adminOrders = (sp: Tx, q: string, status: string, partner: string | null = null) =>
+        sp<
+          {
+            order_no: string;
+            display_status: string;
+            partial: boolean;
+            upcoming_count: number;
+            used_count: number;
+            closed_count: number;
+            total_count: number;
+          }[]
+        >`select * from public.admin_orders(${q}, ${status}, ${partner}, null, null, 30, 0)`;
+      await expectError(tx, "고객: 관리자 주문 목록", A, "forbidden", (sp) =>
+        adminOrders(sp, "", "all"),
+      );
+      await expectError(tx, "파트너: 관리자 주문 목록", D, "forbidden", (sp) =>
+        adminOrders(sp, "", "all"),
+      );
+      await expectOk(tx, "관리자: 부분 취소 필터 → 상태 · 항목 수", admin, async (sp) => {
+        const [r] = await adminOrders(sp, opsNo.order_no.toLowerCase(), "partial");
+        if (
+          !r ||
+          r.display_status !== "upcoming" ||
+          !r.partial ||
+          r.closed_count !== 3 ||
+          r.used_count !== 1 ||
+          r.upcoming_count !== 1 ||
+          r.total_count !== 1
+        )
+          throw new Error(JSON.stringify(r));
+        return `${r.display_status} · 취소 ${r.closed_count} · 이용 완료 ${r.used_count} · 이용 예정 ${r.upcoming_count}`;
+      });
+      await expectBlocked(
+        tx,
+        "관리자: 취소 필터에는 부분 취소 주문 없음",
+        admin,
+        async (sp) => (await adminOrders(sp, opsNo.order_no, "cancelled")).length,
+      );
+      await expectOk(tx, "관리자: 파트너 필터 (E의 정산 주문)", admin, async (sp) => {
+        const mine = await adminOrders(sp, settleNo.order_no, "all", partnerE.id);
+        const other = await adminOrders(sp, settleNo.order_no, "all", snorkel.partner_id);
+        if (mine.length !== 1 || other.length !== 0)
+          throw new Error(`E ${mine.length}건 · 다른 파트너 ${other.length}건`);
+        return "E 1건 · 다른 파트너 0건";
+      });
+      await expectError(tx, "관리자: 모르는 상태 필터", admin, "invalid_status", (sp) =>
+        adminOrders(sp, "", "whatever"),
+      );
+      await expectError(
+        tx,
+        "관리자: 한 번에 5,000건 넘게",
+        admin,
+        "invalid_range",
+        (sp) => sp`select * from public.admin_orders('', 'all', null, null, null, 5001, 0)`,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
