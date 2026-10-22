@@ -11,8 +11,9 @@
   - `0018`~`0019` — 관리자 콘솔: 리뷰 신고·숨김, 상품 판매 중지, 대시보드 통계
   - `0020`~`0022` — 감사 로그: `audit_logs`, 상태 변경 트리거(주문·항목·상품 중지·파트너 정지·정산·리뷰 숨김), 기존 주문 이력 백필, 행위자를 "동작 자격"으로(파트너 계정의 구매·취소 = 고객)
   - `0023`~`0024` — 관리자 주문 처리: CS 메모, 운영자 취소(귀책 코드별 환불), 환불 조정(늘리기만), 정산 조정 전표, `release_item`·정산 함수 교체
+  - `0025` — 관리자 주문 목록 `admin_orders`: 검색·상태(부분 취소 포함)·파트너·결제일 필터 + 페이지 (화면·CSV 공용)
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 247개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 254개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -197,6 +198,7 @@ sequenceDiagram
 | `resolve_review_report` · `admin_set_review_hidden`                | definer + `is_admin()`    | 신고 기각·숨김, 숨김 해제                                                                                               |
 | `admin_set_product_suspension`                                     | definer + `is_admin()`    | 상품 판매 중지·재개                                                                                                     |
 | `admin_cancel_item` · `admin_adjust_refund`                        | definer + `is_admin()`    | 운영자 취소(귀책 코드별 환불), 환불 조정(늘리기만 · 정산 완료 달이면 조정 전표)                                         |
+| `admin_orders(검색, 상태, 파트너, 기간, limit, offset)`            | definer + `is_admin()`    | 주문 목록 — 화면과 같은 상태 규칙, 항목 상태별 수, 판매 파트너, 전체 건수 (최대 5,000)                                  |
 | `admin_kpis` · `admin_daily_stats` · `admin_breakdown`             | definer + `is_admin()`    | 대시보드 지표·일별 결제·도시/종류별 매출                                                                                |
 | `write_audit(…)` + `audit_*` 트리거                                | 내부 전용                 | 상태가 바뀔 때 행위자(`auth.uid()`의 역할, 없으면 system)·사유·이전/변경 값을 기록                                      |
 | `has_used_product` · `attach_bookings` · `reorder_trip_items`      | invoker / definer / inv.  | 리뷰 자격(항목 상태 기준), 플래너 예약 붙이기, 일정 순서 저장                                                           |
