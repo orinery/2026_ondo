@@ -1,4 +1,4 @@
-import type { BreakdownRow, DailyStat } from "@/lib/data/admin";
+import type { BreakdownRow, DailyStat, TimelineEntry } from "@/lib/data/admin";
 import type { PartnerBooking } from "@/lib/data/partner-center";
 import type { PartnerApplication, PartnerRow } from "@/lib/data/partners";
 import type { SettlementItem, SettlementRow } from "@/lib/data/settlements";
@@ -235,4 +235,56 @@ export const MOCK_BREAKDOWN_CITY: BreakdownRow[] = [
   { label: "오키나와", items: 6, revenue: 640000 },
   { label: "교토", items: 7, revenue: 388000 },
   { label: "오사카", items: 3, revenue: 291000 },
+];
+
+// 주문 처리 이력 목업: 항목 2개 — 하나는 파트너 확정 후 고객 취소, 하나는 확정 대기 → 거절
+const ITEM_A = "00000000-0000-4000-8000-0000000000e1";
+const ITEM_B = "00000000-0000-4000-8000-0000000000e2";
+const entry = (
+  id: number,
+  at: string,
+  action: string,
+  rest: Partial<TimelineEntry> = {},
+): TimelineEntry => ({
+  id: `00000000-0000-4000-8000-0000000001${String(id).padStart(2, "0")}`,
+  at,
+  action,
+  actorRole: "system",
+  actorName: null,
+  partnerName: null,
+  itemId: null,
+  reasonCode: null,
+  reason: null,
+  refundAmount: null,
+  backfilled: false,
+  ...rest,
+});
+
+export const MOCK_TIMELINE_ITEMS = new Map([
+  [ITEM_A, "푸른 동굴 스노클링"],
+  [ITEM_B, "게라마 제도 당일 투어"],
+]);
+
+export const MOCK_TIMELINE: TimelineEntry[] = [
+  entry(1, "2026-10-18T01:12:00Z", "order.paid", { actorRole: "customer", actorName: "김여운" }),
+  entry(2, "2026-10-18T01:12:00Z", "item.pending", { itemId: ITEM_A }),
+  entry(3, "2026-10-18T01:12:00Z", "item.pending", { itemId: ITEM_B }),
+  entry(4, "2026-10-18T09:40:00Z", "item.confirmed", {
+    itemId: ITEM_A,
+    actorRole: "partner",
+    partnerName: "유키시마 트래블",
+  }),
+  entry(5, "2026-10-19T02:05:00Z", "item.rejected", {
+    itemId: ITEM_B,
+    actorRole: "partner",
+    partnerName: "유키시마 트래블",
+    reason: "기상 악화로 해당 날짜 운항이 취소됐어요",
+    refundAmount: 250000,
+  }),
+  entry(6, "2026-10-20T11:30:00Z", "item.cancelled", {
+    itemId: ITEM_A,
+    actorRole: "customer",
+    actorName: "김여운",
+    refundAmount: 63000,
+  }),
 ];

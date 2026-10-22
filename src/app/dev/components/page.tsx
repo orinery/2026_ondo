@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { ApplicationList } from "@/components/admin/application-list";
 import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
+import { OrderTimeline } from "@/components/admin/order-timeline";
 import { ProductSuspensionAction } from "@/components/admin/product-suspension-action";
 import { ReportActions } from "@/components/admin/report-actions";
 import { PartnerTable } from "@/components/admin/partner-table";
@@ -49,6 +50,8 @@ import {
   MOCK_REVIEWED_APPLICATIONS,
   MOCK_SETTLEMENT_ITEMS,
   MOCK_SETTLEMENT_ROWS,
+  MOCK_TIMELINE,
+  MOCK_TIMELINE_ITEMS,
 } from "@/lib/mock/partners";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
 import { addDays } from "@/lib/booking";
@@ -641,7 +644,7 @@ export default function DevComponentsPage() {
           <SettlementItemsTable items={[]} />
         </Section>
 
-        <Section id="admin" title="12. 관리자 대시보드 · 신고 · 판매 중지">
+        <Section id="admin" title="12. 관리자 대시보드 · 신고 · 판매 중지 · 처리 이력">
           <p className="text-sm text-muted-foreground">
             차트 색은 --chart-1~5 (명세 시맨틱 토큰을 가리킴) — 다크 모드에서 함께 바뀐다. 차트마다
             스크린리더용 표를 숨겨 둔다. 목업이라 버튼은 &quot;로그인 필요&quot;로 실패한다.
@@ -682,6 +685,11 @@ export default function DevComponentsPage() {
               title="니세코 리프트 1일권"
               suspended
             />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">주문 처리 이력 (감사 로그)</h3>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <OrderTimeline entries={MOCK_TIMELINE} itemTitles={MOCK_TIMELINE_ITEMS} />
+            <OrderTimeline entries={[]} itemTitles={new Map()} headingId="order-timeline-empty" />
           </div>
         </Section>
       </main>
