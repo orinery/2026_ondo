@@ -263,3 +263,44 @@ export async function getOrderTimeline(orderId: string): Promise<TimelineEntry[]
     };
   });
 }
+
+export type OrderMemo = { id: string; body: string; at: string; authorName: string | null };
+
+/** 관리자: 주문 CS 메모 — 남긴 순서대로 */
+export async function getOrderMemos(orderId: string): Promise<OrderMemo[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("order_memos")
+    .select(
+      "id, body, created_at, author:profiles!order_memos_created_by_profiles_id_fk ( display_name )",
+    )
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data.map((m) => ({
+    id: m.id,
+    body: m.body,
+    at: m.created_at,
+    authorName: m.author?.display_name ?? null,
+  }));
+}
+
+/** 관리자: 이용월이 이미 정산 완료된 항목 id — 환불 조정 시 조정 전표 안내용 */
+export async function getSettledItemIds(orderId: string): Promise<Set<string>> {
+  const supabase = await createClient();
+  const { data: items, error } = await supabase
+    .from("order_items")
+    .select("id, partner_id, use_date")
+    .eq("order_id", orderId);
+  if (error) throw error;
+  if (items.length === 0) return new Set();
+  const { data: settled, error: settledError } = await supabase
+    .from("settlements")
+    .select("partner_id, month")
+    .in("partner_id", [...new Set(items.map((i) => i.partner_id))]);
+  if (settledError) throw settledError;
+  const keys = new Set(settled.map((s) => `${s.partner_id}:${s.month}`));
+  return new Set(
+    items.filter((i) => keys.has(`${i.partner_id}:${i.use_date.slice(0, 7)}-01`)).map((i) => i.id),
+  );
+}

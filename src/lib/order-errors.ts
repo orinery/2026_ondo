@@ -53,6 +53,13 @@ const MESSAGES: Record<string, string> = {
   // 리뷰 신고 (0019)
   own_review: "내 리뷰는 신고할 수 없어요.",
   already_reported: "이미 신고한 리뷰예요. 관리자가 확인하고 있어요.",
+  // 관리자 주문 처리 (0024)
+  invalid_cancel_reason: "취소 사유를 골라 주세요.",
+  invalid_cancel_note: "고객에게 보낼 안내를 1~200자로 입력해 주세요.",
+  invalid_adjust_reason: "조정 사유를 1~200자로 입력해 주세요.",
+  not_adjustable:
+    "취소·이용 완료·이용일이 지난 예약만 환불을 조정할 수 있어요. 이용 전 예약은 운영자 취소로 처리해 주세요.",
+  invalid_amount: "새 환불액은 지금 환불액보다 크고 결제액 이하여야 해요.",
 };
 
 export const FALLBACK_MESSAGE = "잠시 후 다시 시도해 주세요.";

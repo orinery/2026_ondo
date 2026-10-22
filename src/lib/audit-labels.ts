@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   "item.rejected": "예약 거절",
   "item.cancelled": "취소",
   "item.expired": "확정 기한 초과 · 자동 취소",
+  "item.refund_adjusted": "환불 조정",
   "product.suspend": "판매 중지",
   "product.resume": "판매 재개",
   "partner.suspended": "이용 정지",
