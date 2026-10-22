@@ -642,7 +642,7 @@ export default function DevComponentsPage() {
             hrefOf={() => "#settlements"}
           />
           <h3 className="mt-4 text-lg font-semibold">
-            월 정산 내역 (이용 완료 · 확정 · 일부 환불 취소)
+            월 정산 내역 (이용 완료 · 확정 · 일부 환불 취소 · 정산 후 환불 조정)
           </h3>
           <SettlementItemsTable items={MOCK_SETTLEMENT_ITEMS} />
           <SettlementItemsTable items={[]} />

@@ -183,6 +183,7 @@ export const MOCK_SETTLEMENT_ROWS: SettlementRow[] = [
 export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
   {
     itemId: "s1",
+    partnerId: "00000000-0000-4000-8000-0000000000c1",
     orderNo: "YO260901-000012",
     productTitle: "푸른 동굴 스노클링",
     useDate: "2026-09-12",
@@ -195,6 +196,7 @@ export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
   },
   {
     itemId: "s2",
+    partnerId: "00000000-0000-4000-8000-0000000000c1",
     orderNo: "YO260905-000020",
     productTitle: "게라마 제도 당일 투어",
     useDate: "2026-09-20",
@@ -207,6 +209,7 @@ export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
   },
   {
     itemId: "s3",
+    partnerId: "00000000-0000-4000-8000-0000000000c1",
     orderNo: "YO260910-000031",
     productTitle: "오키나와 북부 버스 투어",
     useDate: "2026-09-25",
@@ -216,6 +219,20 @@ export const MOCK_SETTLEMENT_ITEMS: SettlementItem[] = [
     revenue: 52000,
     commissionRate: 15,
     commission: 7800,
+  },
+  {
+    // 8월(정산 완료)에 이용한 예약에 9월에 환불 2만 원을 더 해 준 조정 전표
+    itemId: "s4",
+    partnerId: "00000000-0000-4000-8000-0000000000c1",
+    orderNo: "YO260801-000004",
+    productTitle: "츄라우미 수족관 입장권",
+    useDate: "2026-08-17",
+    status: "adjustment",
+    subtotal: 0,
+    refund: 20000,
+    revenue: -20000,
+    commissionRate: 15,
+    commission: -3000,
   },
 ];
 
