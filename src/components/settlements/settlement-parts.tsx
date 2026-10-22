@@ -86,10 +86,21 @@ const ITEM_STATUS: Record<string, string> = {
   used: "이용 완료",
   confirmed: "이용 완료(확정)",
   cancelled: "취소 · 일부 환불",
+  adjustment: "정산 후 환불 조정",
 };
 
-/** 정산 상세 — 그 달 정산 대상 항목 (767 이하에서는 표가 가로로 스크롤) */
-export function SettlementItemsTable({ items }: { items: SettlementItem[] }) {
+/**
+ * 정산 상세 — 그 달 정산 대상 항목 + 조정 전표 (767 이하에서는 표가 가로로 스크롤).
+ * 조정 전표: 이미 정산 완료된 달의 예약에 환불을 더 해 준 금액이 이 달에 음수로 반영된 행.
+ * orderHref를 주면 주문번호가 주문 상세 링크가 된다 (관리자).
+ */
+export function SettlementItemsTable({
+  items,
+  orderHref,
+}: {
+  items: SettlementItem[];
+  orderHref?: (orderNo: string) => string;
+}) {
   if (items.length === 0) {
     return (
       <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
@@ -99,6 +110,7 @@ export function SettlementItemsTable({ items }: { items: SettlementItem[] }) {
   }
   const sum = (key: "subtotal" | "refund" | "revenue" | "commission") =>
     items.reduce((n, i) => n + i[key], 0);
+  const adjustments = items.filter((i) => i.status === "adjustment").length;
   return (
     <div className="rounded-xl border bg-card">
       <Table className="min-w-[44rem]" scrollLabel="정산 내역 표">
@@ -113,31 +125,49 @@ export function SettlementItemsTable({ items }: { items: SettlementItem[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((i) => (
-            <TableRow key={i.itemId}>
-              <TableCell className="pl-4">
-                <span className="block font-medium">{i.productTitle}</span>
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {formatUseDate(i.useDate)} · {i.orderNo}
-                </span>
-              </TableCell>
-              <TableCell>{ITEM_STATUS[i.status] ?? i.status}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatKrw(i.subtotal)}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {i.refund > 0 ? formatKrw(i.refund) : "-"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{formatKrw(i.revenue)}</TableCell>
-              <TableCell className="pr-4 text-right tabular-nums">
-                {formatKrw(i.commission)}
-                <span className="block text-xs text-muted-foreground">{i.commissionRate}%</span>
-              </TableCell>
-            </TableRow>
-          ))}
+          {items.map((i, index) => {
+            const adjustment = i.status === "adjustment";
+            return (
+              // 같은 항목에 조정 전표가 여러 번 붙을 수 있어 순번을 함께 쓴다
+              <TableRow key={`${i.status}-${i.itemId}-${index}`}>
+                <TableCell className="pl-4">
+                  <span className="block font-medium">{i.productTitle}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {adjustment ? `${formatUseDate(i.useDate)} 이용분` : formatUseDate(i.useDate)} ·{" "}
+                    {orderHref ? (
+                      <Link href={orderHref(i.orderNo)} className="hover:underline">
+                        {i.orderNo}
+                      </Link>
+                    ) : (
+                      i.orderNo
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell className={adjustment ? "text-warning" : undefined}>
+                  {ITEM_STATUS[i.status] ?? i.status}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {adjustment ? "-" : formatKrw(i.subtotal)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {i.refund > 0 ? formatKrw(i.refund) : "-"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{formatKrw(i.revenue)}</TableCell>
+                <TableCell className="pr-4 text-right tabular-nums">
+                  {formatKrw(i.commission)}
+                  <span className="block text-xs text-muted-foreground">{i.commissionRate}%</span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
         <TableFooter>
           <TableRow>
             <TableCell className="pl-4 font-semibold" colSpan={2}>
-              합계 {items.length}건
+              합계 {items.length - adjustments}건
+              {adjustments > 0 && (
+                <span className="font-normal text-muted-foreground"> · 조정 {adjustments}건</span>
+              )}
             </TableCell>
             <TableCell className="text-right tabular-nums">{formatKrw(sum("subtotal"))}</TableCell>
             <TableCell className="text-right tabular-nums">{formatKrw(sum("refund"))}</TableCell>

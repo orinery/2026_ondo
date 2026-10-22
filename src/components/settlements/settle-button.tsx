@@ -58,7 +58,8 @@ export function SettleButton({
           </AlertDialogTitle>
           <AlertDialogDescription>
             지급액 {formatKrw(payout)} — 처리하면 이 달의 숫자가 고정되고 파트너에게 &lsquo;정산
-            완료&rsquo;로 보여요. 모의 정산이라 실제 송금은 일어나지 않아요.
+            완료&rsquo;로 보여요. 확정 후에는 되돌릴 수 없고, 이후 환불 조정은 조정한 달의 정산에
+            조정 전표로 반영돼요. 모의 정산이라 실제 송금은 일어나지 않아요.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error && (

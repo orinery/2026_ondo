@@ -24,10 +24,11 @@ export type SettlementRow = {
 
 export type SettlementItem = {
   itemId: string;
+  partnerId: string;
   orderNo: string;
   productTitle: string;
   useDate: string;
-  status: string;
+  status: string; // used · confirmed · cancelled · adjustment(정산 완료 뒤 환불 조정 전표)
   subtotal: number;
   refund: number;
   revenue: number;
@@ -90,6 +91,7 @@ export async function getSettlementItems(
   if (error) throw error;
   return data.map((i) => ({
     itemId: i.item_id,
+    partnerId: i.partner_id,
     orderNo: i.order_no,
     productTitle: i.product_title,
     useDate: i.use_date,
