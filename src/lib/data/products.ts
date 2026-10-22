@@ -128,7 +128,8 @@ function applyFilters<
     not: (column: string, operator: "is", value: null) => Q;
   },
 >(query: Q, filters: Filterable, cityIds: string[], omit?: keyof Filterable): Q {
-  let q = query.not("published_at", "is", null);
+  // 공개된 상품만, 관리자 판매 중지 상품은 목록에서 뺀다 (상세 페이지는 기존 예약자를 위해 남긴다)
+  let q = query.not("published_at", "is", null).is("suspended_reason", null);
   const search = sanitizeSearch(filters.q);
   if (search && omit !== "q") {
     const conditions = [`title.ilike.%${search}%`, `summary.ilike.%${search}%`];
@@ -171,7 +172,7 @@ export async function getProducts(filters: ProductFilters, page = 1) {
     filters,
     await searchCityIds(filters.q),
   );
-  // 판매 중지 상품은 어떤 정렬이든 맨 뒤로
+  // 판매 일시 중단(예약 불가) 상품은 어떤 정렬이든 맨 뒤로
   query = query.order("unavailable_reason", { ascending: true, nullsFirst: true });
   for (const { column, ascending } of SORT_ORDER[filters.sort]) {
     query = query.order(column, { ascending, nullsFirst: false });
