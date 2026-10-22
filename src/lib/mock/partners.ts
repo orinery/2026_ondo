@@ -1,4 +1,4 @@
-import type { BreakdownRow, DailyStat, TimelineEntry } from "@/lib/data/admin";
+import type { BreakdownRow, DailyStat, OrderMemo, TimelineEntry } from "@/lib/data/admin";
 import type { PartnerBooking } from "@/lib/data/partner-center";
 import type { PartnerApplication, PartnerRow } from "@/lib/data/partners";
 import type { SettlementItem, SettlementRow } from "@/lib/data/settlements";
@@ -287,4 +287,19 @@ export const MOCK_TIMELINE: TimelineEntry[] = [
     actorName: "김여운",
     refundAmount: 63000,
   }),
+];
+
+export const MOCK_ORDER_MEMOS: OrderMemo[] = [
+  {
+    id: "00000000-0000-4000-8000-000000000201",
+    body: "10/21 고객 전화 — 호텔 픽업 장소를 나하 시내 호텔로 변경 요청. 파트너에게 전달함.",
+    at: "2026-10-21T02:20:00Z",
+    authorName: "운영팀 김",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000202",
+    body: "파트너 확인 완료 (픽업 변경 가능).",
+    at: "2026-10-21T05:45:00Z",
+    authorName: "운영팀 김",
+  },
 ];

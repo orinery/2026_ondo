@@ -3,8 +3,11 @@ import Image from "next/image";
 
 import { ApplicationList } from "@/components/admin/application-list";
 import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
+import { OperatorCancelDialog } from "@/components/admin/operator-cancel-dialog";
+import { OrderMemos } from "@/components/admin/order-memos";
 import { OrderTimeline } from "@/components/admin/order-timeline";
 import { ProductSuspensionAction } from "@/components/admin/product-suspension-action";
+import { RefundAdjustDialog } from "@/components/admin/refund-adjust-dialog";
 import { ReportActions } from "@/components/admin/report-actions";
 import { PartnerTable } from "@/components/admin/partner-table";
 import { ConsoleLoading } from "@/components/console/console-loading";
@@ -45,6 +48,7 @@ import {
   MOCK_APPLICATIONS,
   MOCK_BREAKDOWN_CITY,
   MOCK_DAILY_STATS,
+  MOCK_ORDER_MEMOS,
   MOCK_PARTNER_BOOKINGS,
   MOCK_PARTNERS,
   MOCK_REVIEWED_APPLICATIONS,
@@ -644,7 +648,7 @@ export default function DevComponentsPage() {
           <SettlementItemsTable items={[]} />
         </Section>
 
-        <Section id="admin" title="12. 관리자 대시보드 · 신고 · 판매 중지 · 처리 이력">
+        <Section id="admin" title="12. 관리자 대시보드 · 신고 · 판매 중지 · 주문 처리">
           <p className="text-sm text-muted-foreground">
             차트 색은 --chart-1~5 (명세 시맨틱 토큰을 가리킴) — 다크 모드에서 함께 바뀐다. 차트마다
             스크린리더용 표를 숨겨 둔다. 목업이라 버튼은 &quot;로그인 필요&quot;로 실패한다.
@@ -690,6 +694,47 @@ export default function DevComponentsPage() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <OrderTimeline entries={MOCK_TIMELINE} itemTitles={MOCK_TIMELINE_ITEMS} />
             <OrderTimeline entries={[]} itemTitles={new Map()} headingId="order-timeline-empty" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">
+            주문 처리 (운영자 취소 · 환불 조정 · CS 메모)
+          </h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <OperatorCancelDialog
+              orderNo="YO261021-000041"
+              itemId="00000000-0000-4000-8000-0000000000f1"
+              title="푸른 동굴 스노클링"
+              subtotal={126000}
+              policyRefund={{ amount: 63000, label: "이용 4일 전 50%" }}
+            />
+            <OperatorCancelDialog
+              orderNo="YO261021-000041"
+              itemId="00000000-0000-4000-8000-0000000000f2"
+              title="게라마 제도 당일 투어 (이용일 당일)"
+              subtotal={250000}
+              policyRefund={null}
+            />
+            <RefundAdjustDialog
+              orderNo="YO261021-000041"
+              itemId="00000000-0000-4000-8000-0000000000f3"
+              title="오키나와 북부 버스 투어"
+              subtotal={104000}
+              currentRefund={52000}
+              settledMonthNote="이용월 정산이 이미 완료됐어요. 완료된 숫자는 그대로 두고 2026년 10월 정산에 조정 전표로 반영돼요."
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <OrderMemos
+              orderNo="YO261021-000041"
+              orderId="00000000-0000-4000-8000-0000000000f4"
+              memos={MOCK_ORDER_MEMOS}
+              headingId="order-memos-demo"
+            />
+            <OrderMemos
+              orderNo="YO261021-000041"
+              orderId="00000000-0000-4000-8000-0000000000f5"
+              memos={[]}
+              headingId="order-memos-empty"
+            />
           </div>
         </Section>
       </main>
