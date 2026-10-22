@@ -40,6 +40,7 @@ export type OrderItem = {
   voucherCode: string | null; // 확정되면 발급
   confirmDeadline: string | null; // 확정 대기의 처리 기한
   rejectReason: string | null;
+  cancelReason: string | null; // 운영자 취소 사유 (고객 본인 취소는 null)
   options: string[]; // "호텔 픽업", "도시락 ×2"
   optionsAmount: number;
   adultQty: number;
@@ -76,7 +77,7 @@ const ORDER_COLUMNS = `id, order_no, status, total_amount, refund_amount, paid_a
   booker_name, booker_email, booker_phone, payment_method,
   order_items ( id, product_id, product_title, use_date, adult_qty, child_qty, adult_price, child_price,
                 subtotal, refund_amount, status, start_time, voucher_code, confirm_deadline,
-                reject_reason, options_amount,
+                reject_reason, cancel_reason, options_amount,
                 order_item_options ( name, unit, qty ),
                 products ( slug, image_url, image_alt, cities ( name ) ),
                 cancellation_policies ( code, name, summary, cancellation_policy_tiers ( days_before, refund_rate ) ),
@@ -111,6 +112,7 @@ function toDetail(row: OrderRow, today: string): OrderDetail {
       voucherCode: i.voucher_code,
       confirmDeadline: i.confirm_deadline,
       rejectReason: i.reject_reason,
+      cancelReason: i.cancel_reason,
       options: i.order_item_options.map((o) => optionLabel({ name: o.name, unit: o.unit }, o.qty)),
       optionsAmount: i.options_amount,
       adultQty: i.adult_qty,

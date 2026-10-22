@@ -110,6 +110,7 @@ const orderItem = (
   voucherCode: null,
   confirmDeadline: null,
   rejectReason: null,
+  cancelReason: null,
   options: [],
   optionsAmount: 0,
   ...extra,

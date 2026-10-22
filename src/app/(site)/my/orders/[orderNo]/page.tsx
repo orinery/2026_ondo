@@ -103,7 +103,9 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
       case "expired":
         return (
           <p className="mt-1 text-sm text-muted-foreground">
-            환불 {formatKrw(i.refundAmount ?? 0)}
+            {/* 운영자 취소면 사유(예: "기상·천재지변 — …")를 함께 */}
+            {i.cancelReason && `여운이 예약을 취소했어요 (${i.cancelReason}) · `}환불{" "}
+            {formatKrw(i.refundAmount ?? 0)}
           </p>
         );
     }
