@@ -11,7 +11,7 @@ DB 마이그레이션·시드는 **로컬에서** 실행하고, Vercel은 Next.j
 ## 0. 준비물
 
 - GitHub 저장소 (이 프로젝트: `orinery/2026_ondo`)
-- 마이그레이션(0000~0022)·시드를 마친 Supabase 프로젝트 (로컬 `.env.local`로 이미 연결된 것)
+- 마이그레이션(0000~0024)·시드를 마친 Supabase 프로젝트 (로컬 `.env.local`로 이미 연결된 것)
   - 0014가 **pg_cron 확장 설치**와 10분 주기 작업(`expire-pending-items`), 상품 사진 **Storage 버킷**(`product-images`)을 만든다. 따로 대시보드에서 켤 필요는 없다(아래 4-1절에서 확인)
 - Vercel 계정 (GitHub로 로그인)
 
@@ -43,7 +43,7 @@ npm run db:verify-rls
 npm run db:verify-race
 ```
 
-> 시드니 리전까지 왕복이 수백 ms라 `db:verify-rls`(215개 시나리오)는 몇 분 걸린다. 멈춘 것이 아니다.
+> 시드니 리전까지 왕복이 수백 ms라 `db:verify-rls`(247개 시나리오)는 몇 분 걸린다. 멈춘 것이 아니다.
 
 ## 2. Vercel 프로젝트 만들기
 
