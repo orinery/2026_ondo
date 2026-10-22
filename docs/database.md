@@ -9,8 +9,9 @@
   - `0013`~`0015` — 파트너 센터: 상품 사진 Storage, `save_product`, 재고 일괄 수정, 예약 확정·거절·바우처, 자동 만료 + pg_cron
   - `0016`~`0017` — 정산: `settlements` 스냅숏, 정산 계산 함수, 관리자 정산 완료
   - `0018`~`0019` — 관리자 콘솔: 리뷰 신고·숨김, 상품 판매 중지, 대시보드 통계
+  - `0020`~`0022` — 감사 로그: `audit_logs`, 상태 변경 트리거(주문·항목·상품 중지·파트너 정지·정산·리뷰 숨김), 기존 주문 이력 백필, 행위자를 "동작 자격"으로(파트너 계정의 구매·취소 = 고객)
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 204개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 215개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -40,6 +41,7 @@ erDiagram
   profiles ||--o{ reviews : writes
   products ||--o{ reviews : "구매 고객만"
   reviews ||--o{ review_reports : "신고"
+  profiles |o--o{ audit_logs : "행위자 (null = 시스템)"
   profiles ||--o{ trips : owns
   trips ||--o{ trip_items : contains
   order_items |o--o| trip_items : "예약 항목"
@@ -130,6 +132,16 @@ erDiagram
     enum reason
     enum status "pending·dismissed·actioned"
   }
+  audit_logs {
+    uuid id PK
+    uuid actor_id FK "null = 시스템"
+    text actor_role "customer·partner·admin·system"
+    text entity "order·order_item·product·partner·settlement·review"
+    uuid entity_id "외래 키 없음 (원본이 지워져도 남김)"
+    uuid order_id "주문 타임라인용"
+    text action "예: item.cancelled"
+    jsonb before_after "이전 값 → 변경 값"
+  }
 ```
 
 `cities`·`product_images`·`product_itinerary_items`·`product_options`·`order_item_options`·`partner_applications`·`like_folders`·`likes`·`trips`·`trip_items`는 그림을 간단히 하려고 컬럼을 생략했다 (스키마 파일 참고).
@@ -172,27 +184,29 @@ sequenceDiagram
 | `resolve_review_report` · `admin_set_review_hidden`                | definer + `is_admin()`    | 신고 기각·숨김, 숨김 해제                                                            |
 | `admin_set_product_suspension`                                     | definer + `is_admin()`    | 상품 판매 중지·재개                                                                  |
 | `admin_kpis` · `admin_daily_stats` · `admin_breakdown`             | definer + `is_admin()`    | 대시보드 지표·일별 결제·도시/종류별 매출                                             |
+| `write_audit(…)` + `audit_*` 트리거                                | 내부 전용                 | 상태가 바뀔 때 행위자(`auth.uid()`의 역할, 없으면 system)·사유·이전/변경 값을 기록   |
 | `has_used_product` · `attach_bookings` · `reorder_trip_items`      | invoker / definer / inv.  | 리뷰 자격(항목 상태 기준), 플래너 예약 붙이기, 일정 순서 저장                        |
 
 security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이름만 쓴다. 고객 함수는 `auth.uid()`, 파트너 함수는 `my_partner_id()`, 관리자 함수는 `is_admin()`으로 첫 줄에서 확인하고, 남의 데이터 id에는 "없음(`not_found`)"과 같은 오류를 돌려줘 존재 여부를 알 수 없게 한다.
 
 ## 설계 결정
 
-| 결정                                                                      | 이유                                                                                                                                            |
-| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| 주문·주문 항목은 **읽기 권한만**, 생성·취소·확정은 DB 함수로만            | 클라이언트가 금액·상태를 넣을 수 있으면 위조할 수 있다. 가격은 `line_price`로 다시 계산하고 화면 금액은 "확인용"으로만 받는다                   |
-| 역할 판단은 RLS + definer 함수                                            | 로그인 사용자는 모두 DB 역할 `authenticated` — 컬럼 GRANT로는 파트너·관리자를 나눌 수 없다. 관리자 전용 컬럼은 GRANT 없이 함수로만 바꾼다       |
-| 좌석은 "조건부 UPDATE 한 문장"으로 확보                                   | `booked + 인원 <= 정원`일 때만 늘린다. 동시 결제는 행 잠금 뒤 바뀐 값으로 다시 평가돼 초과 판매가 없다. 잠금 순서(회차·날짜)를 고정해 교착 방지 |
-| 불변식: `booked` = 살아 있는 항목 인원 합                                 | 늘리는 곳은 `place_order`, 줄이는 곳은 `release_item` 하나. 기존 데이터 이전·시드도 같은 규칙으로 맞췄다                                        |
-| 회차·옵션은 지우지 않고 판매만 끈다                                       | 장바구니·주문 항목이 참조한다. 시드·`save_product` 모두 upsert + `active = false`                                                               |
-| 주문 항목에 **구매 시점** 상품명·단가·회차 시간·옵션·파트너·수수료율 복사 | 나중에 상품·수수료율이 바뀌어도 예약 내역과 정산은 산 그대로여야 한다                                                                           |
-| 파트너에게 `orders` 읽기 정책 없음                                        | 한 주문에 다른 파트너 상품이 섞이면 총액·중복 방지 키 등이 보인다. 예약자 연락처는 `partner_bookings`로 필요한 열만                             |
-| 자동 만료 = pg_cron + 화면을 열 때                                        | 무료 프로젝트가 일시 정지되면 cron이 멈춘다. 멱등 함수라 화면을 열 때 한 번 더 불러도 안전하다                                                  |
-| 정산 완료 = 스냅숏                                                        | 관리자가 처리한 뒤 데이터가 바뀌어도 그 달 숫자는 그대로. 처리 전 달은 실시간 계산                                                              |
-| 숨긴 리뷰: 제한 정책을 anon·로그인으로 나눔                               | anon에게는 `is_admin()` 실행 권한이 없다. 정책 대상 역할을 나눠 anon 정책에서는 함수를 부르지 않는다                                            |
-| 예약 규칙은 DB 함수 하나(`booking_error`)                                 | 장바구니 트리거와 주문 함수가 같은 규칙. 화면용 복사본(`src/lib/booking.ts`)은 달력 비활성화 등 UX용이고 최종 판단은 항상 DB                    |
-| 날짜는 `seoul_today()` 기준                                               | DB 서버 시간대(UTC)와 관계없이 한국(=일본) 날짜로 마감·환불·정산 월을 계산한다                                                                  |
-| 앱의 데이터 접근은 supabase-js, Drizzle은 스키마·마이그레이션·시드 전용   | Drizzle은 postgres 권한으로 접속해 RLS를 우회한다. 사용자 요청은 항상 사용자 JWT로 실행돼야 RLS가 마지막 방어선이 된다                          |
+| 결정                                                                      | 이유                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 주문·주문 항목은 **읽기 권한만**, 생성·취소·확정은 DB 함수로만            | 클라이언트가 금액·상태를 넣을 수 있으면 위조할 수 있다. 가격은 `line_price`로 다시 계산하고 화면 금액은 "확인용"으로만 받는다                                                                                |
+| 역할 판단은 RLS + definer 함수                                            | 로그인 사용자는 모두 DB 역할 `authenticated` — 컬럼 GRANT로는 파트너·관리자를 나눌 수 없다. 관리자 전용 컬럼은 GRANT 없이 함수로만 바꾼다                                                                    |
+| 좌석은 "조건부 UPDATE 한 문장"으로 확보                                   | `booked + 인원 <= 정원`일 때만 늘린다. 동시 결제는 행 잠금 뒤 바뀐 값으로 다시 평가돼 초과 판매가 없다. 잠금 순서(회차·날짜)를 고정해 교착 방지                                                              |
+| 불변식: `booked` = 살아 있는 항목 인원 합                                 | 늘리는 곳은 `place_order`, 줄이는 곳은 `release_item` 하나. 기존 데이터 이전·시드도 같은 규칙으로 맞췄다                                                                                                     |
+| 회차·옵션은 지우지 않고 판매만 끈다                                       | 장바구니·주문 항목이 참조한다. 시드·`save_product` 모두 upsert + `active = false`                                                                                                                            |
+| 주문 항목에 **구매 시점** 상품명·단가·회차 시간·옵션·파트너·수수료율 복사 | 나중에 상품·수수료율이 바뀌어도 예약 내역과 정산은 산 그대로여야 한다                                                                                                                                        |
+| 파트너에게 `orders` 읽기 정책 없음                                        | 한 주문에 다른 파트너 상품이 섞이면 총액·중복 방지 키 등이 보인다. 예약자 연락처는 `partner_bookings`로 필요한 열만                                                                                          |
+| 자동 만료 = pg_cron + 화면을 열 때                                        | 무료 프로젝트가 일시 정지되면 cron이 멈춘다. 멱등 함수라 화면을 열 때 한 번 더 불러도 안전하다                                                                                                               |
+| 정산 완료 = 스냅숏                                                        | 관리자가 처리한 뒤 데이터가 바뀌어도 그 달 숫자는 그대로. 처리 전 달은 실시간 계산                                                                                                                           |
+| 숨긴 리뷰: 제한 정책을 anon·로그인으로 나눔                               | anon에게는 `is_admin()` 실행 권한이 없다. 정책 대상 역할을 나눠 anon 정책에서는 함수를 부르지 않는다                                                                                                         |
+| 예약 규칙은 DB 함수 하나(`booking_error`)                                 | 장바구니 트리거와 주문 함수가 같은 규칙. 화면용 복사본(`src/lib/booking.ts`)은 달력 비활성화 등 UX용이고 최종 판단은 항상 DB                                                                                 |
+| 날짜는 `seoul_today()` 기준                                               | DB 서버 시간대(UTC)와 관계없이 한국(=일본) 날짜로 마감·환불·정산 월을 계산한다                                                                                                                               |
+| 감사 로그는 **트리거**로 남긴다                                           | 함수마다 기록 코드를 넣으면 빠뜨리기 쉽다. 상태 열이 바뀌면 경로와 관계없이 남고, 사유는 관리자 함수가 트랜잭션 로컬 설정(`ondo.audit_reason`)으로 넘긴다. 기한 초과 만료는 화면을 연 사람과 무관하게 system |
+| 앱의 데이터 접근은 supabase-js, Drizzle은 스키마·마이그레이션·시드 전용   | Drizzle은 postgres 권한으로 접속해 RLS를 우회한다. 사용자 요청은 항상 사용자 JWT로 실행돼야 RLS가 마지막 방어선이 된다                                                                                       |
 
 ## 권한 요약 (역할 × 테이블)
 
@@ -208,6 +222,7 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | reviews                                                    | 읽기 (숨김 제외) | 읽기, 이용 완료 상품에 작성, 본인 수정   | 같음                               | 숨긴 리뷰 포함 읽기 + 숨김 함수             |
 | review_reports                                             | —                | 본인 신고·읽기 (본인 리뷰·중복 불가)     | 같음                               | 전체 + 처리 함수                            |
 | likes · like_folders · trips · trip_items                  | —                | 본인 것만 (예약 항목은 만들기·삭제 불가) | 같음                               | 같음                                        |
+| audit_logs                                                 | —                | —                                        | —                                  | 읽기만 (쓰기는 트리거)                      |
 | storage `review-photos` / `product-images`                 | 공개 URL로 보기  | 본인 폴더에만 리뷰 사진                  | 파트너 폴더에만 상품 사진          | —                                           |
 
 쓰기 정책이나 GRANT가 없는 동작은 모두 거부된다. 예약 인원 카운터(`slot_inventory.booked`)·주문 상태·정산 기록은 누구도 직접 쓸 수 없고 함수만 바꾼다.
