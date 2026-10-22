@@ -120,22 +120,62 @@ export async function rejectApplication(
 export async function setPartnerStatus(
   partnerId: string,
   status: "active" | "suspended",
-): Promise<ActionResult> {
+  reason: string,
+): Promise<ActionResult<{ products: number }>> {
   if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
-  if (
-    !z.uuid().safeParse(partnerId).success ||
-    !z.enum(["active", "suspended"]).safeParse(status).success
-  ) {
-    return { ok: false, reason: "invalid" };
+  const parsed = z
+    .object({
+      partnerId: z.uuid(),
+      status: z.enum(["active", "suspended"]),
+      reason: z
+        .string()
+        .trim()
+        .min(1, "사유를 입력해 주세요")
+        .max(200, "사유는 200자까지 쓸 수 있어요"),
+    })
+    .safeParse({ partnerId, status, reason });
+  if (!parsed.success) {
+    return { ok: false, reason: "invalid", message: parsed.error.issues[0]?.message };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("admin_set_partner_status", {
-    p_partner_id: partnerId,
-    p_status: status,
+  const { data, error } = await supabase.rpc("admin_set_partner_status", {
+    p_partner_id: parsed.data.partnerId,
+    p_status: parsed.data.status,
+    p_reason: parsed.data.reason,
   });
   if (error) return adminFailure(error.message, "파트너를 찾을 수 없어요.");
 
-  revalidatePath("/admin/partners");
-  return { ok: true };
+  // 그 파트너 상품이 함께 중지·재개되어 상품 목록·상세도 바뀐다
+  revalidatePath("/", "layout");
+  return { ok: true, products: data };
+}
+
+export type PartnerImpact = {
+  openProducts: number; // 정지하면 함께 중지될 상품
+  partnerSuspendedProducts: number; // 해제하면 다시 열릴 상품
+  pending: number;
+  confirmed: number;
+};
+
+/** 이용 정지 확인 창: 함께 중지·재개될 상품 수와 이용 전 예약 수 */
+export async function getPartnerImpact(
+  partnerId: string,
+): Promise<ActionResult<{ impact: PartnerImpact }>> {
+  if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };
+  if (!z.uuid().safeParse(partnerId).success) return { ok: false, reason: "invalid" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_partner_impact", { p_partner_id: partnerId });
+  if (error) return adminFailure(error.message, "파트너를 찾을 수 없어요.");
+  const row = data[0];
+  return {
+    ok: true,
+    impact: {
+      openProducts: row?.open_products ?? 0,
+      partnerSuspendedProducts: row?.partner_suspended_products ?? 0,
+      pending: row?.pending_count ?? 0,
+      confirmed: row?.confirmed_count ?? 0,
+    },
+  };
 }

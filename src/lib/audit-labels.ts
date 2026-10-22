@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   "settlement.settle": "정산 완료",
   "review.hide": "리뷰 숨김",
   "review.unhide": "리뷰 숨김 해제",
+  "review.report_dismissed": "리뷰 신고 기각",
 };
 
 export function auditActionLabel(action: string, actorRole: AuditActorRole) {

@@ -1,7 +1,12 @@
 import "server-only";
 
 import type { AuditActorRole } from "@/lib/audit-labels";
-import type { CategorySlug, ReportReason, ReportStatus } from "@/lib/constants/taxonomy";
+import type {
+  CategorySlug,
+  ReportReason,
+  ReportStatus,
+  SuspensionKind,
+} from "@/lib/constants/taxonomy";
 import { categoryLabel } from "@/lib/constants/taxonomy";
 import type { DisplayStatus } from "@/lib/order-status";
 import { sqlNull } from "@/lib/sql-null";
@@ -89,6 +94,7 @@ export type AdminProductRow = {
   unavailableReason: string | null;
   suspendedReason: string | null;
   suspendedAt: string | null;
+  suspendedKind: SuspensionKind | null;
   reviewCount: number;
 };
 
@@ -100,7 +106,7 @@ export async function getAdminProducts(
   const supabase = await createClient();
   let query = supabase.from("products").select(
     `id, slug, title, adult_price, published_at, unavailable_reason, suspended_reason, suspended_at,
-       review_count, partners ( name ), cities ( name )`,
+       suspended_kind, review_count, partners ( name ), cities ( name )`,
     { count: "exact" },
   );
   const search = sanitize(filters.q);
@@ -148,6 +154,7 @@ export async function getAdminProducts(
       unavailableReason: p.unavailable_reason,
       suspendedReason: p.suspended_reason,
       suspendedAt: p.suspended_at,
+      suspendedKind: p.suspended_kind,
       reviewCount: p.review_count,
     })),
   };

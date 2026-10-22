@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth";
+import type { SuspensionKind } from "@/lib/constants/taxonomy";
 import { getAdminProducts, getFilterOptions } from "@/lib/data/admin";
 import { formatKrw } from "@/lib/format";
 import {
@@ -27,6 +28,12 @@ import {
 } from "@/lib/validation/admin-filters";
 
 export const metadata: Metadata = { title: "상품" };
+
+const SUSPENSION_KIND_LABEL: Record<SuspensionKind, string> = {
+  info_fix: "정보 수정 필요",
+  unsafe: "운영 불가·위험",
+  partner_suspended: "파트너 이용 정지",
+};
 
 /**
  * 관리자: 상품 목록 (/admin/products?q=&partner=&city=&state=&page=) — 임시 저장 포함, 판매 중지/재개.
@@ -163,6 +170,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                         <ProductStateBadge state={state} />
                         {(p.suspendedReason ?? p.unavailableReason) && (
                           <span className="mt-1 block max-w-56 text-xs text-muted-foreground">
+                            {p.suspendedKind && `${SUSPENSION_KIND_LABEL[p.suspendedKind]} · `}
                             {p.suspendedReason ?? p.unavailableReason}
                           </span>
                         )}

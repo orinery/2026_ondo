@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { resolveReport, setReviewHidden } from "@/actions/admin";
+import { FormField } from "@/components/form/form-field";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -14,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import type { ActionResult } from "@/lib/action-result";
 
 import { failureText } from "./application-actions";
@@ -45,7 +47,7 @@ const COPY: Record<
   },
 };
 
-/** 관리자: 리뷰 신고 처리 버튼 — 대기 중이면 기각·숨김, 숨긴 리뷰면 숨김 해제 */
+/** 관리자: 리뷰 신고 처리 버튼 — 대기 중이면 기각·숨김, 숨긴 리뷰면 숨김 해제. 처리 사유는 필수(감사 로그) */
 export function ReportActions({
   reportId,
   reviewId,
@@ -60,28 +62,51 @@ export function ReportActions({
   if (pending) {
     return (
       <div className="flex gap-2">
-        <ConfirmButton kind="dismiss" run={() => resolveReport(reportId, "dismiss")} />
-        <ConfirmButton kind="hide" run={() => resolveReport(reportId, "hide")} />
+        <ConfirmButton
+          kind="dismiss"
+          id={reportId}
+          run={(note) => resolveReport(reportId, "dismiss", note)}
+        />
+        <ConfirmButton
+          kind="hide"
+          id={reportId}
+          run={(note) => resolveReport(reportId, "hide", note)}
+        />
       </div>
     );
   }
   return hidden ? (
-    <ConfirmButton kind="unhide" run={() => setReviewHidden(reviewId, false)} />
+    <ConfirmButton
+      kind="unhide"
+      id={reviewId}
+      run={(note) => setReviewHidden(reviewId, false, note)}
+    />
   ) : null;
 }
 
-function ConfirmButton({ kind, run }: { kind: Kind; run: () => Promise<ActionResult> }) {
+function ConfirmButton({
+  kind,
+  id,
+  run,
+}: {
+  kind: Kind;
+  id: string;
+  run: (note: string) => Promise<ActionResult>;
+}) {
   const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, startTransition] = useTransition();
   const copy = COPY[kind];
+  const fieldId = `report-${kind}-${id}`;
 
   const confirm = () => {
     setError(null);
     startTransition(async () => {
-      const result = await run();
+      const result = await run(note);
       if (!result.ok) return setError(failureText(result));
       setOpen(false);
+      setNote("");
     });
   };
 
@@ -97,11 +122,22 @@ function ConfirmButton({ kind, run }: { kind: Kind; run: () => Promise<ActionRes
           <AlertDialogTitle>{copy.title}</AlertDialogTitle>
           <AlertDialogDescription>{copy.description}</AlertDialogDescription>
         </AlertDialogHeader>
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <FormField
+          id={fieldId}
+          label="처리 사유 (내부 기록)"
+          error={error ?? undefined}
+          hint={`${note.trim().length}/200자`}
+        >
+          <Textarea
+            id={fieldId}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            maxLength={200}
+            aria-invalid={Boolean(error) || undefined}
+            aria-describedby={error ? `${fieldId}-error` : undefined}
+          />
+        </FormField>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>돌아가기</AlertDialogCancel>
           <Button

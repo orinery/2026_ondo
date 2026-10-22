@@ -60,6 +60,11 @@ const MESSAGES: Record<string, string> = {
   not_adjustable:
     "취소·이용 완료·이용일이 지난 예약만 환불을 조정할 수 있어요. 이용 전 예약은 운영자 취소로 처리해 주세요.",
   invalid_amount: "새 환불액은 지금 환불액보다 크고 결제액 이하여야 해요.",
+  // 판매 중지·파트너 정지·신고 처리 사유 (0027)
+  invalid_suspend_reason: "사유를 1~100자로 입력해 주세요.",
+  invalid_suspend_kind: "중지 종류를 골라 주세요.",
+  invalid_status_reason: "사유를 1~200자로 입력해 주세요.",
+  invalid_note: "처리 사유를 1~200자로 입력해 주세요.",
 };
 
 export const FALLBACK_MESSAGE = "잠시 후 다시 시도해 주세요.";
