@@ -5,6 +5,60 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          actor_role: string;
+          after: Json | null;
+          before: Json | null;
+          created_at: string;
+          entity: string;
+          entity_id: string;
+          id: string;
+          order_id: string | null;
+          reason: string | null;
+          reason_code: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          actor_role: string;
+          after?: Json | null;
+          before?: Json | null;
+          created_at?: string;
+          entity: string;
+          entity_id: string;
+          id?: string;
+          order_id?: string | null;
+          reason?: string | null;
+          reason_code?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          actor_role?: string;
+          after?: Json | null;
+          before?: Json | null;
+          created_at?: string;
+          entity?: string;
+          entity_id?: string;
+          id?: string;
+          order_id?: string | null;
+          reason?: string | null;
+          reason_code?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_profiles_id_fk";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cancellation_policies: {
         Row: {
           code: string;
@@ -1435,6 +1489,20 @@ export type Database = {
           revenue: number;
           settled_at: string;
         }[];
+      };
+      write_audit: {
+        Args: {
+          p_action: string;
+          p_after?: Json;
+          p_before?: Json;
+          p_entity: string;
+          p_entity_id: string;
+          p_order_id: string;
+          p_reason?: string;
+          p_role?: string;
+          p_system?: boolean;
+        };
+        Returns: undefined;
       };
     };
     Enums: {

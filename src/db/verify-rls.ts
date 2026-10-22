@@ -2118,6 +2118,92 @@ async function main() {
         return `${rows.length}일`;
       });
 
+      // ── 감사 로그 (관리자 개선 S1): 트리거가 누가 · 무엇을 했는지 남긴다
+      const auditOf = (entityId: string, action: string) =>
+        tx<{ actor_role: string; actor_id: string | null; reason: string | null }[]>`
+          select actor_role, actor_id, reason from public.audit_logs
+          where entity_id = ${entityId} and action = ${action}`;
+      const [cancelLog] = await auditOf(capItemA.id, "item.cancelled");
+      check(
+        "감사 로그: 고객 취소 → 고객 · 본인 계정 (파트너로 승인된 계정이 산 주문이어도)",
+        cancelLog?.actor_role === "customer" && cancelLog.actor_id === userA,
+        `${cancelLog?.actor_role ?? "없음"}`,
+      );
+      const [instantLog] = await auditOf(capItemA.id, "item.confirmed");
+      check(
+        "감사 로그: 즉시 확정 → 시스템",
+        instantLog?.actor_role === "system",
+        `${instantLog?.actor_role ?? "없음"}`,
+      );
+      const [rejectLog] = await auditOf(toReject.itemId, "item.rejected");
+      check(
+        "감사 로그: 파트너 거절 → 파트너 계정 · 사유",
+        rejectLog?.actor_role === "partner" &&
+          rejectLog.actor_id === userD &&
+          rejectLog.reason === "해당 날짜 선박 점검",
+        `${rejectLog?.actor_role ?? "없음"} · ${rejectLog?.reason ?? ""}`,
+      );
+      const expireLogs = [
+        ...(await auditOf(toExpire.itemId, "item.expired")),
+        ...(await auditOf(lateConfirm.itemId, "item.expired")),
+      ];
+      check(
+        "감사 로그: 기한 초과 만료 → 실행한 사람과 무관하게 시스템",
+        expireLogs.length === 2 &&
+          expireLogs.every((l) => l.actor_role === "system" && l.actor_id === null),
+        expireLogs.map((l) => l.actor_role).join(", "),
+      );
+      const [suspendLog] = await auditOf(fuji.id, "product.suspend");
+      check(
+        "감사 로그: 판매 중지 → 관리자 · 사유",
+        suspendLog?.actor_role === "admin" && suspendLog.reason === "안전 점검 중",
+        `${suspendLog?.actor_role ?? "없음"} · ${suspendLog?.reason ?? ""}`,
+      );
+      await expectOk(tx, "관리자: 감사 로그 읽기", admin, async (sp) => {
+        const rows = await sp`select 1 from public.audit_logs where entity_id = ${capItemA.id}`;
+        if (rows.length < 2) throw new Error(`${rows.length}행`);
+        return `${rows.length}행`;
+      });
+      await expectBlocked(
+        tx,
+        "고객: 본인 주문 감사 로그 읽기",
+        A,
+        async (sp) =>
+          (await sp`select 1 from public.audit_logs where entity_id = ${capItemA.id}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "파트너: 감사 로그 읽기",
+        D,
+        async (sp) =>
+          (await sp`select 1 from public.audit_logs where entity_id = ${toReject.itemId}`).length,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: 감사 로그 직접 쓰기",
+        admin,
+        async (sp) =>
+          (
+            await sp`insert into public.audit_logs (actor_role, entity, entity_id, action)
+                     values ('system', 'order', ${capItemA.id}, 'order.paid')`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "관리자: 감사 로그 고치기",
+        admin,
+        async (sp) =>
+          (await sp`update public.audit_logs set reason = 'x' where entity_id = ${capItemA.id}`)
+            .count,
+      );
+      await expectBlocked(
+        tx,
+        "기록 헬퍼 직접 호출",
+        admin,
+        async (sp) =>
+          (await sp`select public.write_audit('order', ${capItemA.id}, null, 'order.paid')`).count,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })

@@ -27,6 +27,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgPolicy,
@@ -989,5 +990,35 @@ export const reviewReports = pgTable(
       to: authenticatedRole,
       using: isAdmin,
     }),
+  ],
+);
+
+// ─── audit_logs: 누가 · 언제 · 무엇을 바꿨나 (주문 처리 이력, 관리자 조치) ─────────────────
+// 쓰기는 트리거·관리자 함수(write_audit, 0021)만 — 사용자에게 INSERT 권한이 없다.
+// 원본 행이 지워져도 기록은 남도록 entity_id·order_id에는 외래 키를 걸지 않는다.
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorId: uuid("actor_id").references(() => profiles.id, { onDelete: "set null" }),
+    actorRole: text("actor_role").notNull(), // customer · partner · admin · system
+    entity: text("entity").notNull(), // order · order_item · product · partner · settlement · review
+    entityId: uuid("entity_id").notNull(),
+    orderId: uuid("order_id"), // 주문 타임라인용 (주문·항목 기록만)
+    action: text("action").notNull(), // 예: item.cancelled, product.suspend
+    reasonCode: text("reason_code"),
+    reason: text("reason"),
+    before: jsonb("before"),
+    after: jsonb("after"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      "audit_logs_actor_role",
+      sql`${t.actorRole} in ('customer', 'partner', 'admin', 'system')`,
+    ),
+    index("audit_logs_entity_idx").on(t.entity, t.entityId, t.createdAt),
+    index("audit_logs_order_idx").on(t.orderId, t.createdAt),
+    pgPolicy("audit_logs_select_admin", { for: "select", to: authenticatedRole, using: isAdmin }),
   ],
 );
