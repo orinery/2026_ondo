@@ -211,6 +211,13 @@
       "when": 1792655006437,
       "tag": "0029_refund_quote_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793002967849,
+      "tag": "0030_orders_keep_on_user_delete",
+      "breakpoints": true
     }
   ]
 }

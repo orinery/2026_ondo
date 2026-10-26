@@ -2829,6 +2829,56 @@ async function main() {
         return `환불 ${r.refund.toLocaleString()}원`;
       });
 
+      // ── 회원 삭제 시 주문 보존 (P0 A-05): 계정을 지워도 주문·항목·정산 근거·감사 로그는 남는다
+      const userF = randomUUID();
+      await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+               values (${userF}, ${`${userF}@rls.test`}, ${sql.json({ name: "탈퇴 예정" })}, 'authenticated', 'authenticated')`;
+      // 정산 완료된 지난달(E)에 이용 완료한 주문
+      const [leaveOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userF}, '탈퇴', 'f@rls.test', '010-1234-5678', 20000, ${randomUUID()}, now())
+        returning id`;
+      if (!leaveOrder) throw new Error("탈퇴 검증 주문 생성 실패");
+      const [leaveItem] = await tx<{ id: string }[]>`
+        insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+          adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+        values (${leaveOrder.id}, ${fuji.id}, '탈퇴 검증', ${months.last}::date + 10, 1, 0,
+          20000, 20000, 'standard', ${fujiSlot.id}, ${partnerE.id}, 15, 'used')
+        returning id`;
+      if (!leaveItem) throw new Error("탈퇴 검증 항목 생성 실패");
+      await tx`delete from auth.users where id = ${userF}`;
+      const [kept] = await tx<
+        { user_id: string | null; items: number; profile: number; logs: number }[]
+      >`
+        select o.user_id,
+               (select count(*)::int from public.order_items oi where oi.order_id = o.id) as items,
+               (select count(*)::int from public.profiles p where p.id = ${userF}) as profile,
+               (select count(*)::int from public.audit_logs a where a.order_id = o.id) as logs
+        from public.orders o where o.id = ${leaveOrder.id}`;
+      check(
+        "회원 삭제: 프로필은 지워지고 주문·항목·감사 로그는 남음 (주문 소유자 null)",
+        kept?.user_id === null && kept.items === 1 && kept.profile === 0 && kept.logs >= 2,
+        `소유자 ${kept?.user_id ?? "null"} · 항목 ${kept?.items} · 프로필 ${kept?.profile} · 기록 ${kept?.logs}`,
+      );
+      await expectOk(tx, "회원 삭제 뒤: 파트너 E 정산 항목에 그 예약이 남음", E, async (sp) => {
+        const rows = await sp`
+          select 1 from public.settlement_items(null, ${months.last}::date, ${months.last}::date)
+          where item_id = ${leaveItem.id}`;
+        if (rows.length !== 1) throw new Error(`${rows.length}행`);
+        return "1행";
+      });
+      await expectOk(tx, "회원 삭제 뒤: 관리자는 주문을 볼 수 있음", admin, async (sp) => {
+        const rows = await sp`select 1 from public.orders where id = ${leaveOrder.id}`;
+        if (rows.length !== 1) throw new Error(`${rows.length}행`);
+        return "1행";
+      });
+      await expectBlocked(
+        tx,
+        "회원 삭제 뒤: 다른 고객은 소유자 없는 주문을 볼 수 없음",
+        A,
+        async (sp) => (await sp`select 1 from public.orders where id = ${leaveOrder.id}`).length,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })

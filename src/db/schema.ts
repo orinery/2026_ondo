@@ -112,7 +112,8 @@ const partnerWrite = (name: string, productCheck: ReturnType<typeof sql>) => [
 export const profiles = pgTable(
   "profiles",
   {
-    // auth.users 행이 지워지면(회원 탈퇴) 프로필과 그에 딸린 모든 개인 데이터가 연쇄 삭제된다
+    // auth.users 행이 지워지면(회원 탈퇴) 프로필과 그에 딸린 개인 데이터가 연쇄 삭제된다.
+    // 단 주문은 남긴다 (orders.user_id → set null): 거래 기록 보존 의무·파트너 정산 근거 (A-05)
     id: uuid("id")
       .primaryKey()
       .references(() => authUsers.id, { onDelete: "cascade" }),
@@ -574,9 +575,8 @@ export const orders = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     orderNo: text("order_no").notNull().unique(), // 화면·URL용 번호: YO261015-000123
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
+    // 회원이 지워지면 null — 주문·항목·환불·정산 근거는 그대로 남고 관리자만 본다 (A-05)
+    userId: uuid("user_id").references(() => profiles.id, { onDelete: "set null" }),
     status: orderStatusEnum("status").notNull().default("paid"),
     bookerName: text("booker_name").notNull(),
     bookerEmail: text("booker_email").notNull(),

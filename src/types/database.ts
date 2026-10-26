@@ -510,7 +510,7 @@ export type Database = {
           refund_amount: number | null;
           status: Database["public"]["Enums"]["order_status"];
           total_amount: number;
-          user_id: string;
+          user_id: string | null;
         };
         ComputedFields: never;
         Insert: {
@@ -528,7 +528,7 @@ export type Database = {
           refund_amount?: number | null;
           status?: Database["public"]["Enums"]["order_status"];
           total_amount: number;
-          user_id: string;
+          user_id?: string | null;
         };
         Update: {
           booker_email?: string;
@@ -545,7 +545,7 @@ export type Database = {
           refund_amount?: number | null;
           status?: Database["public"]["Enums"]["order_status"];
           total_amount?: number;
-          user_id?: string;
+          user_id?: string | null;
         };
         Relationships: [
           {
