@@ -14,8 +14,9 @@
   - `0025` — 관리자 주문 목록 `admin_orders`: 검색·상태(부분 취소 포함)·파트너·결제일 필터 + 페이지 (화면·CSV 공용)
   - `0026`~`0027` — 판매 중지 종류(`suspended_kind`: 정보 수정 필요 · 운영 불가·위험 · 파트너 이용 정지), 파트너 정지 시 상품 일괄 중지·해제, 관리자 조치 사유 필수, 영향 미리보기
   - `0028`~`0029` — 취소 규정 스냅숏: `order_items.cancel_tiers`(주문할 때 트리거가 구간 복사, 기존 주문 백필), `refund_quote`가 저장된 구간으로 계산
+  - `0030` — 회원을 지워도 주문은 남긴다: `orders.user_id` → `ON DELETE SET NULL`
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 275개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 279개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -35,7 +36,7 @@ erDiagram
   products ||--o{ product_options : "추가 옵션"
   profiles ||--o{ cart_items : owns
   product_slots ||--o{ cart_items : ""
-  profiles ||--o{ orders : owns
+  profiles |o--o{ orders : "owns (회원 삭제 시 null, 주문은 보존)"
   orders ||--|{ order_items : contains
   product_slots ||--o{ order_items : "구매 회차"
   partners ||--o{ order_items : "정산 대상 (스냅숏)"
@@ -230,6 +231,20 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | 감사 로그는 **트리거**로 남긴다                                                         | 함수마다 기록 코드를 넣으면 빠뜨리기 쉽다. 상태 열이 바뀌면 경로와 관계없이 남고, 사유는 관리자 함수가 트랜잭션 로컬 설정(`ondo.audit_reason`)으로 넘긴다. 기한 초과 만료는 화면을 연 사람과 무관하게 system                                                                                   |
 | 앱의 데이터 접근은 supabase-js, Drizzle은 스키마·마이그레이션·시드 전용                 | Drizzle은 postgres 권한으로 접속해 RLS를 우회한다. 사용자 요청은 항상 사용자 JWT로 실행돼야 RLS가 마지막 방어선이 된다                                                                                                                                                                         |
 
+## 데이터 보존 · 회원 삭제
+
+회원 계정(`auth.users`)을 지우면 프로필과 개인 데이터(장바구니·찜·여행·리뷰·신고·파트너 신청)는 연쇄 삭제되지만, **주문은 남는다**(`orders.user_id`만 null, A-05).
+
+| 남기는 것                                          | 이유                          | 보존 기간 (전자상거래법 시행령 제6조 기준, 예시) |
+| -------------------------------------------------- | ----------------------------- | ------------------------------------------------ |
+| 주문 · 주문 항목 · 옵션 · 환불 금액                | 계약·청약철회, 대금 결제 기록 | 5년                                              |
+| 운영자 취소 사유 · 환불 조정 · CS 메모 · 감사 로그 | 소비자 불만·분쟁 처리 기록    | 3년 (주문과 함께 보관)                           |
+| 정산 스냅숏 · 조정 전표                            | 파트너 지급 근거              | 5년                                              |
+
+- 소유자가 없는 주문은 RLS상 관리자만 본다(고객 정책은 `user_id = auth.uid()`라 null과 같아지지 않는다).
+- 주문의 예약자 이름·연락처·이메일(`booker_*`)은 보존 기간이 지나면 파기(익명화)해야 한다 — 탈퇴 화면과 파기 배치는 아직 없다 (포트폴리오 범위 밖).
+- 회원이 쓴 리뷰는 함께 지워져 상품 평점이 다시 계산된다(트리거).
+
 ## 권한 요약 (역할 × 테이블)
 
 | 대상                                                       | anon             | 고객                                     | 파트너                             | 관리자                                      |
@@ -237,7 +252,7 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | 공개 상품 · 사진 · 일정 · 회차 · 옵션 · 재고 · 도시 · 규정 | 읽기             | 읽기                                     | 읽기 + 본인 상품 쓰기(내용 컬럼만) | 전체 읽기(임시 저장 포함), 판매 중지는 함수 |
 | profiles                                                   | 표시 정보만      | 표시 정보 읽기, 본인 수정 (역할 불가)    | 같음                               | 같음 (역할 변경은 승인 함수)                |
 | cart_items                                                 | —                | 본인 것만 (가격 컬럼 없음)               | 같음                               | 같음                                        |
-| orders                                                     | —                | 본인 것 읽기만                           | — (연락처는 `partner_bookings`)    | 전체 읽기                                   |
+| orders                                                     | —                | 본인 것 읽기만                           | — (연락처는 `partner_bookings`)    | 전체 읽기 (소유자가 지워진 주문 포함)       |
 | order_items · order_item_options                           | —                | 본인 것 읽기만                           | 본인 상품 항목 읽기, 처리는 함수   | 전체 읽기                                   |
 | partner_applications                                       | —                | 본인 신청·읽기                           | 본인                               | 전체 + 승인·거절 함수                       |
 | partners · settlements                                     | —                | —                                        | 본인                               | 전체 + 상태·정산 함수                       |
