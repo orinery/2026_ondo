@@ -70,6 +70,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     ...values,
     password: str(formData, "password"),
     terms: str(formData, "terms"),
+    privacy: str(formData, "privacy"),
   });
   if (!parsed.success) {
     return { status: "error", fieldErrors: toFieldErrors(parsed.error), values };
@@ -82,7 +83,8 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
     password: parsed.data.password,
     options: {
       // user_metadata → DB 트리거(handle_new_user)가 profiles.display_name, terms_agreed_at에 반영
-      data: { name: parsed.data.name, terms_agreed: true },
+      // (두 동의 모두 필수라 terms_agreed_at = 둘 다 동의한 시각. privacy_agreed는 메타데이터에 함께 남긴다)
+      data: { name: parsed.data.name, terms_agreed: true, privacy_agreed: true },
       // 인증 메일의 링크를 누르면 이 주소로 돌아와 세션을 만든다 (Supabase Redirect URLs에 등록 필요)
       emailRedirectTo: `${publicEnv.NEXT_PUBLIC_SITE_URL}/auth/callback?next=${encodeURIComponent(next)}`,
     },

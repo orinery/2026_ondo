@@ -28,14 +28,15 @@ export const signupSchema = z.object({
     .max(72, "비밀번호는 72자 이하로 입력해 주세요") // bcrypt 입력 한계
     .regex(/[A-Za-z]/, "영문을 한 글자 이상 포함해 주세요")
     .regex(/[0-9]/, "숫자를 한 글자 이상 포함해 주세요"),
-  // 체크박스는 체크 시 "on", 미체크 시 값이 없다
-  terms: z.literal("on", { error: "이용약관과 개인정보 처리방침에 동의해 주세요" }),
+  // 체크박스는 체크 시 "on", 미체크 시 값이 없다. 약관과 개인정보 수집·이용은 따로 받는다 (A-04)
+  terms: z.literal("on", { error: "이용약관에 동의해 주세요" }),
+  privacy: z.literal("on", { error: "개인정보 수집·이용에 동의해 주세요" }),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 
-export type AuthField = "name" | "email" | "password" | "terms";
+export type AuthField = "name" | "email" | "password" | "terms" | "privacy";
 
 /** useActionState로 폼에 돌려주는 상태 */
 export type AuthFormState = {

@@ -19,6 +19,7 @@ export function SignupForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState(signUp, INITIAL);
   const { errors, register, validate } = useFieldValidation(signupSchema, state);
   const termsId = useId();
+  const privacyId = useId();
 
   // 가입 성공 + 이메일 인증이 필요한 경우 → 안내 화면 (empty/완료 상태)
   if (state.status === "check-email") {
@@ -70,28 +71,33 @@ export function SignupForm({ next }: { next: string }) {
           {...register("password")}
         />
 
-        <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-2.5">
-            <Checkbox
-              id={termsId}
-              name="terms"
-              aria-invalid={Boolean(errors.terms) || undefined}
-              aria-describedby={errors.terms ? `${termsId}-error` : undefined}
-              // 체크하면 에러를 바로 지운다
-              onCheckedChange={(checked) => validate("terms", checked === true ? "on" : "")}
-              className="mt-0.5 size-5"
-            />
-            <label htmlFor={termsId} className="text-sm leading-6">
-              <span className="font-semibold">(필수)</span> 이용약관과 개인정보 처리방침에
-              동의합니다
-            </label>
-          </div>
-          {errors.terms && (
-            <p id={`${termsId}-error`} role="alert" className="text-sm text-destructive">
-              {errors.terms}
-            </p>
-          )}
-        </div>
+        <fieldset className="flex flex-col gap-2">
+          <legend className="sr-only">약관 동의</legend>
+          <ConsentCheckbox
+            id={termsId}
+            name="terms"
+            error={errors.terms}
+            onChecked={(on) => validate("terms", on ? "on" : "")}
+          >
+            <span className="font-semibold">(필수)</span>{" "}
+            <Link href="/terms" target="_blank" className="underline underline-offset-2">
+              이용약관
+            </Link>
+            에 동의합니다
+          </ConsentCheckbox>
+          <ConsentCheckbox
+            id={privacyId}
+            name="privacy"
+            error={errors.privacy}
+            onChecked={(on) => validate("privacy", on ? "on" : "")}
+          >
+            <span className="font-semibold">(필수)</span>{" "}
+            <Link href="/privacy" target="_blank" className="underline underline-offset-2">
+              개인정보 수집·이용
+            </Link>
+            에 동의합니다 (이름·이메일, 회원 관리 목적, 탈퇴 시까지)
+          </ConsentCheckbox>
+        </fieldset>
 
         {state.status === "error" && state.message && (
           <p role="alert" className="text-sm text-destructive">
@@ -111,6 +117,44 @@ export function SignupForm({ next }: { next: string }) {
           로그인
         </Link>
       </p>
+    </div>
+  );
+}
+
+/** 필수 동의 체크박스 한 줄 — 체크하면 에러를 바로 지운다 */
+function ConsentCheckbox({
+  id,
+  name,
+  error,
+  onChecked,
+  children,
+}: {
+  id: string;
+  name: string;
+  error?: string;
+  onChecked: (on: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-start gap-2.5">
+        <Checkbox
+          id={id}
+          name={name}
+          aria-invalid={Boolean(error) || undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
+          onCheckedChange={(checked) => onChecked(checked === true)}
+          className="mt-0.5 size-5"
+        />
+        <label htmlFor={id} className="text-sm leading-6">
+          {children}
+        </label>
+      </div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
