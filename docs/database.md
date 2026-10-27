@@ -16,8 +16,9 @@
   - `0028`~`0029` — 취소 규정 스냅숏: `order_items.cancel_tiers`(주문할 때 트리거가 구간 복사, 기존 주문 백필), `refund_quote`가 저장된 구간으로 계산
   - `0030` — 회원을 지워도 주문은 남긴다: `orders.user_id` → `ON DELETE SET NULL`
   - `0031` — 파트너 예약자 연락처 가리기: `partner_bookings`가 살아 있는 예약 + 이용일 7일 뒤까지만 원문, 그 밖은 가린 값(`mask_name`·`mask_phone`·`mask_email`), 조회는 90일 전 이용분부터
+  - `0032`~`0033` — 예약 정보 파트너 제공 동의: `orders.pii_share_agreed_at`, `place_order`에 동의 인자 추가(기존 함수는 `place_order_core`로 내부 전용)
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 283개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 286개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -109,6 +110,7 @@ erDiagram
     int total_amount "DB가 계산"
     int refund_amount "항목 환불 합계"
     uuid idempotency_key "사용자별 unique"
+    timestamptz pii_share_agreed_at "파트너 제공 동의"
   }
   order_items {
     uuid id PK
@@ -186,28 +188,28 @@ sequenceDiagram
   P->>DB: rpc mark_used (이용일 당일부터, 바우처 코드)
 ```
 
-| 함수                                                                                                            | 실행 권한                 | 하는 일                                                                                                                 |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `is_admin()` · `my_partner_id()` · `my_profile()`                                                               | definer                   | 역할 판단 (정책·함수에서 사용), 본인 계정 정보                                                                          |
-| `booking_error(상품, 날짜, 회차, 성인, 아동, 옵션)`                                                             | invoker                   | 예약할 수 없으면 이유 코드(`cutoff`·`slot_closed`·`sold_out`…), 가능하면 null                                           |
-| `line_price(…)`                                                                                                 | invoker                   | 날짜별 덮어쓴 가격 + 옵션 금액 — 장바구니 화면과 결제가 같은 공식                                                       |
-| `place_order(…)`                                                                                                | definer                   | 금액 재계산·중복 결제 방지·장바구니 잠금·**좌석 확보**·플래너 연결을 한 트랜잭션으로                                    |
-| `release_item(항목, 상태, 환불액, 사유)`                                                                        | 내부 전용                 | 취소·거절·만료 공통: 좌석 반환·예약 일정 삭제·주문 환불 합계(모든 항목 환불액 합)·전체 취소 판정, 거절·운영자 취소 사유 |
-| `cancel_order_item` · `cancel_order` · `refund_quote`                                                           | definer / definer / inv.  | 항목·주문 취소, 환불 예정액(확인 창과 실제 취소가 같은 계산)                                                            |
-| `approve_/reject_partner_application` · `admin_set_partner_status(파트너, 상태, 사유)` · `admin_partner_impact` | definer + `is_admin()`    | 파트너 신청 처리, 이용 정지(그 파트너 상품 일괄 중지 → 해제 시 그것만 재개)                                             |
-| `save_product(…)`                                                                                               | invoker (RLS·GRANT 적용)  | 상품·사진·진행 일정·회차·옵션을 한 트랜잭션으로 저장                                                                    |
-| `set_inventory_range(…)`                                                                                        | invoker                   | 기간 × 요일 정원·마감·가격 덮어쓰기 (예약보다 적은 정원은 트리거가 거부)                                                |
-| `partner_bookings` · `confirm_item` · `reject_item` · `mark_used`                                               | definer + `my_partner_id` | 파트너 예약 목록(연락처는 이용일 7일 뒤·취소 시 가림, 운영자 취소 사유), 확정·거절, 바우처 사용 처리                    |
-| `expire_pending_items()`                                                                                        | definer                   | 기한 지난 확정 대기 자동 취소 (pg_cron 10분 + 화면을 열 때)                                                             |
-| `settlement_items` · `settlement_summary`                                                                       | definer + 범위 확인       | 정산 대상 항목·월 합계 (파트너는 자기 것만, 관리자는 전체)                                                              |
-| `admin_settle_month`                                                                                            | definer + `is_admin()`    | 끝난 달 정산 완료 → `settlements`에 숫자 고정                                                                           |
-| `resolve_review_report` · `admin_set_review_hidden`                                                             | definer + `is_admin()`    | 신고 기각·숨김, 숨김 해제 (처리 사유 필수 → 감사 로그)                                                                  |
-| `admin_set_product_suspension(상품, 중지?, 종류, 사유)` · `admin_product_impact`                                | definer + `is_admin()`    | 판매 중지·재개(사유 필수) — 운영 불가면 이용 전 예약 전액 환불 취소, 영향 미리보기                                      |
-| `admin_cancel_item` · `admin_adjust_refund`                                                                     | definer + `is_admin()`    | 운영자 취소(귀책 코드별 환불), 환불 조정(늘리기만 · 정산 완료 달이면 조정 전표)                                         |
-| `admin_orders(검색, 상태, 파트너, 기간, limit, offset)`                                                         | definer + `is_admin()`    | 주문 목록 — 화면과 같은 상태 규칙, 항목 상태별 수, 판매 파트너, 전체 건수 (최대 5,000)                                  |
-| `admin_kpis` · `admin_daily_stats` · `admin_breakdown`                                                          | definer + `is_admin()`    | 대시보드 지표·일별 결제·도시/종류별 매출                                                                                |
-| `write_audit(…)` + `audit_*` 트리거                                                                             | 내부 전용                 | 상태가 바뀔 때 행위자(`auth.uid()`의 역할, 없으면 system)·사유·이전/변경 값을 기록                                      |
-| `has_used_product` · `attach_bookings` · `reorder_trip_items`                                                   | invoker / definer / inv.  | 리뷰 자격(항목 상태 기준), 플래너 예약 붙이기, 일정 순서 저장                                                           |
+| 함수                                                                                                            | 실행 권한                  | 하는 일                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `is_admin()` · `my_partner_id()` · `my_profile()`                                                               | definer                    | 역할 판단 (정책·함수에서 사용), 본인 계정 정보                                                                          |
+| `booking_error(상품, 날짜, 회차, 성인, 아동, 옵션)`                                                             | invoker                    | 예약할 수 없으면 이유 코드(`cutoff`·`slot_closed`·`sold_out`…), 가능하면 null                                           |
+| `line_price(…)`                                                                                                 | invoker                    | 날짜별 덮어쓴 가격 + 옵션 금액 — 장바구니 화면과 결제가 같은 공식                                                       |
+| `place_order(…)` → `place_order_core`                                                                           | definer (core는 내부 전용) | 파트너 제공 동의 확인 후, 금액 재계산·중복 결제 방지·장바구니 잠금·**좌석 확보**·플래너 연결을 한 트랜잭션으로          |
+| `release_item(항목, 상태, 환불액, 사유)`                                                                        | 내부 전용                  | 취소·거절·만료 공통: 좌석 반환·예약 일정 삭제·주문 환불 합계(모든 항목 환불액 합)·전체 취소 판정, 거절·운영자 취소 사유 |
+| `cancel_order_item` · `cancel_order` · `refund_quote`                                                           | definer / definer / inv.   | 항목·주문 취소, 환불 예정액(확인 창과 실제 취소가 같은 계산)                                                            |
+| `approve_/reject_partner_application` · `admin_set_partner_status(파트너, 상태, 사유)` · `admin_partner_impact` | definer + `is_admin()`     | 파트너 신청 처리, 이용 정지(그 파트너 상품 일괄 중지 → 해제 시 그것만 재개)                                             |
+| `save_product(…)`                                                                                               | invoker (RLS·GRANT 적용)   | 상품·사진·진행 일정·회차·옵션을 한 트랜잭션으로 저장                                                                    |
+| `set_inventory_range(…)`                                                                                        | invoker                    | 기간 × 요일 정원·마감·가격 덮어쓰기 (예약보다 적은 정원은 트리거가 거부)                                                |
+| `partner_bookings` · `confirm_item` · `reject_item` · `mark_used`                                               | definer + `my_partner_id`  | 파트너 예약 목록(연락처는 이용일 7일 뒤·취소 시 가림, 운영자 취소 사유), 확정·거절, 바우처 사용 처리                    |
+| `expire_pending_items()`                                                                                        | definer                    | 기한 지난 확정 대기 자동 취소 (pg_cron 10분 + 화면을 열 때)                                                             |
+| `settlement_items` · `settlement_summary`                                                                       | definer + 범위 확인        | 정산 대상 항목·월 합계 (파트너는 자기 것만, 관리자는 전체)                                                              |
+| `admin_settle_month`                                                                                            | definer + `is_admin()`     | 끝난 달 정산 완료 → `settlements`에 숫자 고정                                                                           |
+| `resolve_review_report` · `admin_set_review_hidden`                                                             | definer + `is_admin()`     | 신고 기각·숨김, 숨김 해제 (처리 사유 필수 → 감사 로그)                                                                  |
+| `admin_set_product_suspension(상품, 중지?, 종류, 사유)` · `admin_product_impact`                                | definer + `is_admin()`     | 판매 중지·재개(사유 필수) — 운영 불가면 이용 전 예약 전액 환불 취소, 영향 미리보기                                      |
+| `admin_cancel_item` · `admin_adjust_refund`                                                                     | definer + `is_admin()`     | 운영자 취소(귀책 코드별 환불), 환불 조정(늘리기만 · 정산 완료 달이면 조정 전표)                                         |
+| `admin_orders(검색, 상태, 파트너, 기간, limit, offset)`                                                         | definer + `is_admin()`     | 주문 목록 — 화면과 같은 상태 규칙, 항목 상태별 수, 판매 파트너, 전체 건수 (최대 5,000)                                  |
+| `admin_kpis` · `admin_daily_stats` · `admin_breakdown`                                                          | definer + `is_admin()`     | 대시보드 지표·일별 결제·도시/종류별 매출                                                                                |
+| `write_audit(…)` + `audit_*` 트리거                                                                             | 내부 전용                  | 상태가 바뀔 때 행위자(`auth.uid()`의 역할, 없으면 system)·사유·이전/변경 값을 기록                                      |
+| `has_used_product` · `attach_bookings` · `reorder_trip_items`                                                   | invoker / definer / inv.   | 리뷰 자격(항목 상태 기준), 플래너 예약 붙이기, 일정 순서 저장                                                           |
 
 security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이름만 쓴다. 고객 함수는 `auth.uid()`, 파트너 함수는 `my_partner_id()`, 관리자 함수는 `is_admin()`으로 첫 줄에서 확인하고, 남의 데이터 id에는 "없음(`not_found`)"과 같은 오류를 돌려줘 존재 여부를 알 수 없게 한다.
 
