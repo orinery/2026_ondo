@@ -218,6 +218,13 @@
       "when": 1793002967849,
       "tag": "0030_orders_keep_on_user_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793085229057,
+      "tag": "0031_partner_contact_masking",
+      "breakpoints": true
     }
   ]
 }

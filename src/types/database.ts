@@ -1567,6 +1567,9 @@ export type Database = {
           use_date: string;
         }[];
       };
+      mask_email: { Args: { p_email: string }; Returns: string };
+      mask_name: { Args: { p_name: string }; Returns: string };
+      mask_phone: { Args: { p_phone: string }; Returns: string };
       my_partner_id: { Args: Record<PropertyKey, never>; Returns: string };
       my_profile: {
         Args: Record<PropertyKey, never>;
@@ -1586,8 +1589,10 @@ export type Database = {
           booker_email: string;
           booker_name: string;
           booker_phone: string;
+          cancel_reason: string;
           child_qty: number;
           confirm_deadline: string;
+          contact_masked: boolean;
           item_id: string;
           options: string;
           order_no: string;

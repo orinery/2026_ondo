@@ -2879,6 +2879,82 @@ async function main() {
         async (sp) => (await sp`select 1 from public.orders where id = ${leaveOrder.id}`).length,
       );
 
+      // ── 파트너 연락처 가리기 (P0 A-06): 원문은 살아 있는 예약 + 이용일 7일 뒤까지만
+      const [maskOrder] = await tx<{ id: string }[]>`
+        insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+        values (${`TEST-${randomUUID()}`}, ${userA}, '김여운', 'yeoun@rls.test', '010-1234-5678', 40000, ${randomUUID()}, now())
+        returning id`;
+      if (!maskOrder) throw new Error("가리기 검증 주문 생성 실패");
+      // 회차는 위 재고 검증에서 찾은 스노클링 회차(snorkelSlot)를 쓴다
+      const maskItem = async (offset: number, status: string) => {
+        const [row] = await tx<{ id: string }[]>`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+          values (${maskOrder.id}, ${snorkel.id}, '가리기 검증', public.seoul_today() + ${offset}::int, 1, 0,
+            10000, 10000, 'standard', ${snorkelSlot.id}, ${snorkel.partner_id}, 15, ${status}::public.order_item_status)
+          returning id`;
+        if (!row) throw new Error("가리기 검증 항목 생성 실패");
+        return row.id;
+      };
+      const maskCases = {
+        upcoming: await maskItem(5, "confirmed"), // 원문
+        recentUsed: await maskItem(-3, "used"), // 이용 3일 뒤 → 원문
+        oldUsed: await maskItem(-10, "used"), // 이용 10일 뒤 → 가림
+        cancelled: await maskItem(6, "cancelled"), // 취소 → 바로 가림
+      };
+      const [maskFrom] = await tx<{ from: string; to: string; tooEarly: string }[]>`
+        select (public.seoul_today() - 90)::text as from, (public.seoul_today() + 30)::text as to,
+               (public.seoul_today() - 91)::text as "tooEarly"`;
+      if (!maskFrom) throw new Error("날짜 계산 실패");
+      const maskRows = await as(
+        tx,
+        D,
+        (sp) => sp<
+          {
+            item_id: string;
+            booker_name: string;
+            booker_phone: string;
+            booker_email: string;
+            contact_masked: boolean;
+          }[]
+        >`select item_id, booker_name, booker_phone, booker_email, contact_masked
+          from public.partner_bookings(${maskFrom.from}::date, ${maskFrom.to}::date)`,
+      );
+      const maskBy = new Map(maskRows.map((r) => [r.item_id, r]));
+      const raw = (id: string) =>
+        maskBy.get(id)?.booker_name === "김여운" &&
+        maskBy.get(id)?.booker_phone === "010-1234-5678" &&
+        maskBy.get(id)?.contact_masked === false;
+      const masked = (id: string) =>
+        maskBy.get(id)?.booker_name === "김*운" &&
+        maskBy.get(id)?.booker_phone === "010-****-5678" &&
+        maskBy.get(id)?.booker_email === "y***@rls.test" &&
+        maskBy.get(id)?.contact_masked === true;
+      check(
+        "연락처: 이용 예정 · 이용 3일 뒤는 원문",
+        raw(maskCases.upcoming) && raw(maskCases.recentUsed),
+        `${maskBy.get(maskCases.upcoming)?.booker_phone} · ${maskBy.get(maskCases.recentUsed)?.booker_phone}`,
+      );
+      check(
+        "연락처: 이용 10일 뒤 · 취소 예약은 가림 (김*운 · 010-****-5678 · y***@)",
+        masked(maskCases.oldUsed) && masked(maskCases.cancelled),
+        `${maskBy.get(maskCases.oldUsed)?.booker_name} · ${maskBy.get(maskCases.cancelled)?.booker_email}`,
+      );
+      await expectError(
+        tx,
+        "파트너: 90일보다 이전 이용분 조회",
+        D,
+        "invalid_range",
+        (sp) =>
+          sp`select * from public.partner_bookings(${maskFrom.tooEarly}::date, ${maskFrom.to}::date)`,
+      );
+      await expectBlocked(
+        tx,
+        "가리기 헬퍼 직접 호출",
+        D,
+        async (sp) => (await sp`select public.mask_phone('010-1234-5678')`).count,
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })
