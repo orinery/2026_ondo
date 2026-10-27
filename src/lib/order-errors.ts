@@ -21,6 +21,7 @@ const MESSAGES: Record<string, string> = {
   cart_changed: "장바구니가 바뀌었어요. 장바구니를 다시 확인해 주세요.",
   price_changed: "그 사이 가격이 바뀌었어요. 바뀐 금액을 확인한 뒤 다시 결제해 주세요.",
   policy_not_agreed: "취소 규정에 동의해 주세요.",
+  pii_share_not_agreed: "예약 정보(이름·연락처·이메일)를 파트너에게 제공하는 데 동의해 주세요.",
   // 취소 (cancel_order)
   not_found: "주문을 찾을 수 없어요.",
   already_cancelled: "이미 취소된 주문이에요.",

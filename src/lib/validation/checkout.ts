@@ -40,6 +40,8 @@ export const checkoutSchema = bookerSchema.extend({
   cartItemIds: z.array(z.uuid()).min(1, "주문할 상품이 없어요").max(20),
   // 체크박스는 체크하면 "on"이 온다
   policyAgreed: z.literal("on", { error: "취소 규정에 동의해 주세요" }),
+  // 예약 정보 파트너 제공 동의는 취소 규정과 따로 받는다 (A-04)
+  piiShareAgreed: z.literal("on", { error: "예약 정보 제공에 동의해 주세요" }),
   expectedTotal: z.coerce.number().int().positive(),
   idempotencyKey: z.uuid(),
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCardIcon, LockIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatKrw } from "@/lib/format";
+import { PII_SHARE } from "@/lib/legal";
 
 type CheckoutFormProps = {
   cartItemIds: string[];
@@ -45,6 +47,7 @@ export function CheckoutForm({
   const [email, setEmail] = useState(defaults.email);
   const [phone, setPhone] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [shareAgreed, setShareAgreed] = useState(false);
 
   return (
     <form action={formAction} noValidate className="grid grid-cols-1 gap-10 lg:grid-cols-12">
@@ -160,6 +163,46 @@ export function CheckoutForm({
             {fe.policyAgreed && (
               <p id="policyAgreed-error" className="pl-6.5 text-sm text-destructive">
                 {fe.policyAgreed}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-start gap-2.5 text-sm">
+              <Checkbox
+                name="piiShareAgreed"
+                checked={shareAgreed}
+                onCheckedChange={(on) => setShareAgreed(on === true)}
+                className="mt-0.5"
+                aria-invalid={Boolean(fe.piiShareAgreed) || undefined}
+                aria-describedby={
+                  fe.piiShareAgreed ? "piiShareAgreed-error piiShare-detail" : "piiShare-detail"
+                }
+              />
+              <span>
+                예약 정보를 <span className="font-semibold">상품 파트너에게 제공</span>하는 데
+                동의해요 (필수)
+              </span>
+            </label>
+            <details id="piiShare-detail" className="pl-6.5 text-xs text-muted-foreground">
+              <summary className="cursor-pointer">제공 내용 보기</summary>
+              <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                <dt className="font-medium">받는 곳</dt>
+                <dd>{PII_SHARE.recipient}</dd>
+                <dt className="font-medium">항목</dt>
+                <dd>{PII_SHARE.items}</dd>
+                <dt className="font-medium">목적</dt>
+                <dd>{PII_SHARE.purpose}</dd>
+                <dt className="font-medium">기간</dt>
+                <dd>{PII_SHARE.period}</dd>
+              </dl>
+              <Link href="/privacy#share" target="_blank" className="mt-1 inline-block underline">
+                개인정보 처리방침
+              </Link>
+            </details>
+            {fe.piiShareAgreed && (
+              <p id="piiShareAgreed-error" className="pl-6.5 text-sm text-destructive">
+                {fe.piiShareAgreed}
               </p>
             )}
           </div>

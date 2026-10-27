@@ -23,7 +23,7 @@ export type CheckoutState = {
   // price_changed·cart_changed: 화면을 새로 불러와야 해결되는 오류 → "다시 불러오기" 버튼을 보여준다
   needsRefresh?: boolean;
   fieldErrors?: Partial<
-    Record<"bookerName" | "bookerEmail" | "bookerPhone" | "policyAgreed", string>
+    Record<"bookerName" | "bookerEmail" | "bookerPhone" | "policyAgreed" | "piiShareAgreed", string>
   >;
 };
 
@@ -35,6 +35,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     bookerEmail: formData.get("bookerEmail"),
     bookerPhone: formData.get("bookerPhone"),
     policyAgreed: formData.get("policyAgreed"),
+    piiShareAgreed: formData.get("piiShareAgreed"),
     cartItemIds: formData.getAll("cartItemId"),
     expectedTotal: formData.get("expectedTotal"),
     idempotencyKey: formData.get("idempotencyKey"),
@@ -47,7 +48,8 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
         (key === "bookerName" ||
           key === "bookerEmail" ||
           key === "bookerPhone" ||
-          key === "policyAgreed") &&
+          key === "policyAgreed" ||
+          key === "piiShareAgreed") &&
         !fieldErrors[key]
       ) {
         fieldErrors[key] = issue.message;
@@ -64,6 +66,7 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     p_booker_email: input.bookerEmail,
     p_booker_phone: input.bookerPhone,
     p_policy_agreed: true,
+    p_pii_share_agreed: true,
     p_expected_total: input.expectedTotal,
     p_idempotency_key: input.idempotencyKey,
   });
@@ -73,7 +76,8 @@ export async function placeOrder(_prev: CheckoutState, formData: FormData): Prom
     return {
       error: errorMessage(code),
       // 동의 누락 외의 코드(가격 변경·장바구니 변경·예약 조건)는 화면을 새로 불러와야 해결된다
-      needsRefresh: code !== null && code !== "policy_not_agreed",
+      needsRefresh:
+        code !== null && code !== "policy_not_agreed" && code !== "pii_share_not_agreed",
     };
   }
 
