@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "pii_share_agreed_at" timestamp with time zone;

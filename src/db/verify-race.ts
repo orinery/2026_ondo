@@ -81,7 +81,7 @@ async function main() {
           await tx.unsafe("set local role authenticated");
           const [row] = await tx<{ order_no: string }[]>`
             select public.place_order(${[cartId]}::uuid[], '동시결제', 'race@race.test', '010-1234-5678',
-              true, ${product.adult_price}, ${randomUUID()}::uuid) as order_no`;
+              true, true, ${product.adult_price}, ${randomUUID()}::uuid) as order_no`;
           return row?.order_no ?? "";
         }),
       ),

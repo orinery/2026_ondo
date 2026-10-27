@@ -506,6 +506,7 @@ export type Database = {
           order_no: string;
           paid_at: string;
           payment_method: string;
+          pii_share_agreed_at: string | null;
           policy_agreed_at: string;
           refund_amount: number | null;
           status: Database["public"]["Enums"]["order_status"];
@@ -524,6 +525,7 @@ export type Database = {
           order_no: string;
           paid_at?: string;
           payment_method?: string;
+          pii_share_agreed_at?: string | null;
           policy_agreed_at: string;
           refund_amount?: number | null;
           status?: Database["public"]["Enums"]["order_status"];
@@ -541,6 +543,7 @@ export type Database = {
           order_no?: string;
           paid_at?: string;
           payment_method?: string;
+          pii_share_agreed_at?: string | null;
           policy_agreed_at?: string;
           refund_amount?: number | null;
           status?: Database["public"]["Enums"]["order_status"];
@@ -1609,6 +1612,19 @@ export type Database = {
         }[];
       };
       place_order: {
+        Args: {
+          p_booker_email: string;
+          p_booker_name: string;
+          p_booker_phone: string;
+          p_cart_item_ids: string[];
+          p_expected_total: number;
+          p_idempotency_key: string;
+          p_pii_share_agreed: boolean;
+          p_policy_agreed: boolean;
+        };
+        Returns: string;
+      };
+      place_order_core: {
         Args: {
           p_booker_email: string;
           p_booker_name: string;

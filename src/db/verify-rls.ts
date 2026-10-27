@@ -489,12 +489,12 @@ async function main() {
         anon,
         async (sp) =>
           (
-            await sp`select public.place_order(${[cartA.id]}::uuid[], 'x', 'x@x.x', '010-1234-5678', true, ${realTotal}, ${randomUUID()})`
+            await sp`select public.place_order(${[cartA.id]}::uuid[], 'x', 'x@x.x', '010-1234-5678', true, true, ${realTotal}, ${randomUUID()})`
           ).count,
       );
       const placeOrder = (sp: Tx, cartIds: string[], total: number, key: string) =>
         sp<{ order_no: string }[]>`
-        select public.place_order(${cartIds}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', true, ${total}, ${key}::uuid) as order_no`;
+        select public.place_order(${cartIds}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', true, true, ${total}, ${key}::uuid) as order_no`;
 
       await expectError(tx, "B: A의 장바구니 항목으로 주문", B, "cart_changed", (sp) =>
         placeOrder(sp, [cartA.id], realTotal, randomUUID()),
@@ -508,7 +508,25 @@ async function main() {
         A,
         "policy_not_agreed",
         (sp) =>
-          sp`select public.place_order(${[cartA.id]}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', false, ${realTotal}, ${randomUUID()}::uuid)`,
+          sp`select public.place_order(${[cartA.id]}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', false, true, ${realTotal}, ${randomUUID()}::uuid)`,
+      );
+      // 예약 정보 파트너 제공 동의 (P0 A-04): 따로 받고, 동의 없이는 결제할 수 없다
+      await expectError(
+        tx,
+        "A: 예약 정보 파트너 제공 동의 없이 결제",
+        A,
+        "pii_share_not_agreed",
+        (sp) =>
+          sp`select public.place_order(${[cartA.id]}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', true, false, ${realTotal}, ${randomUUID()}::uuid)`,
+      );
+      await expectBlocked(
+        tx,
+        "A: 동의 확인을 건너뛰는 내부 결제 함수 직접 호출",
+        A,
+        async (sp) =>
+          (
+            await sp`select public.place_order_core(${[cartA.id]}::uuid[], '검증A', 'a@rls.test', '010-1234-5678', true, ${realTotal}, ${randomUUID()}::uuid)`
+          ).count,
       );
 
       const key = randomUUID();
@@ -534,6 +552,13 @@ async function main() {
       const [{ n: cartLeft } = { n: -1 }] = await tx<{ n: number }[]>`
         select count(*)::int as n from public.cart_items where id = ${cartA.id}`;
       check("주문한 장바구니 항목 삭제", cartLeft === 0, `남은 행 ${cartLeft}`);
+      const [consent] = await tx<{ agreed: boolean }[]>`
+        select pii_share_agreed_at is not null as agreed from public.orders where id = ${orderRow.id}`;
+      check(
+        "A: 주문에 예약 정보 제공 동의 시각 기록",
+        consent?.agreed === true,
+        String(consent?.agreed),
+      );
 
       // 플래너 자동 연결: 이용일을 포함하는 여행이 없으므로 "도쿄 여행"이 새로 생긴다
       const [booking] = await tx<
@@ -1148,7 +1173,7 @@ async function main() {
       const priceDate = await dayPlus(16);
       const booker = (sp: Tx, ids: string[], total: number) =>
         sp<{ order_no: string }[]>`
-        select public.place_order(${ids}::uuid[], '검증', 'v@rls.test', '010-1234-5678', true, ${total}, ${randomUUID()}::uuid) as order_no`;
+        select public.place_order(${ids}::uuid[], '검증', 'v@rls.test', '010-1234-5678', true, true, ${total}, ${randomUUID()}::uuid) as order_no`;
       const addCart = (sp: Tx, values: Record<string, unknown>) =>
         sp<{ id: string }[]>`insert into public.cart_items ${sp(values)} returning id`;
       const bookedOf = async (slotId: string, useDate: string) => {

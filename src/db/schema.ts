@@ -587,6 +587,8 @@ export const orders = pgTable(
     // 중복 결제 방지 키: 결제 버튼을 두 번 누르거나 재시도해도 주문이 하나만 생긴다
     idempotencyKey: uuid("idempotency_key").notNull(),
     policyAgreedAt: timestamp("policy_agreed_at", { withTimezone: true }).notNull(),
+    // 예약 정보(이름·연락처·이메일)의 파트너 제공 동의 시각 — 0033 이전 주문은 null (A-04)
+    piiShareAgreedAt: timestamp("pii_share_agreed_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }).notNull().defaultNow(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     createdAt: createdAt(),
