@@ -15,8 +15,9 @@
   - `0026`~`0027` — 판매 중지 종류(`suspended_kind`: 정보 수정 필요 · 운영 불가·위험 · 파트너 이용 정지), 파트너 정지 시 상품 일괄 중지·해제, 관리자 조치 사유 필수, 영향 미리보기
   - `0028`~`0029` — 취소 규정 스냅숏: `order_items.cancel_tiers`(주문할 때 트리거가 구간 복사, 기존 주문 백필), `refund_quote`가 저장된 구간으로 계산
   - `0030` — 회원을 지워도 주문은 남긴다: `orders.user_id` → `ON DELETE SET NULL`
+  - `0031` — 파트너 예약자 연락처 가리기: `partner_bookings`가 살아 있는 예약 + 이용일 7일 뒤까지만 원문, 그 밖은 가린 값(`mask_name`·`mask_phone`·`mask_email`), 조회는 90일 전 이용분부터
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 279개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 283개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -196,7 +197,7 @@ sequenceDiagram
 | `approve_/reject_partner_application` · `admin_set_partner_status(파트너, 상태, 사유)` · `admin_partner_impact` | definer + `is_admin()`    | 파트너 신청 처리, 이용 정지(그 파트너 상품 일괄 중지 → 해제 시 그것만 재개)                                             |
 | `save_product(…)`                                                                                               | invoker (RLS·GRANT 적용)  | 상품·사진·진행 일정·회차·옵션을 한 트랜잭션으로 저장                                                                    |
 | `set_inventory_range(…)`                                                                                        | invoker                   | 기간 × 요일 정원·마감·가격 덮어쓰기 (예약보다 적은 정원은 트리거가 거부)                                                |
-| `partner_bookings` · `confirm_item` · `reject_item` · `mark_used`                                               | definer + `my_partner_id` | 파트너 예약 목록(연락처 포함), 확정·거절, 바우처 사용 처리                                                              |
+| `partner_bookings` · `confirm_item` · `reject_item` · `mark_used`                                               | definer + `my_partner_id` | 파트너 예약 목록(연락처는 이용일 7일 뒤·취소 시 가림, 운영자 취소 사유), 확정·거절, 바우처 사용 처리                    |
 | `expire_pending_items()`                                                                                        | definer                   | 기한 지난 확정 대기 자동 취소 (pg_cron 10분 + 화면을 열 때)                                                             |
 | `settlement_items` · `settlement_summary`                                                                       | definer + 범위 확인       | 정산 대상 항목·월 합계 (파트너는 자기 것만, 관리자는 전체)                                                              |
 | `admin_settle_month`                                                                                            | definer + `is_admin()`    | 끝난 달 정산 완료 → `settlements`에 숫자 고정                                                                           |
@@ -220,7 +221,7 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | 불변식: `booked` = 살아 있는 항목 인원 합                                               | 늘리는 곳은 `place_order`, 줄이는 곳은 `release_item` 하나. 기존 데이터 이전·시드도 같은 규칙으로 맞췄다                                                                                                                                                                                       |
 | 회차·옵션은 지우지 않고 판매만 끈다                                                     | 장바구니·주문 항목이 참조한다. 시드·`save_product` 모두 upsert + `active = false`                                                                                                                                                                                                              |
 | 주문 항목에 **구매 시점** 상품명·단가·회차 시간·옵션·파트너·수수료율·**환불 구간** 복사 | 나중에 상품·수수료율이 바뀌어도 예약 내역과 정산은 산 그대로여야 한다                                                                                                                                                                                                                          |
-| 파트너에게 `orders` 읽기 정책 없음                                                      | 한 주문에 다른 파트너 상품이 섞이면 총액·중복 방지 키 등이 보인다. 예약자 연락처는 `partner_bookings`로 필요한 열만                                                                                                                                                                            |
+| 파트너에게 `orders` 읽기 정책 없음, 연락처는 **기간 한정 원문**                         | 한 주문에 다른 파트너 상품이 섞이면 총액·중복 방지 키 등이 보인다. 예약자 연락처는 `partner_bookings`로 필요한 열만, 그것도 현장 연락·사후 문의에 필요한 기간(살아 있는 예약 + 이용일 7일 뒤)만 원문이고 그 뒤·취소 예약은 가린 값 (A-06)                                                      |
 | 자동 만료 = pg_cron + 화면을 열 때                                                      | 무료 프로젝트가 일시 정지되면 cron이 멈춘다. 멱등 함수라 화면을 열 때 한 번 더 불러도 안전하다                                                                                                                                                                                                 |
 | 정산 완료 = 스냅숏, 이후 변동은 **조정 전표**                                           | 관리자가 처리한 뒤 데이터가 바뀌어도 그 달 숫자는 그대로. 처리 전 달은 실시간 계산. 정산 완료 뒤 환불을 늘리면 차액(매출·수수료)을 조정한 달에 `settlement_adjustments`로 넣고, 원래 달 항목은 조정 전 값으로 보여 스냅숏과 맞춘다 (사용자 확정)                                               |
 | 운영자 취소 환불은 **귀책 코드**가 정한다                                               | 사람마다 금액이 달라지지 않게 사유를 고르면 환불이 정해진다: 파트너 사정·기상·최소 인원 미달 = 전액, 고객 요청 대행 = 취소 규정(고객 본인 취소와 같은 `refund_quote`). 규정 밖 금액은 별도의 환불 조정(사유 필수, 늘리기만)으로                                                                |
