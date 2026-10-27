@@ -205,14 +205,17 @@ export type PartnerBooking = {
   confirmDeadline: string | null;
   voucherCode: string | null;
   rejectReason: string | null;
+  cancelReason: string | null; // 운영자 취소 사유
   options: string;
   bookerName: string;
   bookerPhone: string;
   bookerEmail: string;
+  // 연락처를 가린 값인지 — 원문은 살아 있는 예약 + 이용일 7일 뒤까지만 (A-06)
+  contactMasked: boolean;
   paidAt: string;
 };
 
-/** 예약 목록 (이용일 기간) — 예약자 연락처는 이 함수로만 받는다 */
+/** 예약 목록 (이용일 기간, 90일 전 이용분부터) — 예약자 연락처는 이 함수로만 받는다 (기간이 지나면 가린 값) */
 export async function getPartnerBookings(
   from: string,
   to: string,
@@ -244,10 +247,12 @@ export async function getPartnerBookings(
       confirmDeadline: b.confirm_deadline,
       voucherCode: b.voucher_code,
       rejectReason: b.reject_reason,
+      cancelReason: b.cancel_reason,
       options: b.options,
       bookerName: b.booker_name,
       bookerPhone: b.booker_phone,
       bookerEmail: b.booker_email,
+      contactMasked: b.contact_masked,
       paidAt: b.paid_at,
     };
   });

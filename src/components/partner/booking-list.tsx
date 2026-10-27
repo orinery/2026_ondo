@@ -58,6 +58,12 @@ export function BookingList({
                     <dd className="tabular-nums">{b.bookerPhone}</dd>
                     <dt className="text-muted-foreground">이메일</dt>
                     <dd className="break-all">{b.bookerEmail}</dd>
+                    {b.contactMasked && (
+                      <dd className="col-span-2 text-xs text-muted-foreground">
+                        연락처는 이용일 7일 뒤(취소·거절된 예약은 바로) 가려져요. 문의가 필요하면
+                        관리자에게 요청해 주세요.
+                      </dd>
+                    )}
                     <dt className="text-muted-foreground">금액</dt>
                     <dd className="font-semibold">
                       {formatKrw(b.subtotal)}
@@ -85,6 +91,9 @@ export function BookingList({
                   )}
                   {b.status === "rejected" && b.rejectReason && (
                     <p className="text-sm text-muted-foreground">거절 사유: {b.rejectReason}</p>
+                  )}
+                  {b.status === "cancelled" && b.cancelReason && (
+                    <p className="text-sm text-muted-foreground">운영자 취소: {b.cancelReason}</p>
                   )}
                 </li>
               ))}

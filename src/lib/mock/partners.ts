@@ -71,7 +71,7 @@ export const MOCK_PARTNERS: PartnerRow[] = [
   },
 ];
 
-/** 파트너 예약 목록 목업 — 확정 대기(처리 버튼) · 확정(바우처) · 거절(사유) */
+/** 파트너 예약 목록 목업 — 확정 대기(처리 버튼) · 확정(바우처) · 거절(사유, 연락처 가림) */
 export const MOCK_PARTNER_BOOKINGS: PartnerBooking[] = [
   {
     itemId: "00000000-0000-4000-8000-0000000000b1",
@@ -89,10 +89,12 @@ export const MOCK_PARTNER_BOOKINGS: PartnerBooking[] = [
     confirmDeadline: "2026-10-23T03:00:00Z",
     voucherCode: null,
     rejectReason: null,
+    cancelReason: null,
     options: "호텔 픽업",
     bookerName: "김여운",
     bookerPhone: "010-1234-5678",
     bookerEmail: "yeoun@example.com",
+    contactMasked: false,
     paidAt: "2026-10-21T03:00:00Z",
   },
   {
@@ -111,10 +113,12 @@ export const MOCK_PARTNER_BOOKINGS: PartnerBooking[] = [
     confirmDeadline: null,
     voucherCode: "7F31C0A9D2",
     rejectReason: null,
+    cancelReason: null,
     options: "",
     bookerName: "이하늘",
     bookerPhone: "010-2222-3333",
     bookerEmail: "sky@example.com",
+    contactMasked: false,
     paidAt: "2026-10-19T03:00:00Z",
   },
   {
@@ -133,10 +137,13 @@ export const MOCK_PARTNER_BOOKINGS: PartnerBooking[] = [
     confirmDeadline: null,
     voucherCode: null,
     rejectReason: "기상 악화로 해당 날짜 운항이 취소됐어요",
+    cancelReason: null,
     options: "",
-    bookerName: "박소라",
-    bookerPhone: "010-4444-5555",
-    bookerEmail: "sora@example.com",
+    // 거절된 예약은 연락처를 가린 값으로 받는다 (partner_bookings)
+    bookerName: "박*라",
+    bookerPhone: "010-****-5555",
+    bookerEmail: "s***@example.com",
+    contactMasked: true,
     paidAt: "2026-10-18T03:00:00Z",
   },
 ];
