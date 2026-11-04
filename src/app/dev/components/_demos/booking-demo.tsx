@@ -86,7 +86,8 @@ function demoProduct(today: string): BookingProduct {
   };
 }
 
-type Forced = "none" | "error" | "added" | "pending" | "unavailable";
+// restored = 로그인하고 돌아와 선택을 되살린 상태 (바로 구매를 누르려던 경우)
+type Forced = "none" | "error" | "added" | "pending" | "unavailable" | "restored";
 
 /**
  * 예약 위젯 상태 데모 — 서버 호출 없이 위젯 본문(BookingPanel)의 모든 상태를 보여준다.
@@ -110,7 +111,7 @@ export function BookingDemo({ today }: { today: string }) {
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-wrap items-center gap-2 text-sm">
         <legend className="sr-only">위젯 상태 강제</legend>
-        {(["none", "error", "added", "pending", "unavailable"] as const).map((s) => (
+        {(["none", "error", "added", "pending", "unavailable", "restored"] as const).map((s) => (
           <label key={s} className="flex items-center gap-1.5 rounded-full border px-3 py-1.5">
             <input
               type="radio"
@@ -118,7 +119,7 @@ export function BookingDemo({ today }: { today: string }) {
               checked={forced === s}
               onChange={() => {
                 setForced(s);
-                if (s === "added" || s === "error") {
+                if (s === "added" || s === "error" || s === "restored") {
                   // 회차 마감·남은 2석·덮어쓴 가격이 함께 보이는 날
                   setDate(closedDay);
                   setSlotId(pickSlot(base, closedDay, null));
@@ -149,6 +150,7 @@ export function BookingDemo({ today }: { today: string }) {
           error={forced === "error" ? errorMessage("sold_out") : error}
           added={forced === "added"}
           pending={forced === "pending"}
+          restoredMode={forced === "restored" ? "buy" : null}
           onSubmit={() => {
             const problem = bookingCheck(product, today, date, slotId, adult, child);
             setError(problem);
