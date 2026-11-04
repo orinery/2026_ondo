@@ -27,6 +27,7 @@ import {
   ProductGrid,
 } from "@/components/product/product-card";
 import { CartView } from "@/components/cart/cart-view";
+import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { OrderList } from "@/components/orders/order-list";
 import { CancelOrderDialog } from "@/components/orders/cancel-order-dialog";
 import { ItemStatusBadge } from "@/components/orders/order-status-badge";
@@ -453,6 +454,21 @@ export default function DevComponentsPage() {
           <h3 className="text-lg font-semibold">장바구니 (주문 가능 1 · 마감 지난 항목 1)</h3>
           <div className="rounded-lg border p-4 md:p-6">
             <CartView items={MOCK_CART} preview />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">
+            주문서 — 재구매 (지난 주문의 이름·휴대폰 번호 미리 채움 · 전체 동의)
+          </h3>
+          <div className="rounded-lg border p-4 md:p-6">
+            <CheckoutForm
+              cartItemIds={[]}
+              expectedTotal={178000}
+              idempotencyKey="00000000-0000-0000-0000-000000000000"
+              defaults={{ name: "김여행", email: "traveler@example.com", phone: "010-1234-5678" }}
+              prefilled
+              itemCount={1}
+            >
+              <p className="text-sm text-muted-foreground">(주문 상품·취소 규정 자리)</p>
+            </CheckoutForm>
           </div>
           <h3 className="mt-4 text-lg font-semibold">예약 내역 (이용 예정 · 이용 완료 · 취소)</h3>
           <OrderList orders={MOCK_ORDERS} status="all" />

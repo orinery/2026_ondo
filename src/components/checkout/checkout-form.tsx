@@ -17,7 +17,8 @@ type CheckoutFormProps = {
   cartItemIds: string[];
   expectedTotal: number; // 서버가 현재 가격으로 계산한 총액 — DB가 같은지 다시 확인한다
   idempotencyKey: string; // 페이지를 그릴 때 만든 중복 결제 방지 키
-  defaults: { name: string; email: string };
+  defaults: { name: string; email: string; phone: string };
+  prefilled: boolean; // 지난 주문의 이름·휴대폰 번호로 채웠는지 — 안내 문구용
   itemCount: number;
   // 주문 상품 목록·취소 규정 등 서버에서 그린 본문
   children: React.ReactNode;
@@ -35,6 +36,7 @@ export function CheckoutForm({
   expectedTotal,
   idempotencyKey,
   defaults,
+  prefilled,
   itemCount,
   children,
 }: CheckoutFormProps) {
@@ -45,9 +47,11 @@ export function CheckoutForm({
   // 기본값만 준 입력(uncontrolled)은 검증 실패로 돌아와도 비워져 버린다 (휴대폰 번호가 사라지던 문제)
   const [name, setName] = useState(defaults.name);
   const [email, setEmail] = useState(defaults.email);
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(defaults.phone);
   const [agreed, setAgreed] = useState(false);
   const [shareAgreed, setShareAgreed] = useState(false);
+  // 전체 동의 (Q6) — 두 필수 동의를 한 번에. 각 동의는 그대로 따로 제출·검증된다
+  const allAgreed = agreed && shareAgreed;
 
   return (
     <form action={formAction} noValidate className="grid grid-cols-1 gap-10 lg:grid-cols-12">
@@ -65,7 +69,10 @@ export function CheckoutForm({
             예약자 정보
           </h2>
           <p className="text-sm text-muted-foreground">
-            예약 확인과 현지 연락에 쓰여요. 모든 항목을 입력해 주세요.
+            예약 확인과 현지 연락에 쓰여요.{" "}
+            {prefilled
+              ? "지난 주문의 정보를 불러왔어요. 바뀐 게 있으면 고쳐 주세요."
+              : "모든 항목을 입력해 주세요."}
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <Field id="bookerName" label="이름" error={fe.bookerName}>
@@ -135,15 +142,24 @@ export function CheckoutForm({
               <dt className="text-muted-foreground">상품 {itemCount}개</dt>
               <dd>{formatKrw(expectedTotal)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">할인 · 수수료</dt>
-              <dd>0원</dd>
-            </div>
           </dl>
           <div className="flex items-baseline justify-between border-t pt-4">
             <span className="font-medium">총 결제 금액</span>
             <span className="text-2xl font-semibold">{formatKrw(expectedTotal)}</span>
           </div>
+
+          <label className="flex items-start gap-2.5 border-b pb-3 text-sm font-semibold">
+            {/* name이 없어 제출되지 않는다 — 아래 두 동의를 함께 켜고 끄기만 한다 */}
+            <Checkbox
+              checked={allAgreed}
+              onCheckedChange={(on) => {
+                setAgreed(on === true);
+                setShareAgreed(on === true);
+              }}
+              className="mt-0.5"
+            />
+            <span>아래 내용에 모두 동의해요</span>
+          </label>
 
           <div className="flex flex-col gap-1.5">
             <label className="flex items-start gap-2.5 text-sm">

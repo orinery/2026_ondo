@@ -11,6 +11,7 @@ import { OrderItemList } from "@/components/checkout/order-item-list";
 import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
 import { requireUser } from "@/lib/auth";
 import { getCartItems } from "@/lib/data/cart";
+import { getLastBooker } from "@/lib/data/orders";
 import { getSellers } from "@/lib/data/products";
 import { errorMessage } from "@/lib/order-errors";
 import { optionLabel } from "@/lib/booking";
@@ -31,7 +32,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   if (ids.length === 0) redirect("/cart");
 
   // RLS로 본인 장바구니 항목만 나온다. 이미 주문했거나(삭제됨) 남의 항목이면 비어 있다
-  const items = await getCartItems(ids);
+  const [items, lastBooker] = await Promise.all([getCartItems(ids), getLastBooker(user.id)]);
   if (items.length === 0) redirect("/cart");
 
   const blocked = items.filter((i) => i.error);
@@ -103,7 +104,12 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
           cartItemIds={items.map((i) => i.id)}
           expectedTotal={total}
           idempotencyKey={randomUUID()}
-          defaults={{ name: user.displayName, email: user.email ?? "" }}
+          defaults={{
+            name: lastBooker?.name ?? user.displayName,
+            email: user.email ?? "",
+            phone: lastBooker?.phone ?? "",
+          }}
+          prefilled={lastBooker !== null}
           itemCount={items.length}
         >
           <section aria-labelledby="items-title" className="flex flex-col gap-4">

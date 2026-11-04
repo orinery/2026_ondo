@@ -175,6 +175,23 @@ export async function getMyOrders(): Promise<OrderSummary[]> {
   return (data ?? []).map((row) => toDetail(row, today));
 }
 
+/**
+ * 주문서 예약자 기본값 — 가장 최근 주문의 이름·휴대폰 번호 (Quick Win Q6: 재구매 때 다시 입력하지 않게).
+ * 관리자는 RLS로 남의 주문도 읽을 수 있어서 본인 주문으로 거른다. 주문이 없으면 null.
+ */
+export async function getLastBooker(userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("booker_name, booker_phone")
+    .eq("user_id", userId)
+    .order("paid_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { name: data.booker_name, phone: data.booker_phone } : null;
+}
+
 /** 예약 상세·주문 완료 — 레이아웃(404 판정)과 페이지가 함께 불러도 한 번만 조회 */
 export const getOrderByNo = cache(async (orderNo: string): Promise<OrderDetail | null> => {
   // 주문번호 형식이 아니면 조회하지 않는다 (YO261015-000123)
