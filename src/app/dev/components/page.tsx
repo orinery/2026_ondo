@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { ApplicationList } from "@/components/admin/application-list";
 import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
+import { FunnelTable } from "@/components/admin/funnel-table";
 import { OperatorCancelDialog } from "@/components/admin/operator-cancel-dialog";
 import { OrderMemos } from "@/components/admin/order-memos";
 import { OrderTimeline } from "@/components/admin/order-timeline";
@@ -48,6 +49,8 @@ import {
   MOCK_APPLICATIONS,
   MOCK_BREAKDOWN_CITY,
   MOCK_DAILY_STATS,
+  MOCK_FUNNEL,
+  MOCK_FUNNEL_EMPTY,
   MOCK_ORDER_MEMOS,
   MOCK_PARTNER_BOOKINGS,
   MOCK_PARTNERS,
@@ -663,6 +666,13 @@ export default function DevComponentsPage() {
             <div className="rounded-xl border bg-card p-4 md:p-6">
               <BreakdownChart data={[]} title="종류별 매출 (빈 상태)" />
             </div>
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">구매 퍼널 (목업 · 빈 상태)</h3>
+          <div className="rounded-xl border bg-card p-4 md:p-6">
+            <FunnelTable funnel={MOCK_FUNNEL} />
+          </div>
+          <div className="rounded-xl border bg-card p-4 md:p-6">
+            <FunnelTable funnel={MOCK_FUNNEL_EMPTY} />
           </div>
           <h3 className="mt-4 text-lg font-semibold">리뷰 신고 · 신고 처리 · 상품 판매 중지</h3>
           <div className="flex flex-wrap items-center gap-3">

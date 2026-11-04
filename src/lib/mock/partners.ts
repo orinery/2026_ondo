@@ -1,4 +1,4 @@
-import type { BreakdownRow, DailyStat, OrderMemo, TimelineEntry } from "@/lib/data/admin";
+import type { BreakdownRow, DailyStat, Funnel, OrderMemo, TimelineEntry } from "@/lib/data/admin";
 import type { PartnerBooking } from "@/lib/data/partner-center";
 import type { PartnerApplication, PartnerRow } from "@/lib/data/partners";
 import type { SettlementItem, SettlementRow } from "@/lib/data/settlements";
@@ -260,6 +260,27 @@ export const MOCK_BREAKDOWN_CITY: BreakdownRow[] = [
   { label: "교토", items: 7, revenue: 388000 },
   { label: "오사카", items: 3, revenue: 291000 },
 ];
+
+// 구매 퍼널 목업 (30일): 모바일이 상세는 많지만 예약 시작 뒤 이탈이 큰 모양
+export const MOCK_FUNNEL: Funnel = {
+  view_item: { all: 1240, mobile: 868, desktop: 372 },
+  start_booking: { all: 512, mobile: 331, desktop: 181 },
+  add_to_cart: { all: 164, mobile: 92, desktop: 72 },
+  begin_checkout: { all: 121, mobile: 66, desktop: 55 },
+  purchase: { all: 83, mobile: 41, desktop: 42 },
+  login_wall: { all: 97, mobile: 70, desktop: 27 },
+  login_wall_recovered: { all: 38, mobile: 24, desktop: 14 },
+};
+const ZERO = { all: 0, mobile: 0, desktop: 0 };
+export const MOCK_FUNNEL_EMPTY: Funnel = {
+  view_item: ZERO,
+  start_booking: ZERO,
+  add_to_cart: ZERO,
+  begin_checkout: ZERO,
+  purchase: ZERO,
+  login_wall: ZERO,
+  login_wall_recovered: ZERO,
+};
 
 // 주문 처리 이력 목업: 항목 2개 — 하나는 파트너 확정 후 고객 취소, 하나는 확정 대기 → 거절
 const ITEM_A = "00000000-0000-4000-8000-0000000000e1";
