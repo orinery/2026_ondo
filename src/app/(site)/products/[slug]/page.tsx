@@ -253,6 +253,8 @@ export default async function ProductDetailPage({
                 title: product.title,
                 adultPrice: product.adultPrice,
                 childPrice: product.childPrice,
+                childAgeLabel: product.childAgeLabel,
+                cancelTiers: product.cancelPolicy.tiers,
                 listAdultPrice: product.listAdultPrice,
                 operatingDays: product.operatingDays,
                 cutoffDays: product.cutoffDays,

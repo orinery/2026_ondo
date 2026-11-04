@@ -18,6 +18,8 @@ export type ProductSummary = {
   listAdultPrice: number | null; // 정가 (할인 표시)
   rating: number; // 0–5
   reviewCount: number;
+  // 전액 환불되는 가장 늦은 시점(이용 N일 전), 없으면 null — 카드의 "무료 취소" 문구
+  freeCancelDays: number | null;
   // 값이 있으면 disabled 카드로 표시하고 사유 배지에 이 문구를 보여준다 (명세 5.1 Disabled)
   unavailableReason: string | null;
 };

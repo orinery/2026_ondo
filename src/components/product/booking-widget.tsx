@@ -1,6 +1,14 @@
 "use client";
 
-import { CalendarCheckIcon, CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
+import {
+  CalendarCheckIcon,
+  CheckCircle2Icon,
+  CheckIcon,
+  ClockIcon,
+  HourglassIcon,
+  InfoIcon,
+  ZapIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -36,6 +44,7 @@ import {
   type OptionRule,
   type SlotRule,
 } from "@/lib/booking";
+import { cancelSummary, type PolicyTier } from "@/lib/cancel-policy";
 import type { ConfirmationMode } from "@/lib/constants/taxonomy";
 import { discountRate, formatKrw, formatUseDate } from "@/lib/format";
 import { errorMessage } from "@/lib/order-errors";
@@ -52,6 +61,8 @@ export type BookingProduct = BookingRules & {
   listAdultPrice: number | null;
   durationText: string;
   confirmationMode: ConfirmationMode;
+  childAgeLabel: string | null; // 아동 기준 (예: "만 4~11세")
+  cancelTiers: PolicyTier[]; // 취소 규정 구간 — 위젯 상단 "무료 취소" 한 줄 요약
   slots: SlotRule[];
   options: OptionRule[];
   inventory: InventoryRow[]; // 예약 가능 기간의 날짜별 재고 (덮어쓴 정원·가격·마감, 예약 인원)
@@ -392,6 +403,7 @@ export function BookingPanel({
 }: BookingPanelProps) {
   const discount = discountRate(product.adultPrice, product.listAdultPrice);
   const unavailable = Boolean(product.unavailableReason);
+  const cancel = cancelSummary(product.cancelTiers);
   const first = firstOpenDate(product, today);
   const { daySlots, selected, prices, optionTotal, total } = quoteBooking(
     product,
@@ -436,6 +448,26 @@ export function BookingPanel({
             ? ` · 아동 ${formatKrw(product.childPrice)}`
             : " · 성인 전용 상품"}
         </p>
+        {/* 결제 전에 가장 많이 묻는 두 가지: 취소하면 환불되나, 바로 확정되나 (파트너 확정은 아래 안내 상자) */}
+        <ul aria-label="취소 · 확정" className="mt-3 flex flex-col gap-1.5 text-sm">
+          <li className="flex items-start gap-2">
+            {cancel.kind === "free" ? (
+              <CheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+            ) : (
+              <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            )}
+            <span className={cn(cancel.kind === "free" && "font-medium")}>{cancel.label}</span>
+          </li>
+          {product.confirmationMode === "instant" && (
+            <li className="flex items-start gap-2">
+              <ZapIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span>
+                <span className="font-medium">즉시 확정</span>
+                <span className="text-muted-foreground"> · 결제하면 바로 예약이 확정돼요</span>
+              </span>
+            </li>
+          )}
+        </ul>
       </div>
 
       {restoredMode && !unavailable && (
@@ -569,7 +601,11 @@ export function BookingPanel({
             {prices.childPrice !== null && (
               <QuantityStepper
                 label="아동"
-                description={formatKrw(prices.childPrice)}
+                description={
+                  product.childAgeLabel
+                    ? `${product.childAgeLabel} · ${formatKrw(prices.childPrice)}`
+                    : formatKrw(prices.childPrice)
+                }
                 value={child}
                 max={child + remaining}
                 onChange={onChildChange}

@@ -11,6 +11,7 @@ import {
   type OptionRule,
   type SlotRule,
 } from "@/lib/booking";
+import { freeCancelDays } from "@/lib/cancel-policy";
 import type { ConfirmationMode, ThemeSlug, UserItemTypeSlug } from "@/lib/constants/taxonomy";
 import { createClient } from "@/lib/supabase/server";
 import { seoulNow } from "@/lib/trip-dates";
@@ -31,7 +32,7 @@ type CityRow = Database["public"]["Tables"]["cities"]["Row"];
 
 // 카드에 필요한 컬럼만 고른다 (설명 본문 등 큰 컬럼 제외). cities!inner: 도시 조건으로 거를 수 있게 내부 조인
 const SUMMARY_COLUMNS =
-  "id, slug, title, category, theme, image_url, image_alt, adult_price, list_adult_price, rating_avg, review_count, unavailable_reason, suspended_reason, cities!inner ( slug, name, name_en )";
+  "id, slug, title, category, theme, image_url, image_alt, adult_price, list_adult_price, rating_avg, review_count, unavailable_reason, suspended_reason, cities!inner ( slug, name, name_en ), cancellation_policies ( cancellation_policy_tiers ( days_before, refund_rate ) )";
 
 type SummaryRow = Pick<
   ProductRow,
@@ -48,7 +49,12 @@ type SummaryRow = Pick<
   | "review_count"
   | "unavailable_reason"
   | "suspended_reason"
-> & { cities: Pick<CityRow, "slug" | "name" | "name_en"> };
+> & {
+  cities: Pick<CityRow, "slug" | "name" | "name_en">;
+  cancellation_policies: {
+    cancellation_policy_tiers: { days_before: number; refund_rate: number }[];
+  };
+};
 
 /** 판매하지 않는 이유 — 관리자 판매 중지가 파트너의 판매 중단보다 먼저 */
 const unavailableOf = (row: Pick<ProductRow, "unavailable_reason" | "suspended_reason">) =>
@@ -68,6 +74,12 @@ function toSummary(row: SummaryRow): ProductSummary {
     listAdultPrice: row.list_adult_price,
     rating: Number(row.rating_avg),
     reviewCount: row.review_count,
+    freeCancelDays: freeCancelDays(
+      row.cancellation_policies.cancellation_policy_tiers.map((t) => ({
+        daysBefore: t.days_before,
+        refundRate: t.refund_rate,
+      })),
+    ),
     unavailableReason: unavailableOf(row),
   };
 }
@@ -255,6 +267,7 @@ export type ProductDetail = ProductSummary & {
   description: string;
   highlights: string[];
   childPrice: number | null;
+  childAgeLabel: string | null; // 아동 기준 (예: "만 4~11세")
   operatingDays: number[];
   cutoffDays: number;
   maxQty: number;
@@ -339,6 +352,7 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
     description: data.description,
     highlights: data.highlights,
     childPrice: data.child_price,
+    childAgeLabel: data.child_age_label,
     operatingDays: data.operating_days,
     cutoffDays: data.cutoff_days,
     maxQty: data.max_qty,

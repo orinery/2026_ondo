@@ -30,6 +30,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: 99000,
     rating: 4.5,
     reviewCount: 2,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
   {
@@ -45,6 +46,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: 39000,
     rating: 4.5,
     reviewCount: 2,
+    freeCancelDays: 1,
     unavailableReason: null,
   },
   {
@@ -60,6 +62,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: null,
     rating: 4.5,
     reviewCount: 2,
+    freeCancelDays: null,
     unavailableReason: null,
   },
   {
@@ -75,6 +78,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: null,
     rating: 5,
     reviewCount: 2,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
   {
@@ -90,6 +94,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: 139000,
     rating: 5,
     reviewCount: 1,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
   {
@@ -105,6 +110,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: 85000,
     rating: 5,
     reviewCount: 2,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
   {
@@ -120,6 +126,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: null,
     rating: 4.5,
     reviewCount: 2,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
   {
@@ -135,6 +142,7 @@ export const MOCK_PRODUCTS: ProductSummary[] = [
     listAdultPrice: 24000,
     rating: 4.5,
     reviewCount: 2,
+    freeCancelDays: 7,
     unavailableReason: null,
   },
 ];

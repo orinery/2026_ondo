@@ -1,9 +1,10 @@
-import { HeartIcon } from "lucide-react";
+import { CheckIcon, HeartIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Skeleton } from "@/components/ui/skeleton";
+import { freeCancelLabel } from "@/lib/cancel-policy";
 import { categoryLabel, themeLabel } from "@/lib/constants/taxonomy";
 import { discountRate, formatKrw } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -160,6 +161,13 @@ export function ProductCard({
           )}
           <span className="text-xs text-muted-foreground">성인 1인</span>
         </p>
+        {/* 결정에 가장 큰 영향을 주는 신호 하나만 (대부분 즉시 확정이라 확정 방식은 상세에서) */}
+        {p.freeCancelDays !== null && !disabled && (
+          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-primary">
+            <CheckIcon aria-hidden className="size-3.5 shrink-0" />
+            {freeCancelLabel(p.freeCancelDays)}
+          </p>
+        )}
         {/* z-10: stretched link 위에 있어야 클릭된다 */}
         {footer && <div className="relative z-10 mt-2">{footer}</div>}
       </div>

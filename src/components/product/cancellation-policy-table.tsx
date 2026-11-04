@@ -1,6 +1,5 @@
+import type { PolicyTier } from "@/lib/cancel-policy";
 import { cn } from "@/lib/utils";
-
-export type PolicyTier = { daysBefore: number; refundRate: number };
 
 type CancellationPolicyTableProps = {
   name: string; // "일반 취소"

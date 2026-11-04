@@ -29,6 +29,7 @@ function demoProduct(today: string): BookingProduct {
     title: "교토 마치야 다도 체험",
     adultPrice: 38000,
     childPrice: 25000,
+    childAgeLabel: "만 6~12세",
     listAdultPrice: 42000,
     operatingDays: [1, 2, 4, 5, 6, 7], // 수요일 휴무 → 달력에서 비활성
     cutoffDays: 2,
@@ -36,6 +37,12 @@ function demoProduct(today: string): BookingProduct {
     unavailableReason: null,
     durationText: "약 1시간",
     confirmationMode: "manual",
+    // 일반 취소: 7일 전 100% · 3일 전 50% · 1일 전 20%
+    cancelTiers: [
+      { daysBefore: 7, refundRate: 100 },
+      { daysBefore: 3, refundRate: 50 },
+      { daysBefore: 1, refundRate: 20 },
+    ],
     slots: [
       { id: "slot-10", startTime: "10:00", capacity: 8 },
       { id: "slot-14", startTime: "14:00", capacity: 8 },
@@ -87,7 +94,9 @@ function demoProduct(today: string): BookingProduct {
 }
 
 // restored = 로그인하고 돌아와 선택을 되살린 상태 (바로 구매를 누르려던 경우)
-type Forced = "none" | "error" | "added" | "pending" | "unavailable" | "restored";
+// instant = 즉시 확정 + 무료 취소(1일 전) 상품, strict = 환불 불가 규정
+type Forced =
+  "none" | "error" | "added" | "pending" | "unavailable" | "restored" | "instant" | "strict";
 
 /**
  * 예약 위젯 상태 데모 — 서버 호출 없이 위젯 본문(BookingPanel)의 모든 상태를 보여준다.
@@ -104,14 +113,36 @@ export function BookingDemo({ today }: { today: string }) {
   const [forced, setForced] = useState<Forced>("none");
   const [error, setError] = useState<string | null>(null);
 
-  const product = forced === "unavailable" ? { ...base, unavailableReason: "판매 준비 중" } : base;
+  const product =
+    forced === "unavailable"
+      ? { ...base, unavailableReason: "판매 준비 중" }
+      : forced === "instant"
+        ? {
+            ...base,
+            confirmationMode: "instant" as const,
+            cancelTiers: [{ daysBefore: 1, refundRate: 100 }],
+          }
+        : forced === "strict"
+          ? { ...base, cancelTiers: [{ daysBefore: 0, refundRate: 0 }] }
+          : base;
   const closedDay = openDay(today, 6);
 
   return (
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-wrap items-center gap-2 text-sm">
         <legend className="sr-only">위젯 상태 강제</legend>
-        {(["none", "error", "added", "pending", "unavailable", "restored"] as const).map((s) => (
+        {(
+          [
+            "none",
+            "error",
+            "added",
+            "pending",
+            "unavailable",
+            "restored",
+            "instant",
+            "strict",
+          ] as const
+        ).map((s) => (
           <label key={s} className="flex items-center gap-1.5 rounded-full border px-3 py-1.5">
             <input
               type="radio"

@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { getCurrentUser } from "@/lib/auth";
+import { freeCancelDays } from "@/lib/cancel-policy";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductSummary } from "@/types/product";
 
@@ -30,7 +31,8 @@ export async function getMyLikes(): Promise<{ likes: LikedProduct[]; folders: Li
       .select(
         `folder_id, created_at,
          products ( id, slug, title, category, theme, image_url, image_alt, adult_price, list_adult_price,
-                    rating_avg, review_count, unavailable_reason, cities ( slug, name, name_en ) )`,
+                    rating_avg, review_count, unavailable_reason, cities ( slug, name, name_en ),
+                    cancellation_policies ( cancellation_policy_tiers ( days_before, refund_rate ) ) )`,
       )
       .order("created_at", { ascending: false }),
     supabase.from("like_folders").select("id, name").order("created_at"),
@@ -54,6 +56,12 @@ export async function getMyLikes(): Promise<{ likes: LikedProduct[]; folders: Li
             listAdultPrice: p.list_adult_price,
             rating: Number(p.rating_avg),
             reviewCount: p.review_count,
+            freeCancelDays: freeCancelDays(
+              p.cancellation_policies.cancellation_policy_tiers.map((t) => ({
+                daysBefore: t.days_before,
+                refundRate: t.refund_rate,
+              })),
+            ),
             unavailableReason: p.unavailable_reason,
             folderId: folder_id,
           },
