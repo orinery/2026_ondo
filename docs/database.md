@@ -17,8 +17,9 @@
   - `0030` — 회원을 지워도 주문은 남긴다: `orders.user_id` → `ON DELETE SET NULL`
   - `0031` — 파트너 예약자 연락처 가리기: `partner_bookings`가 살아 있는 예약 + 이용일 7일 뒤까지만 원문, 그 밖은 가린 값(`mask_name`·`mask_phone`·`mask_email`), 조회는 90일 전 이용분부터
   - `0032`~`0033` — 예약 정보 파트너 제공 동의: `orders.pii_share_agreed_at`, `place_order`에 동의 인자 추가(기존 함수는 `place_order_core`로 내부 전용)
+  - `0034`~`0035` — 구매 퍼널 측정: `funnel_events`(누구나 insert 4개 컬럼만, 읽기 없음), 관리자 집계 `admin_funnel`, 180일 지난 기록 매일 삭제(pg_cron `purge-funnel-events`)
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 286개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 296개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -56,6 +57,7 @@ erDiagram
   profiles ||--o{ trips : owns
   trips ||--o{ trip_items : contains
   order_items |o--o| trip_items : "예약 항목"
+  products |o--o{ funnel_events : "퍼널 이벤트 (상품 삭제 시 null)"
 
   profiles {
     uuid id PK
@@ -166,7 +168,7 @@ erDiagram
   }
 ```
 
-`cities`·`product_images`·`product_itinerary_items`·`product_options`·`order_item_options`·`order_memos`·`refund_adjustments`·`partner_applications`·`like_folders`·`likes`·`trips`·`trip_items`는 그림을 간단히 하려고 컬럼을 생략했다 (스키마 파일 참고).
+`cities`·`product_images`·`product_itinerary_items`·`product_options`·`order_item_options`·`order_memos`·`refund_adjustments`·`partner_applications`·`like_folders`·`likes`·`trips`·`trip_items`·`funnel_events`는 그림을 간단히 하려고 컬럼을 생략했다 (스키마 파일 참고).
 
 ## 예약 흐름과 DB 함수
 
@@ -208,6 +210,7 @@ sequenceDiagram
 | `admin_cancel_item` · `admin_adjust_refund`                                                                     | definer + `is_admin()`     | 운영자 취소(귀책 코드별 환불), 환불 조정(늘리기만 · 정산 완료 달이면 조정 전표)                                         |
 | `admin_orders(검색, 상태, 파트너, 기간, limit, offset)`                                                         | definer + `is_admin()`     | 주문 목록 — 화면과 같은 상태 규칙, 항목 상태별 수, 판매 파트너, 전체 건수 (최대 5,000)                                  |
 | `admin_kpis` · `admin_daily_stats` · `admin_breakdown`                                                          | definer + `is_admin()`     | 대시보드 지표·일별 결제·도시/종류별 매출                                                                                |
+| `admin_funnel(시작일, 종료일)`                                                                                  | definer + `is_admin()`     | 구매 퍼널 — 단계별 도달 방문 수(모바일·데스크톱), 로그인 벽 뒤 담기까지 이어진 방문                                     |
 | `write_audit(…)` + `audit_*` 트리거                                                                             | 내부 전용                  | 상태가 바뀔 때 행위자(`auth.uid()`의 역할, 없으면 system)·사유·이전/변경 값을 기록                                      |
 | `has_used_product` · `attach_bookings` · `reorder_trip_items`                                                   | invoker / definer / inv.   | 리뷰 자격(항목 상태 기준), 플래너 예약 붙이기, 일정 순서 저장                                                           |
 
@@ -232,6 +235,7 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | 예약 규칙은 DB 함수 하나(`booking_error`)                                               | 장바구니 트리거와 주문 함수가 같은 규칙. 화면용 복사본(`src/lib/booking.ts`)은 달력 비활성화 등 UX용이고 최종 판단은 항상 DB                                                                                                                                                                   |
 | 날짜는 `seoul_today()` 기준                                                             | DB 서버 시간대(UTC)와 관계없이 한국(=일본) 날짜로 마감·환불·정산 월을 계산한다                                                                                                                                                                                                                 |
 | 감사 로그는 **트리거**로 남긴다                                                         | 함수마다 기록 코드를 넣으면 빠뜨리기 쉽다. 상태 열이 바뀌면 경로와 관계없이 남고, 사유는 관리자 함수가 트랜잭션 로컬 설정(`ondo.audit_reason`)으로 넘긴다. 기한 초과 만료는 화면을 연 사람과 무관하게 system                                                                                   |
+| 퍼널 이벤트는 **익명 방문 단위**로 Route Handler(`/api/events`)가 넣는다                | 퍼널은 "몇 번의 방문이 어디까지 갔나"만 알면 된다 — 회원 id·IP를 남기지 않고 탭마다 만드는 무작위 번호만 쓴다. Server Action은 차례로 실행돼 측정이 담기·결제를 기다리게 만들고 페이지를 떠나면 끊기므로 `sendBeacon` + Route Handler(로그인 쿠키 없이 anon)로 받는다                          |
 | 앱의 데이터 접근은 supabase-js, Drizzle은 스키마·마이그레이션·시드 전용                 | Drizzle은 postgres 권한으로 접속해 RLS를 우회한다. 사용자 요청은 항상 사용자 JWT로 실행돼야 RLS가 마지막 방어선이 된다                                                                                                                                                                         |
 
 ## 데이터 보존 · 회원 삭제
@@ -243,6 +247,8 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | 주문 · 주문 항목 · 옵션 · 환불 금액                | 계약·청약철회, 대금 결제 기록 | 5년                                              |
 | 운영자 취소 사유 · 환불 조정 · CS 메모 · 감사 로그 | 소비자 불만·분쟁 처리 기록    | 3년 (주문과 함께 보관)                           |
 | 정산 스냅숏 · 조정 전표                            | 파트너 지급 근거              | 5년                                              |
+
+퍼널 이벤트(`funnel_events`)는 회원과 연결되지 않는 방문 통계라 법령상 보관 의무가 없고, 180일이 지나면 매일 지운다.
 
 - 소유자가 없는 주문은 RLS상 관리자만 본다(고객 정책은 `user_id = auth.uid()`라 null과 같아지지 않는다).
 - 주문의 예약자 이름·연락처·이메일(`booker_*`)은 보존 기간이 지나면 파기(익명화)해야 한다 — 탈퇴 화면과 파기 배치는 아직 없다 (포트폴리오 범위 밖).
@@ -264,6 +270,7 @@ security definer 함수는 모두 `search_path = ''`와 스키마를 붙인 이�
 | likes · like_folders · trips · trip_items                  | —                | 본인 것만 (예약 항목은 만들기·삭제 불가) | 같음                               | 같음                                        |
 | audit_logs                                                 | —                | —                                        | —                                  | 읽기만 (쓰기는 트리거)                      |
 | order_memos                                                | —                | —                                        | —                                  | 읽기 · 남기기 (고치기·지우기 불가)          |
+| funnel_events                                              | 기록만           | 기록만                                   | 기록만                             | 집계 함수로만 (`admin_funnel`)              |
 | refund_adjustments · settlement_adjustments                | —                | —                                        | 본인 조정 전표 읽기                | 읽기 (쓰기는 `admin_adjust_refund`)         |
 | storage `review-photos` / `product-images`                 | 공개 URL로 보기  | 본인 폴더에만 리뷰 사진                  | 파트너 폴더에만 상품 사진          | —                                           |
 
