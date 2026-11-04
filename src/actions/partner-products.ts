@@ -73,6 +73,7 @@ export async function saveProduct(
       highlights: v.highlights,
       adult_price: v.adultPrice,
       child_price: v.childPrice,
+      child_age_label: v.childPrice === null ? null : v.childAgeLabel || null,
       list_adult_price: v.listAdultPrice,
       operating_days: [...v.operatingDays].sort(),
       cutoff_days: v.cutoffDays,

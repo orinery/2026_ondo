@@ -114,6 +114,7 @@ export async function getPartnerProductForm(
     images: byPosition(data.product_images).map(({ url, alt }) => ({ url, alt })),
     adultPrice: data.adult_price,
     childPrice: data.child_price,
+    childAgeLabel: data.child_age_label,
     listAdultPrice: data.list_adult_price,
     operatingDays: data.operating_days,
     cutoffDays: data.cutoff_days,

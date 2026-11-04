@@ -48,6 +48,7 @@ type FormState = {
   images: { url: string; alt: string }[];
   adultPrice: string;
   childPrice: string; // "" = 성인 전용
+  childAgeLabel: string;
   listAdultPrice: string;
   operatingDays: number[];
   cutoffDays: string;
@@ -90,6 +91,7 @@ function toInput(f: FormState): unknown {
     usageInfo: toLines(f.usageInfo),
     adultPrice: f.adultPrice,
     childPrice: numOrNull(f.childPrice),
+    childAgeLabel: f.childAgeLabel.trim() || null,
     listAdultPrice: numOrNull(f.listAdultPrice),
     unavailableReason: f.unavailableReason.trim() || null,
   };
@@ -104,6 +106,7 @@ function fromInput(v: ProductFormInput): FormState {
     usageInfo: v.usageInfo.join("\n"),
     adultPrice: String(v.adultPrice),
     childPrice: v.childPrice === null ? "" : String(v.childPrice),
+    childAgeLabel: v.childAgeLabel ?? "",
     listAdultPrice: v.listAdultPrice === null ? "" : String(v.listAdultPrice),
     cutoffDays: String(v.cutoffDays),
     maxQty: String(v.maxQty),
@@ -128,6 +131,7 @@ function emptyProduct(cityId: string): FormState {
     images: [],
     adultPrice: "",
     childPrice: "",
+    childAgeLabel: "",
     listAdultPrice: "",
     operatingDays: [1, 2, 3, 4, 5, 6, 7],
     cutoffDays: "1",
@@ -472,6 +476,27 @@ export function ProductForm({
             error={err("childPrice")}
             hint="비우면 성인 전용 상품"
           />
+          <FormField
+            id={id("childAge")}
+            label="아동 기준 (선택)"
+            error={err("childAgeLabel")}
+            hint={
+              f.childPrice.trim() === ""
+                ? "아동 가격을 넣으면 쓸 수 있어요"
+                : "예약 위젯 아동 인원 옆에 표시돼요"
+            }
+          >
+            <Input
+              id={id("childAge")}
+              value={f.childAgeLabel}
+              onChange={(e) => set("childAgeLabel", e.target.value)}
+              placeholder="만 4~11세"
+              maxLength={30}
+              disabled={f.childPrice.trim() === ""}
+              className="h-11"
+              {...described("childAgeLabel")}
+            />
+          </FormField>
           <NumberField
             id={id("list")}
             label="정가 (원, 선택)"

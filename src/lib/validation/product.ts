@@ -64,6 +64,8 @@ export const productFormSchema = z
       .max(PRODUCT_IMAGE.max),
     adultPrice: won(1),
     childPrice: won(0).nullable(), // null = 성인 전용
+    // 아동 기준 (예: "만 4~11세") — 성인 전용 상품이면 저장할 때 버린다 (DB CHECK products_child_age_label)
+    childAgeLabel: z.string().trim().max(30, "아동 기준은 30자 이하로 입력해 주세요").nullable(),
     listAdultPrice: won(1).nullable(), // 정가 (할인 표시)
     operatingDays: z
       .array(z.number().int().min(1).max(7))
