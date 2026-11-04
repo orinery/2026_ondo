@@ -27,6 +27,7 @@ import {
   type ProductDetail,
 } from "@/lib/data/products";
 import { formatKrw } from "@/lib/format";
+import { parseBookingResume } from "@/lib/validation/cart";
 import { seoulNow } from "@/lib/trip-dates";
 import type { ItineraryDay } from "@/types/itinerary";
 
@@ -58,7 +59,9 @@ export default async function ProductDetailPage({
   if (!product) notFound();
 
   const query = await searchParams;
-  const initialDate = typeof query.date === "string" ? query.date : null;
+  // 로그인하고 돌아온 경우 위젯 선택 전체(Q1), 아니면 목록의 이용일 필터에서 넘어온 날짜만
+  const resume = parseBookingResume(query);
+  const initialDate = resume?.date ?? (typeof query.date === "string" ? query.date : null);
 
   const { today } = seoulNow();
   const [{ items: reviews, distribution }, likedIds, user, related, inventory] = await Promise.all([
@@ -263,6 +266,7 @@ export default async function ProductDetailPage({
               }}
               today={today}
               initialDate={initialDate}
+              resume={resume}
               isLoggedIn={Boolean(user)}
               mobileActions={
                 <LikeButton

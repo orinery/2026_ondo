@@ -3,7 +3,7 @@
 import { CalendarCheckIcon, CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { ko } from "react-day-picker/locale/ko";
 
 import { addToCart } from "@/actions/cart";
@@ -41,6 +41,7 @@ import { discountRate, formatKrw, formatUseDate } from "@/lib/format";
 import { errorMessage } from "@/lib/order-errors";
 import { track } from "@/lib/track";
 import { cn } from "@/lib/utils";
+import { bookingResumePath, type BookingResume } from "@/lib/validation/cart";
 
 import { QuantityStepper } from "./quantity-stepper";
 
@@ -126,10 +127,21 @@ type BookingWidgetProps = {
   product: BookingProduct;
   today: string; // 서버가 계산한 한국 날짜 — 브라우저에서 따로 계산하면 서버 HTML과 달라질 수 있다
   initialDate: string | null; // 목록의 이용일 필터에서 넘어온 날짜 (?date=)
+  // 로그인하고 돌아왔을 때 되살릴 선택 (회차·인원·옵션·누르려던 버튼). 초기값일 뿐 다시 눌러야 진행된다
+  resume?: BookingResume | null;
   isLoggedIn: boolean;
   // 1023 이하 하단 바에 함께 둘 버튼 (찜·공유)
   mobileActions?: React.ReactNode;
 };
+
+/** 화면이 사이드 카드 너비(1024 이상)인지 — 서버 렌더링에서는 true로 두어 시트를 닫은 채 그린다 */
+const DESKTOP_QUERY = "(min-width: 1024px)";
+const subscribeDesktop = (onChange: () => void) => {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+};
+const isDesktopNow = () => window.matchMedia(DESKTOP_QUERY).matches;
 
 /** "YYYY-MM-DD" ↔ 달력의 Date(브라우저 현지 자정). 달력 칸만 다루므로 시간대 계산이 필요 없다 */
 const toDate = (ymd: string) => {
@@ -149,6 +161,7 @@ export function BookingWidget({
   product,
   today,
   initialDate,
+  resume = null,
   isLoggedIn,
   mobileActions,
 }: BookingWidgetProps) {
@@ -156,14 +169,34 @@ export function BookingWidget({
   const [date, setDate] = useState<string | null>(
     initialDate && !blockedOn(product, initialDate, today) ? initialDate : null,
   );
-  const [slotId, setSlotId] = useState<string | null>(() => pickSlot(product, date, null));
-  const [optionIds, setOptionIds] = useState<string[]>([]);
-  const [adult, setAdult] = useState(1);
-  const [child, setChild] = useState(0);
+  // 되살린 회차가 그날 매진·마감이면 그날 첫 예약 가능 회차로 (pickSlot 규칙)
+  const [slotId, setSlotId] = useState<string | null>(() =>
+    pickSlot(product, date, resume?.slotId ?? null),
+  );
+  // 주소 값은 누구나 바꿀 수 있으므로 이 상품의 옵션·인원 범위 안으로만 되살린다
+  const [optionIds, setOptionIds] = useState<string[]>(() =>
+    (resume?.optionIds ?? []).filter((id) => product.options.some((o) => o.id === id)),
+  );
+  const [adult, setAdult] = useState(() => {
+    if (!resume) return 1;
+    const a = Math.min(resume.adult, product.maxQty);
+    return a === 0 && (product.childPrice === null || resume.child === 0) ? 1 : a;
+  });
+  const [child, setChild] = useState(() =>
+    resume && product.childPrice !== null ? Math.min(resume.child, product.maxQty - adult) : 0,
+  );
+  // "고른 내용을 불러왔어요" 안내 — 로그인하고 돌아온 경우에만, 담기에 성공하면 내린다
+  const [restored, setRestored] = useState(Boolean(resume && isLoggedIn && date));
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // 하단 시트: 사용자가 열고 닫기 전(null)에는, 선택을 되살린 경우 1023 이하에서만 열어 둔다
+  // (사이드 카드가 있는 1024 이상에서 열면 화면을 가린다)
+  const [sheetChoice, setSheetChoice] = useState<boolean | null>(null);
+  const [autoOpen] = useState(restored);
+  const isDesktop = useSyncExternalStore(subscribeDesktop, isDesktopNow, () => true);
+  const sheetOpen = sheetChoice ?? (autoOpen && !isDesktop);
+
   // 퍼널 "예약 시작"은 이 화면에서 한 번만 (날짜를 처음 고르거나 하단 시트를 처음 열 때)
   const started = useRef(false);
   const markStarted = () => {
@@ -175,6 +208,19 @@ export function BookingWidget({
   const { total } = quoteBooking(product, date, slotId, adult, child, optionIds);
   const unavailable = Boolean(product.unavailableReason);
 
+  // 로그인한 뒤 고른 내용(날짜·회차·인원·옵션)과 누르려던 버튼이 그대로인 상세로 돌아오게 한다
+  const loginPath = (mode: "cart" | "buy") =>
+    `/login?next=${encodeURIComponent(
+      bookingResumePath(product.slug, {
+        date: date ?? today,
+        slotId,
+        adult,
+        child,
+        optionIds,
+        mode,
+      }),
+    )}`;
+
   const submit = (mode: "cart" | "buy") => {
     setError(null);
     setAdded(false);
@@ -182,8 +228,7 @@ export function BookingWidget({
     if (problem || !date || !slotId) return setError(problem ?? "이용일을 선택해 주세요.");
     if (!isLoggedIn) {
       track("login_wall", product.id);
-      // 로그인 후 같은 날짜가 선택된 채로 돌아오게 한다
-      router.push(`/login?next=${encodeURIComponent(`/products/${product.slug}?date=${date}`)}`);
+      router.push(loginPath(mode));
       return;
     }
 
@@ -198,10 +243,11 @@ export function BookingWidget({
       };
       const result = await addToCart(input, mode === "buy" ? "set" : "add");
       if (!result.ok) {
-        if (result.reason === "unauthenticated") return router.push("/login");
+        if (result.reason === "unauthenticated") return router.push(loginPath(mode));
         return setError(result.message ?? errorMessage(null));
       }
       track("add_to_cart", product.id);
+      setRestored(false);
       if (mode === "buy") return router.push(`/checkout?items=${result.cartItemId}`);
       setAdded(true);
     });
@@ -246,6 +292,7 @@ export function BookingWidget({
       added={added}
       pending={pending}
       onSubmit={submit}
+      restoredMode={restored && resume ? resume.mode : null}
     />
   );
 
@@ -270,7 +317,7 @@ export function BookingWidget({
             open={sheetOpen}
             onOpenChange={(open) => {
               if (open) markStarted();
-              setSheetOpen(open);
+              setSheetChoice(open);
             }}
           >
             <SheetTrigger asChild>
@@ -317,6 +364,8 @@ type BookingPanelProps = {
   added: boolean;
   pending: boolean;
   onSubmit: (mode: "cart" | "buy") => void;
+  // 로그인하고 돌아와 선택을 되살렸을 때 이어서 누를 버튼 (안내 문구용)
+  restoredMode?: "cart" | "buy" | null;
   className?: string;
 };
 
@@ -338,6 +387,7 @@ export function BookingPanel({
   added,
   pending,
   onSubmit,
+  restoredMode = null,
   className,
 }: BookingPanelProps) {
   const discount = discountRate(product.adultPrice, product.listAdultPrice);
@@ -387,6 +437,22 @@ export function BookingPanel({
             : " · 성인 전용 상품"}
         </p>
       </div>
+
+      {restoredMode && !unavailable && (
+        <p
+          role="status"
+          className="flex gap-2 rounded-md bg-accent px-3 py-2.5 text-sm text-accent-foreground"
+        >
+          <CheckCircle2Icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+          <span>
+            고르신 내용을 그대로 불러왔어요.{" "}
+            <span className="font-semibold">
+              {restoredMode === "buy" ? "바로 구매" : "장바구니 담기"}
+            </span>
+            를 눌러 이어서 진행하세요.
+          </span>
+        </p>
+      )}
 
       {unavailable ? (
         <p className="rounded-md bg-muted px-4 py-3 text-sm font-medium">
