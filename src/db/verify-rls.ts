@@ -2980,6 +2980,98 @@ async function main() {
         async (sp) => (await sp`select public.mask_phone('010-1234-5678')`).count,
       );
 
+      // ── 퍼널 측정 (Quick Win Q4): 누구나 기록만, 읽기는 관리자 집계 함수로만
+      const sidA = randomUUID();
+      const sidB = randomUUID();
+      await expectOk(tx, "비로그인: 퍼널 이벤트 기록", anon, async (sp) => {
+        const r =
+          await sp`insert into public.funnel_events (name, session_id, product_id, device) values ('view_item', ${sidA}, ${fuji.id}, 'mobile')`;
+        return `${r.count}행`;
+      });
+      await expectOk(tx, "로그인 고객: 퍼널 이벤트 기록", B, async (sp) => {
+        const r =
+          await sp`insert into public.funnel_events (name, session_id, device) values ('begin_checkout', ${sidA}, 'desktop')`;
+        return `${r.count}행`;
+      });
+      await expectBlocked(
+        tx,
+        "비로그인: 퍼널 이벤트 읽기",
+        anon,
+        async (sp) => (await sp`select id from public.funnel_events`).count,
+      );
+      await expectBlocked(
+        tx,
+        "고객: 퍼널 이벤트 지우기",
+        B,
+        async (sp) => (await sp`delete from public.funnel_events where session_id = ${sidA}`).count,
+      );
+      await expectBlocked(
+        tx,
+        "비로그인: 기록 시각 꾸며 넣기",
+        anon,
+        async (sp) =>
+          (
+            await sp`insert into public.funnel_events (name, session_id, device, created_at) values ('view_item', ${sidA}, 'mobile', now() - interval '1 year')`
+          ).count,
+      );
+      await expectBlocked(
+        tx,
+        "비로그인: 정해지지 않은 이벤트 이름",
+        anon,
+        async (sp) =>
+          (
+            await sp`insert into public.funnel_events (name, session_id, device) values ('refund', ${sidA}, 'mobile')`
+          ).count,
+      );
+      await expectError(
+        tx,
+        "고객: 퍼널 집계",
+        B,
+        "forbidden",
+        (sp) =>
+          sp`select * from public.admin_funnel(public.seoul_today() - 1, public.seoul_today())`,
+      );
+      // 집계: 같은 DB에 실제 방문 기록이 있을 수 있어 넣기 전후의 차이로 확인한다.
+      // 한 트랜잭션 안의 now()는 같은 값이라 순서가 필요한 기록은 시각을 직접 넣는다 (소유자 권한)
+      type FunnelRow = { step: string; sessions: number; mobile: number; desktop: number };
+      const funnelNow = async () => {
+        const rows = await as(
+          tx,
+          admin,
+          (sp) =>
+            sp<
+              FunnelRow[]
+            >`select * from public.admin_funnel(public.seoul_today() - 1, public.seoul_today())`,
+        );
+        return new Map(rows.map((r) => [r.step, r]));
+      };
+      const before = await funnelNow();
+      await tx`insert into public.funnel_events (name, session_id, device, created_at) values
+        ('view_item', ${sidB}, 'desktop', now() - interval '5 minutes'),
+        ('view_item', ${sidB}, 'desktop', now() - interval '4 minutes'),
+        ('login_wall', ${sidB}, 'desktop', now() - interval '3 minutes'),
+        ('add_to_cart', ${sidB}, 'desktop', now() - interval '1 minute'),
+        ('login_wall', ${sidA}, 'mobile', now() - interval '2 minutes')`;
+      const after = await funnelNow();
+      const delta = (step: string, key: "sessions" | "mobile" | "desktop" = "sessions") =>
+        (after.get(step)?.[key] ?? 0) - (before.get(step)?.[key] ?? 0);
+      check(
+        "관리자 퍼널: 같은 방문의 상세 2번 조회는 1번으로 (상세 +1 · 데스크톱 +1)",
+        delta("view_item") === 1 && delta("view_item", "desktop") === 1,
+        `상세 +${delta("view_item")} · 데스크톱 +${delta("view_item", "desktop")}`,
+      );
+      check(
+        "관리자 퍼널: 로그인 벽 2 · 그 뒤 담기까지 이어진 방문 1",
+        delta("login_wall") === 2 && delta("login_wall_recovered") === 1,
+        `벽 +${delta("login_wall")} · 이어짐 +${delta("login_wall_recovered")}`,
+      );
+      check(
+        "관리자 퍼널: 단계 7개가 정해진 순서로",
+        [...after.keys()].join(",") ===
+          "view_item,start_booking,add_to_cart,begin_checkout,purchase,login_wall,login_wall_recovered",
+        [...after.keys()].join(","),
+      );
+
       // 검증이 끝나면 모든 변경을 되돌린다
       throw new RollbackSignal();
     })

@@ -207,6 +207,42 @@ export type Database = {
         };
         Relationships: [];
       };
+      funnel_events: {
+        Row: {
+          created_at: string;
+          device: string;
+          id: string;
+          name: string;
+          product_id: string | null;
+          session_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          device: string;
+          id?: string;
+          name: string;
+          product_id?: string | null;
+          session_id: string;
+        };
+        Update: {
+          created_at?: string;
+          device?: string;
+          id?: string;
+          name?: string;
+          product_id?: string | null;
+          session_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "funnel_events_product_id_products_id_fk";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       like_folders: {
         Row: {
           created_at: string;
@@ -1449,6 +1485,15 @@ export type Database = {
           gross: number;
           orders: number;
           refunds: number;
+        }[];
+      };
+      admin_funnel: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          desktop: number;
+          mobile: number;
+          sessions: number;
+          step: string;
         }[];
       };
       admin_kpis: {

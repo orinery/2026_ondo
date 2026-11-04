@@ -1122,3 +1122,33 @@ export const settlementAdjustments = pgTable(
     }),
   ],
 );
+
+// ─── funnel_events: 구매 퍼널 측정 (Quick Win Q4) ─────────────────────────────
+// 누가 아니라 "몇 번의 방문이 어느 단계까지 갔는지"만 센다 — 회원 id·IP는 남기지 않는다.
+// session_id는 브라우저 탭마다 만드는 무작위 값(sessionStorage). 180일 뒤 pg_cron이 지운다 (0035).
+// 쓰기는 누구나(비로그인 포함) insert만, 읽기는 관리자 함수 admin_funnel로만.
+export const funnelEvents = pgTable(
+  "funnel_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    sessionId: uuid("session_id").notNull(),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    device: text("device").notNull(), // 1024 이상 desktop(사이드 위젯), 미만 mobile(하단 시트)
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // src/lib/funnel.ts의 FUNNEL_EVENTS와 같은 목록
+    check(
+      "funnel_events_name",
+      sql`${t.name} in ('view_item', 'start_booking', 'login_wall', 'add_to_cart', 'begin_checkout', 'purchase')`,
+    ),
+    check("funnel_events_device", sql`${t.device} in ('mobile', 'desktop')`),
+    index("funnel_events_created_idx").on(t.createdAt),
+    pgPolicy("funnel_events_insert_any", {
+      for: "insert",
+      to: [anonRole, authenticatedRole],
+      withCheck: sql`true`,
+    }),
+  ],
+);
