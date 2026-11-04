@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { TrackEvent } from "@/components/analytics/track-event";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { OrderItemList } from "@/components/checkout/order-item-list";
 import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
@@ -66,6 +67,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
 
   return (
     <div className="container flex flex-col gap-8 py-10 md:py-14">
+      <TrackEvent name="begin_checkout" />
       <header>
         <p className="font-display text-2xl text-muted-foreground italic">Checkout</p>
         <h1 className="font-kr text-4xl font-semibold">주문서</h1>

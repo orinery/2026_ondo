@@ -36,8 +36,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 정적 파일·이미지 최적화 요청에는 실행하지 않는다 (불필요한 인증 호출 방지)
+  // 정적 파일·이미지 최적화·퍼널 이벤트 수집(로그인과 무관) 요청에는 실행하지 않는다 (불필요한 인증 호출 방지)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/events|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
   ],
 };

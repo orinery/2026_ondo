@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TrackEvent } from "@/components/analytics/track-event";
 import { OrderItemList } from "@/components/checkout/order-item-list";
 import { ItemStatusBadge } from "@/components/orders/order-status-badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export default async function OrderCompletePage({
 
   return (
     <div className="container flex max-w-3xl flex-col gap-8 py-12 md:py-16">
+      <TrackEvent name="purchase" />
       <header className="flex flex-col items-center gap-3 text-center">
         <div className="grid size-16 place-items-center rounded-full bg-accent">
           <CheckCircle2Icon aria-hidden className="size-8 text-accent-foreground" />

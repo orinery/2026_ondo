@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { TrackEvent } from "@/components/analytics/track-event";
 import { BookingWidget } from "@/components/product/booking-widget";
 import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
 import { Gallery } from "@/components/product/gallery";
@@ -82,6 +83,7 @@ export default async function ProductDetailPage({
   return (
     // 1023 이하: 하단 고정 예약 바(+360 하단 탭)에 내용이 가려지지 않게 여백
     <div className="container pt-8 pb-28 md:pt-10 lg:pb-section">
+      <TrackEvent name="view_item" productId={product.id} />
       {/* ── 타이틀: 도시 · 종류 · 평점 / 상품명 / 찜·공유 ── */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">

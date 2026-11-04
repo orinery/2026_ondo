@@ -3,7 +3,7 @@
 import { CalendarCheckIcon, CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { ko } from "react-day-picker/locale/ko";
 
 import { addToCart } from "@/actions/cart";
@@ -39,6 +39,7 @@ import {
 import type { ConfirmationMode } from "@/lib/constants/taxonomy";
 import { discountRate, formatKrw, formatUseDate } from "@/lib/format";
 import { errorMessage } from "@/lib/order-errors";
+import { track } from "@/lib/track";
 import { cn } from "@/lib/utils";
 
 import { QuantityStepper } from "./quantity-stepper";
@@ -163,6 +164,13 @@ export function BookingWidget({
   const [added, setAdded] = useState(false);
   const [pending, startTransition] = useTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // 퍼널 "예약 시작"은 이 화면에서 한 번만 (날짜를 처음 고르거나 하단 시트를 처음 열 때)
+  const started = useRef(false);
+  const markStarted = () => {
+    if (started.current) return;
+    started.current = true;
+    track("start_booking", product.id);
+  };
 
   const { total } = quoteBooking(product, date, slotId, adult, child, optionIds);
   const unavailable = Boolean(product.unavailableReason);
@@ -173,6 +181,7 @@ export function BookingWidget({
     const problem = bookingCheck(product, today, date, slotId, adult, child);
     if (problem || !date || !slotId) return setError(problem ?? "이용일을 선택해 주세요.");
     if (!isLoggedIn) {
+      track("login_wall", product.id);
       // 로그인 후 같은 날짜가 선택된 채로 돌아오게 한다
       router.push(`/login?next=${encodeURIComponent(`/products/${product.slug}?date=${date}`)}`);
       return;
@@ -192,6 +201,7 @@ export function BookingWidget({
         if (result.reason === "unauthenticated") return router.push("/login");
         return setError(result.message ?? errorMessage(null));
       }
+      track("add_to_cart", product.id);
       if (mode === "buy") return router.push(`/checkout?items=${result.cartItemId}`);
       setAdded(true);
     });
@@ -205,6 +215,7 @@ export function BookingWidget({
       today={today}
       date={date}
       onDateChange={(next) => {
+        markStarted();
         setDate(next);
         setSlotId(pickSlot(product, next, slotId));
         setAdded(false);
@@ -255,7 +266,13 @@ export function BookingWidget({
               {formatKrw(date ? total : product.adultPrice)}
             </p>
           </div>
-          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <Sheet
+            open={sheetOpen}
+            onOpenChange={(open) => {
+              if (open) markStarted();
+              setSheetOpen(open);
+            }}
+          >
             <SheetTrigger asChild>
               <Button
                 className="h-12 shrink-0 rounded-md px-6 text-base font-semibold"
