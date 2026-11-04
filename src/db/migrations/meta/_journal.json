@@ -267,6 +267,20 @@
       "when": 1793758960806,
       "tag": "0037_save_product_child_age",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793760012254,
+      "tag": "0038_partner_business_info",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793760036204,
+      "tag": "0039_partner_business_functions",
+      "breakpoints": true
     }
   ]
 }

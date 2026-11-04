@@ -124,6 +124,11 @@ export const SEED_PARTNERS: {
   contactPhone: string;
   contactEmail: string;
   intro: string;
+  // 판매자 신원 정보 (Q3) — 포트폴리오 예시 값 (주소의 "예시로"처럼 실제와 겹치지 않게), 0038 백필과 같은 값
+  representative: string;
+  businessRegNo: string;
+  businessAddress: string;
+  tourismLicenseNo: string | null;
   cities: CitySlug[];
 }[] = [
   {
@@ -133,6 +138,10 @@ export const SEED_PARTNERS: {
     contactPhone: "02-555-0101",
     contactEmail: "haru@partners.yeoun.test",
     intro: "도쿄·오사카 도심 투어와 테마파크 티켓을 전문으로 운영합니다.",
+    representative: "박하루",
+    businessRegNo: "123-45-00011",
+    businessAddress: "서울특별시 마포구 예시로 11",
+    tourismLicenseNo: "제2026-000011호",
     cities: ["tokyo", "osaka"],
   },
   {
@@ -142,6 +151,10 @@ export const SEED_PARTNERS: {
     contactPhone: "051-555-0202",
     contactEmail: "monogatari@partners.yeoun.test",
     intro: "교토·후쿠오카의 전통 문화 체험과 미식 투어를 소개합니다.",
+    representative: "정모노",
+    businessRegNo: "123-45-00012",
+    businessAddress: "부산광역시 해운대구 예시로 12",
+    tourismLicenseNo: "제2026-000012호",
     cities: ["kyoto", "fukuoka"],
   },
   {
@@ -151,6 +164,11 @@ export const SEED_PARTNERS: {
     contactPhone: "064-555-0303",
     contactEmail: "yukishima@partners.yeoun.test",
     intro: "삿포로의 눈과 오키나와의 바다, 계절 액티비티를 운영합니다.",
+    representative: "최유키",
+    businessRegNo: "123-45-00013",
+    businessAddress: "서울특별시 강남구 예시로 13",
+    // 입장권·액티비티 위주라 여행업 등록이 없는 예 (선택 항목)
+    tourismLicenseNo: null,
     cities: ["sapporo", "okinawa"],
   },
 ];

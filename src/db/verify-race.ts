@@ -39,8 +39,10 @@ async function main() {
       await sql`insert into auth.users (id, email, raw_user_meta_data, aud, role)
                 values (${id}, ${`${id}@race.test`}, ${sql.json({ name: "동시결제" })}, 'authenticated', 'authenticated')`;
     }
-    await sql`insert into public.partners (id, name, contact_name, contact_phone, contact_email, intro)
-              values (${partnerId}, ${`race-${tag}`}, '검증', '02-000-0000', 'race@race.test', '동시 결제 검증용 파트너')`;
+    await sql`insert into public.partners (id, name, contact_name, contact_phone, contact_email, intro,
+                                           representative, business_reg_no, business_address)
+              values (${partnerId}, ${`race-${tag}`}, '검증', '02-000-0000', 'race@race.test', '동시 결제 검증용 파트너',
+                      '검증', '123-45-99997', '검증 주소')`;
     const [city] = await sql<
       { id: string }[]
     >`select id from public.cities order by position limit 1`;

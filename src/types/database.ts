@@ -598,7 +598,9 @@ export type Database = {
       };
       partner_applications: {
         Row: {
+          business_address: string;
           business_name: string;
+          business_reg_no: string;
           contact_email: string;
           contact_name: string;
           contact_phone: string;
@@ -606,14 +608,18 @@ export type Database = {
           id: string;
           intro: string;
           reject_reason: string | null;
+          representative: string;
           reviewed_at: string | null;
           reviewed_by: string | null;
           status: Database["public"]["Enums"]["application_status"];
+          tourism_license_no: string | null;
           user_id: string;
         };
         ComputedFields: never;
         Insert: {
+          business_address: string;
           business_name: string;
+          business_reg_no: string;
           contact_email: string;
           contact_name: string;
           contact_phone: string;
@@ -621,13 +627,17 @@ export type Database = {
           id?: string;
           intro: string;
           reject_reason?: string | null;
+          representative: string;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           status?: Database["public"]["Enums"]["application_status"];
+          tourism_license_no?: string | null;
           user_id?: string;
         };
         Update: {
+          business_address?: string;
           business_name?: string;
+          business_reg_no?: string;
           contact_email?: string;
           contact_name?: string;
           contact_phone?: string;
@@ -635,9 +645,11 @@ export type Database = {
           id?: string;
           intro?: string;
           reject_reason?: string | null;
+          representative?: string;
           reviewed_at?: string | null;
           reviewed_by?: string | null;
           status?: Database["public"]["Enums"]["application_status"];
+          tourism_license_no?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -659,6 +671,8 @@ export type Database = {
       };
       partners: {
         Row: {
+          business_address: string;
+          business_reg_no: string;
           commission_rate: number;
           contact_email: string;
           contact_name: string;
@@ -668,10 +682,14 @@ export type Database = {
           intro: string;
           name: string;
           owner_user_id: string | null;
+          representative: string;
           status: Database["public"]["Enums"]["partner_status"];
+          tourism_license_no: string | null;
         };
         ComputedFields: never;
         Insert: {
+          business_address: string;
+          business_reg_no: string;
           commission_rate?: number;
           contact_email: string;
           contact_name: string;
@@ -681,9 +699,13 @@ export type Database = {
           intro: string;
           name: string;
           owner_user_id?: string | null;
+          representative: string;
           status?: Database["public"]["Enums"]["partner_status"];
+          tourism_license_no?: string | null;
         };
         Update: {
+          business_address?: string;
+          business_reg_no?: string;
           commission_rate?: number;
           contact_email?: string;
           contact_name?: string;
@@ -693,7 +715,9 @@ export type Database = {
           intro?: string;
           name?: string;
           owner_user_id?: string | null;
+          representative?: string;
           status?: Database["public"]["Enums"]["partner_status"];
+          tourism_license_no?: string | null;
         };
         Relationships: [
           {
@@ -1683,6 +1707,19 @@ export type Database = {
           p_policy_agreed: boolean;
         };
         Returns: string;
+      };
+      product_sellers: {
+        Args: { p_product_ids: string[] };
+        Returns: {
+          business_address: string;
+          business_reg_no: string;
+          email: string;
+          name: string;
+          phone: string;
+          product_id: string;
+          representative: string;
+          tourism_license_no: string;
+        }[];
       };
       refund_quote: {
         Args: { p_order_id: string };

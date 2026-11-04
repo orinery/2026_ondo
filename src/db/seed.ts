@@ -120,6 +120,10 @@ async function seedCatalog() {
         contactPhone: pa.contactPhone,
         contactEmail: pa.contactEmail,
         intro: pa.intro,
+        representative: pa.representative,
+        businessRegNo: pa.businessRegNo,
+        businessAddress: pa.businessAddress,
+        tourismLicenseNo: pa.tourismLicenseNo,
       };
       await tx
         .insert(schema.partners)

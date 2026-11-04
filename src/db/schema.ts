@@ -153,6 +153,12 @@ export const partners = pgTable(
     contactPhone: text("contact_phone").notNull(),
     contactEmail: text("contact_email").notNull(),
     intro: text("intro").notNull(),
+    // 판매자 신원 정보 (Q3) — 상품 페이지 "판매자 정보"에 공개 (전자상거래법상 통신판매중개자의 판매자 정보 제공).
+    // 공개 연락처는 contact_phone·contact_email을 그대로 쓰고, 담당자 이름은 공개하지 않는다
+    representative: text("representative").notNull(), // 대표자
+    businessRegNo: text("business_reg_no").notNull(), // 사업자등록번호 000-00-00000 (국내 사업자만)
+    businessAddress: text("business_address").notNull(), // 사업장 주소
+    tourismLicenseNo: text("tourism_license_no"), // 여행업 등록번호 (선택 — 입장권만 파는 파트너는 없을 수 있다)
     status: partnerStatusEnum("status").notNull().default("active"),
     // 플랫폼 수수료율(%). 주문할 때 주문 항목에 복사해 두므로 바꿔도 지난 주문 정산은 그대로다
     commissionRate: numeric("commission_rate", { precision: 4, scale: 2 }).notNull().default("15"),
@@ -160,6 +166,13 @@ export const partners = pgTable(
   },
   (t) => [
     check("partners_name_length", sql`char_length(${t.name}) between 1 and 40`),
+    check("partners_representative", sql`char_length(${t.representative}) between 1 and 30`),
+    check("partners_business_reg_no", sql`${t.businessRegNo} ~ '^[0-9]{3}-[0-9]{2}-[0-9]{5}$'`),
+    check("partners_business_address", sql`char_length(${t.businessAddress}) between 1 and 100`),
+    check(
+      "partners_tourism_license_no",
+      sql`${t.tourismLicenseNo} is null or char_length(${t.tourismLicenseNo}) between 1 and 30`,
+    ),
     check("partners_commission_rate", sql`${t.commissionRate} between 0 and 50`),
     pgPolicy("partners_select_own", {
       for: "select",
@@ -184,6 +197,11 @@ export const partnerApplications = pgTable(
     contactPhone: text("contact_phone").notNull(),
     contactEmail: text("contact_email").notNull(),
     intro: text("intro").notNull(),
+    // 판매자 신원 정보 (Q3) — 승인하면 partners로 복사된다
+    representative: text("representative").notNull(),
+    businessRegNo: text("business_reg_no").notNull(),
+    businessAddress: text("business_address").notNull(),
+    tourismLicenseNo: text("tourism_license_no"),
     status: applicationStatusEnum("status").notNull().default("pending"),
     rejectReason: text("reject_reason"),
     reviewedBy: uuid("reviewed_by").references(() => profiles.id, { onDelete: "set null" }),
@@ -206,6 +224,22 @@ export const partnerApplications = pgTable(
       sql`char_length(${t.contactEmail}) <= 254 and ${t.contactEmail} like '%_@_%'`,
     ),
     check("partner_applications_intro", sql`char_length(${t.intro}) between 10 and 500`),
+    check(
+      "partner_applications_representative",
+      sql`char_length(${t.representative}) between 1 and 30`,
+    ),
+    check(
+      "partner_applications_business_reg_no",
+      sql`${t.businessRegNo} ~ '^[0-9]{3}-[0-9]{2}-[0-9]{5}$'`,
+    ),
+    check(
+      "partner_applications_business_address",
+      sql`char_length(${t.businessAddress}) between 1 and 100`,
+    ),
+    check(
+      "partner_applications_tourism_license_no",
+      sql`${t.tourismLicenseNo} is null or char_length(${t.tourismLicenseNo}) between 1 and 30`,
+    ),
     check(
       "partner_applications_reject_reason",
       sql`${t.rejectReason} is null or char_length(${t.rejectReason}) between 1 and 200`,

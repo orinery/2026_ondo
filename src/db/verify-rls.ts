@@ -895,6 +895,10 @@ async function main() {
         contact_phone: "02-123-4567",
         contact_email: "a@rls.test",
         intro: "검증용 파트너 신청서입니다.",
+        representative: "검증대표",
+        business_reg_no: "123-45-99999",
+        business_address: "서울특별시 중구 검증로 1",
+        tourism_license_no: null,
       };
       const [appA] = await as(
         tx,
@@ -966,6 +970,55 @@ async function main() {
       );
       const partnerA = meA?.partner_id;
       if (!partnerA) throw new Error("파트너 생성 실패");
+
+      // ── 판매자 신원 정보 (Q3): 승인하면 복사되고, 공개 상품의 것만 공개 항목으로 조회된다
+      const [copied] = await tx<{ representative: string; business_reg_no: string }[]>`
+        select representative, business_reg_no from public.partners where id = ${partnerA}`;
+      check(
+        "승인: 신청서의 대표자·사업자등록번호가 파트너로 복사",
+        copied?.representative === "검증대표" && copied.business_reg_no === "123-45-99999",
+        `${copied?.representative} · ${copied?.business_reg_no}`,
+      );
+      await expectOk(
+        tx,
+        "비로그인: 공개 상품의 판매자 정보 (담당자 이름 없음)",
+        anon,
+        async (sp) => {
+          const rows = await sp<Record<string, unknown>[]>`
+          select * from public.product_sellers(array[${fuji.id}]::uuid[])`;
+          const row = rows[0];
+          if (rows.length !== 1 || !row?.business_reg_no || !row.phone)
+            throw new Error("판매자 없음");
+          if ("contact_name" in row || "commission_rate" in row)
+            throw new Error("비공개 항목 노출");
+          return `${String(row.name)} · ${String(row.business_reg_no)}`;
+        },
+      );
+      await expectBlocked(
+        tx,
+        "비로그인: 판매자 정보 51개 이상 한 번에",
+        anon,
+        async (sp) =>
+          (
+            await sp`select * from public.product_sellers(${sp.array(
+              Array.from({ length: 51 }, () => fuji.id),
+            )}::uuid[])`
+          ).length,
+      );
+      await expectBlocked(
+        tx,
+        "비로그인: 파트너 테이블 직접 읽기",
+        anon,
+        async (sp) => (await sp`select 1 from public.partners`).length,
+      );
+      await expectError(
+        tx,
+        "B: 사업자등록번호 형식이 틀린 신청",
+        B,
+        "partner_applications_business_reg_no",
+        (sp) =>
+          sp`insert into public.partner_applications ${sp({ ...application, business_reg_no: "1234500000" })}`,
+      );
       await expectError(
         tx,
         "A(파트너): 다시 신청",
@@ -1904,8 +1957,10 @@ async function main() {
                values (${userE}, ${`${userE}@rls.test`}, ${sql.json({ name: "검증정산" })}, 'authenticated', 'authenticated')`;
       await tx`update public.profiles set role = 'partner' where id = ${userE}`;
       const [partnerE] = await tx<{ id: string }[]>`
-        insert into public.partners (owner_user_id, name, contact_name, contact_phone, contact_email, intro, commission_rate)
-        values (${userE}, '검증 정산 파트너', '검증', '02-000-0000', 'e@rls.test', '정산 검증용 파트너', 15)
+        insert into public.partners (owner_user_id, name, contact_name, contact_phone, contact_email, intro, commission_rate,
+                                     representative, business_reg_no, business_address)
+        values (${userE}, '검증 정산 파트너', '검증', '02-000-0000', 'e@rls.test', '정산 검증용 파트너', 15,
+                '검증', '123-45-99998', '검증 주소')
         returning id`;
       if (!partnerE) throw new Error("정산 파트너 생성 실패");
       const E: Role = { name: "authenticated", userId: userE };
