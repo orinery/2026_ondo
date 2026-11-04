@@ -1,7 +1,8 @@
 /**
  * 소셜 로그인 버튼 (명세 4.5: 구분선 → 카카오 · Google)
- * 사용자 확정: 화면에만 두고 기능은 연결하지 않는다 → disabled + "준비 중" 표시.
- * 연결 시에는 supabase.auth.signInWithOAuth({ provider })를 호출하는 Server Action으로 바꾼다.
+ * 기능은 아직 연결하지 않았다. 처음에는 disabled + "준비 중"으로 화면에 두었지만, 누를 수 없는 버튼이
+ * 로그인 화면의 신뢰를 떨어뜨려서 숨긴다 (Quick Win Q7, 사용자 확정) → SOCIAL_LOGIN_ENABLED가 false면 그리지 않는다.
+ * 연결 시에는 supabase.auth.signInWithOAuth({ provider })를 호출하는 Server Action으로 바꾸고 true로 켠다.
  *
  * 브랜드 색(카카오 노랑 등)은 디자인 토큰에 없으므로 기능을 연결할 때 토큰 추가를 함께 결정한다.
  */
@@ -10,7 +11,10 @@ const PROVIDERS = [
   { id: "google", label: "Google로 계속하기" },
 ] as const;
 
+const SOCIAL_LOGIN_ENABLED = false;
+
 export function SocialButtons() {
+  if (!SOCIAL_LOGIN_ENABLED) return null;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 text-sm text-muted-foreground" aria-hidden>
