@@ -18,8 +18,9 @@
   - `0031` — 파트너 예약자 연락처 가리기: `partner_bookings`가 살아 있는 예약 + 이용일 7일 뒤까지만 원문, 그 밖은 가린 값(`mask_name`·`mask_phone`·`mask_email`), 조회는 90일 전 이용분부터
   - `0032`~`0033` — 예약 정보 파트너 제공 동의: `orders.pii_share_agreed_at`, `place_order`에 동의 인자 추가(기존 함수는 `place_order_core`로 내부 전용)
   - `0034`~`0035` — 구매 퍼널 측정: `funnel_events`(누구나 insert 4개 컬럼만, 읽기 없음), 관리자 집계 `admin_funnel`, 180일 지난 기록 매일 삭제(pg_cron `purge-funnel-events`)
+  - `0036`~`0037` — 아동 기준: `products.child_age_label`(아동 가격이 있을 때만, 30자), 파트너 컬럼 권한, `save_product`가 함께 저장(인자는 그대로 — jsonb로 받음)
 - 시드: [`src/db/seed.ts`](../src/db/seed.ts), [`src/db/seed-data.ts`](../src/db/seed-data.ts)
-- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 296개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
+- 검증: [`src/db/verify-rls.ts`](../src/db/verify-rls.ts) (역할별 298개 시나리오, 롤백) · [`src/db/verify-race.ts`](../src/db/verify-race.ts) (동시 결제)
 
 ## ERD
 
@@ -76,6 +77,7 @@ erDiagram
     uuid partner_id FK "기본값 my_partner_id()"
     int adult_price "원"
     int child_price "null = 성인 전용"
+    text child_age_label "아동 기준 (예: 만 4~11세)"
     smallint_array operating_days "ISO 요일"
     smallint cutoff_days "N일 전 마감"
     enum confirmation_mode "instant·manual"
