@@ -1,8 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-import { publicEnv } from "@/lib/env";
+import { createPublicClient } from "@/lib/supabase/public";
 import { funnelEventSchema } from "@/lib/validation/funnel-event";
-import type { Database } from "@/types/database";
 
 /**
  * 퍼널 이벤트 수집 (POST /api/events) — 브라우저의 navigator.sendBeacon이 보낸다 (src/lib/track.ts).
@@ -23,11 +20,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return new Response(null, { status: 400 });
 
   const { name, sessionId, productId, device } = parsed.data;
-  const supabase = createClient<Database>(
-    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-    publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
+  const supabase = createPublicClient();
   const { error } = await supabase
     .from("funnel_events")
     .insert({ name, session_id: sessionId, product_id: productId ?? null, device });

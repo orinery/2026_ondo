@@ -29,6 +29,7 @@ import {
   type ProductDetail,
 } from "@/lib/data/products";
 import { formatKrw } from "@/lib/format";
+import { productJsonLd, serializeJsonLd } from "@/lib/structured-data";
 import { parseBookingResume } from "@/lib/validation/cart";
 import { seoulNow } from "@/lib/trip-dates";
 import type { ItineraryDay } from "@/types/itinerary";
@@ -43,6 +44,8 @@ export async function generateMetadata({
   return {
     title: p.title,
     description: `${p.summary} · 성인 ${formatKrw(p.adultPrice)}부터`,
+    // ?date=·로그인 복귀(?resume=) 같은 쿼리 주소가 같은 상품의 다른 페이지로 색인되지 않게
+    alternates: { canonical: `/products/${p.slug}` },
     openGraph: {
       title: `${p.title} · 여운`,
       description: p.summary,
@@ -93,6 +96,10 @@ export default async function ProductDetailPage({
     // 1023 이하: 하단 고정 예약 바(+360 하단 탭)에 내용이 가려지지 않게 여백
     <div className="container pt-8 pb-28 md:pt-10 lg:pb-section">
       <TrackEvent name="view_item" productId={product.id} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd(product, seller)) }}
+      />
       {/* ── 타이틀: 도시 · 종류 · 평점 / 상품명 / 찜·공유 ── */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">

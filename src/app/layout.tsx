@@ -3,6 +3,7 @@ import { DM_Sans, IBM_Plex_Sans_KR, Instrument_Serif } from "next/font/google";
 
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { publicEnv } from "@/lib/env";
 import "./globals.css";
 
 // 폰트 설정은 명세 "03 Tailwind > app/layout.tsx"를 그대로 따른다.
@@ -24,6 +25,8 @@ const kr = IBM_Plex_Sans_KR({
 });
 
 export const metadata: Metadata = {
+  // canonical·OG의 상대 주소를 배포 주소 기준 절대 주소로 바꾼다
+  metadataBase: new URL(publicEnv.NEXT_PUBLIC_SITE_URL),
   title: {
     default: "여운 Yeoun",
     template: "%s | 여운",
