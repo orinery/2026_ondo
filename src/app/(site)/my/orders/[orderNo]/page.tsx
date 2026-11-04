@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { OrderItemList } from "@/components/checkout/order-item-list";
 import { CancelOrderDialog, type RefundPreview } from "@/components/orders/cancel-order-dialog";
 import { ItemStatusBadge, OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { PrintButton } from "@/components/orders/print-button";
 import { VoucherCard } from "@/components/orders/voucher-card";
 import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
         return i.productSlug ? (
           <Link
             href={`/products/${i.productSlug}#reviews-title`}
-            className="mt-1 self-start text-sm font-semibold text-primary hover:underline"
+            className="mt-1 self-start text-sm font-semibold text-primary hover:underline print:hidden"
           >
             리뷰 쓰기 →
           </Link>
@@ -116,7 +117,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
       <div className="flex flex-col gap-4">
         <Link
           href="/my?tab=orders"
-          className="inline-flex items-center gap-1 self-start text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 self-start text-sm font-medium text-muted-foreground hover:text-foreground print:hidden"
         >
           <ChevronLeftIcon aria-hidden className="size-4" />
           예약 내역
@@ -129,7 +130,7 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
             </p>
             <h1 className="mt-2 font-kr text-3xl font-semibold tabular-nums">{order.orderNo}</h1>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 print:hidden">
             {order.tripId && (
               <Button asChild variant="ghost" className="h-11 rounded-md px-4 text-base">
                 <Link href={`/my?tab=planner&trip=${order.tripId}`}>일정 플래너에서 보기</Link>
@@ -171,9 +172,12 @@ export default async function OrderDetailPage({ params }: PageProps<"/my/orders/
 
       {vouchers.length > 0 && (
         <section aria-labelledby="voucher-title" className="flex flex-col gap-4">
-          <h2 id="voucher-title" className="font-kr text-xl font-semibold">
-            바우처
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="voucher-title" className="font-kr text-xl font-semibold">
+              바우처
+            </h2>
+            <PrintButton label="바우처 인쇄" />
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {vouchers.map((i) => (
               <VoucherCard

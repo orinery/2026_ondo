@@ -136,7 +136,7 @@ export function SiteNav({
 
       <header
         className={cn(
-          "inset-x-0 top-0 z-30 transition-colors duration-base",
+          "inset-x-0 top-0 z-30 transition-colors duration-base print:hidden",
           preview ? "relative" : overHero ? "fixed" : "sticky",
           transparent
             ? "bg-transparent text-white"
@@ -548,7 +548,7 @@ function BottomTabs({ pathname, cartCount }: { pathname: string; cartCount: numb
   return (
     <nav
       aria-label="하단 탭"
-      className="fixed inset-x-0 bottom-0 z-30 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t bg-card pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
     >
       <ul className="grid h-16 grid-cols-4">
         {BOTTOM_TABS.map(({ key, href, label, icon: Icon }) => {

@@ -10,7 +10,14 @@
   --color-*: initial;
 }
 
-@custom-variant dark (&:is(.dark *));
+/* 다크 모드는 화면에서만 — 인쇄(바우처·예약 확인서)는 다크 모드에서도 흰 종이에 어두운 글자로 찍히게 (Q8) */
+@custom-variant dark {
+  @media screen {
+    &:is(.dark *) {
+      @slot;
+    }
+  }
+}
 
 /*
  * 디자인 QA용 상태 미리보기 변형.
@@ -38,7 +45,7 @@
 /*
  * 시맨틱 토큰 (명세 2.2 · shadcn/ui 매핑)
  * 컴포넌트는 스케일(moss-600 등)이 아니라 이 변수들만 참조한다.
- * 다크 모드는 .dark 클래스(next-themes)에서 같은 이름의 변수를 교체한다.
+ * 다크 모드는 .dark 클래스(next-themes)에서 같은 이름의 변수를 교체한다 (화면에서만 — 인쇄는 항상 밝은 토큰).
  */
 :root {
   --background: #faf9f6;
@@ -76,30 +83,42 @@
   --chart-5: var(--muted-foreground);
 }
 
-.dark {
-  --background: #141513;
-  --foreground: #f2f0eb;
-  --card: #1d1f1b;
-  --card-foreground: #f2f0eb;
-  --popover: #1d1f1b;
-  --popover-foreground: #f2f0eb;
-  --primary: #8fbf9c;
-  --primary-foreground: #14201a;
-  --secondary: #8db6cc;
-  --secondary-foreground: #13222b;
-  --muted: #262823;
-  --muted-foreground: #ada89d;
-  --accent: #263029;
-  --accent-foreground: #dde8df;
-  --highlight: #f09a82;
-  --highlight-foreground: #1b1a17;
-  --destructive: #f2867e;
-  --destructive-foreground: #1b1a17;
-  --success: #7fcb9b;
-  --warning: #f2c46b;
-  --border: #34372f;
-  --input: #45483f;
-  --ring: #8fbf9c;
+@media screen {
+  .dark {
+    --background: #141513;
+    --foreground: #f2f0eb;
+    --card: #1d1f1b;
+    --card-foreground: #f2f0eb;
+    --popover: #1d1f1b;
+    --popover-foreground: #f2f0eb;
+    --primary: #8fbf9c;
+    --primary-foreground: #14201a;
+    --secondary: #8db6cc;
+    --secondary-foreground: #13222b;
+    --muted: #262823;
+    --muted-foreground: #ada89d;
+    --accent: #263029;
+    --accent-foreground: #dde8df;
+    --highlight: #f09a82;
+    --highlight-foreground: #1b1a17;
+    --destructive: #f2867e;
+    --destructive-foreground: #1b1a17;
+    --success: #7fcb9b;
+    --warning: #f2c46b;
+    --border: #34372f;
+    --input: #45483f;
+    --ring: #8fbf9c;
+  }
+}
+
+/* 인쇄 (Q8): 여백을 정하고, next-themes가 html에 붙인 color-scheme: dark를 무시한다 */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  html {
+    color-scheme: light !important;
+  }
 }
 
 @layer base {

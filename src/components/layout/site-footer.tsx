@@ -8,7 +8,7 @@ import { COMPANY } from "@/lib/legal";
  */
 export function SiteFooter() {
   return (
-    <footer className="border-t">
+    <footer className="border-t print:hidden">
       <div className="container flex flex-col gap-3 py-8 text-sm text-muted-foreground">
         <nav aria-label="약관" className="flex flex-wrap gap-x-4 gap-y-1">
           <Link href="/terms" className="hover:underline">

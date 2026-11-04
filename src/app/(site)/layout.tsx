@@ -18,7 +18,7 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
         <SiteNavWithUser />
       </Suspense>
       {/* 360: 하단 탭(64px + safe-area)에 내용이 가려지지 않게 여백을 둔다 */}
-      <div className="flex flex-1 flex-col pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0">
+      <div className="flex flex-1 flex-col pb-[calc(--spacing(16)+env(safe-area-inset-bottom))] md:pb-0 print:pb-0">
         <main id="main-content" className="flex flex-1 flex-col">
           {children}
         </main>

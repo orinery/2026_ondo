@@ -70,11 +70,11 @@ export function CancelOrderDialog({
     <AlertDialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
       <AlertDialogTrigger asChild>
         {single ? (
-          <Button variant="outline" size="sm" className="self-start rounded-md">
+          <Button variant="outline" size="sm" className="self-start rounded-md print:hidden">
             이 상품만 취소
           </Button>
         ) : (
-          <Button variant="outline" className="h-11 rounded-md px-5 text-base">
+          <Button variant="outline" className="h-11 rounded-md px-5 text-base print:hidden">
             예약 취소
           </Button>
         )}
