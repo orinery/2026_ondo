@@ -25,6 +25,10 @@ export function PartnerApplyForm({ defaults }: { defaults: { name: string; email
     contactPhone: "",
     contactEmail: defaults.email,
     intro: "",
+    representative: "",
+    businessRegNo: "",
+    businessAddress: "",
+    tourismLicenseNo: "",
   });
 
   const bind = (field: PartnerApplicationField) => ({
@@ -48,6 +52,49 @@ export function PartnerApplyForm({ defaults }: { defaults: { name: string; email
           hint="상품 상세와 정산 내역에 표시돼요."
         >
           <Input {...bind("businessName")} maxLength={40} className="h-12 text-base" />
+        </FormField>
+        <FormField id="representative" label="대표자" error={fe.representative}>
+          <Input {...bind("representative")} maxLength={30} className="h-12 text-base" />
+        </FormField>
+        <FormField
+          id="businessRegNo"
+          label="사업자등록번호"
+          error={fe.businessRegNo}
+          hint="국내 사업자만 입점할 수 있어요."
+        >
+          <Input
+            {...bind("businessRegNo")}
+            inputMode="numeric"
+            placeholder="123-45-67890"
+            className="h-12 text-base"
+          />
+        </FormField>
+        <FormField
+          id="businessAddress"
+          label="사업장 주소"
+          error={fe.businessAddress}
+          className="md:col-span-2"
+        >
+          <Input
+            {...bind("businessAddress")}
+            autoComplete="street-address"
+            maxLength={100}
+            className="h-12 text-base"
+          />
+        </FormField>
+        <FormField
+          id="tourismLicenseNo"
+          label="여행업 등록번호 (선택)"
+          error={fe.tourismLicenseNo}
+          className="md:col-span-2"
+          hint="투어를 운영한다면 관광사업(여행업) 등록번호를 넣어 주세요."
+        >
+          <Input
+            {...bind("tourismLicenseNo")}
+            maxLength={30}
+            placeholder="제2026-000000호"
+            className="h-12 text-base"
+          />
         </FormField>
         <FormField id="contactName" label="담당자 이름" error={fe.contactName}>
           <Input
@@ -90,6 +137,12 @@ export function PartnerApplyForm({ defaults }: { defaults: { name: string; email
           <Textarea {...bind("intro")} rows={5} maxLength={500} className="text-base" />
         </FormField>
       </div>
+
+      <p className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">
+        승인되면 상호·대표자·사업자등록번호·사업장 주소·연락처·이메일·여행업 등록번호가 상품
+        페이지의 &quot;판매자 정보&quot;에 공개돼요 (통신판매중개자의 판매자 정보 제공 의무). 담당자
+        이름은 공개하지 않아요.
+      </p>
 
       {state.error && (
         <p

@@ -20,6 +20,13 @@ export function normalizeContactPhone(value: string) {
   return `${digits.slice(0, areaLength)}-${rest.slice(0, middle)}-${rest.slice(middle)}`;
 }
 
+/** 사업자등록번호 정리: "1234500011" → "123-45-00011" (국내 사업자만, 형식이 아니면 그대로 두고 검증에서 걸러진다) */
+export function normalizeBusinessRegNo(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 10) return value.trim();
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+}
+
 export const partnerApplicationSchema = z.object({
   businessName: z
     .string()
@@ -53,6 +60,27 @@ export const partnerApplicationSchema = z.object({
     .trim()
     .min(10, "소개를 10자 이상 입력해 주세요")
     .max(500, "소개는 500자 이하로 입력해 주세요"),
+  // 판매자 신원 정보 (Q3) — 상품 페이지 "판매자 정보"에 공개된다
+  representative: z
+    .string()
+    .trim()
+    .min(1, "대표자 이름을 입력해 주세요")
+    .max(30, "대표자 이름은 30자 이하로 입력해 주세요"),
+  businessRegNo: z
+    .string()
+    .transform(normalizeBusinessRegNo)
+    .pipe(z.string().regex(/^\d{3}-\d{2}-\d{5}$/, "사업자등록번호 10자리를 확인해 주세요")),
+  businessAddress: z
+    .string()
+    .trim()
+    .min(1, "사업장 주소를 입력해 주세요")
+    .max(100, "주소는 100자 이하로 입력해 주세요"),
+  // 선택 — 입장권만 파는 파트너는 여행업 등록이 없을 수 있다. 비우면 null
+  tourismLicenseNo: z
+    .string()
+    .trim()
+    .max(30, "여행업 등록번호는 30자 이하로 입력해 주세요")
+    .transform((v) => v || null),
 });
 
 export type PartnerApplicationInput = z.infer<typeof partnerApplicationSchema>;

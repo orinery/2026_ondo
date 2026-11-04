@@ -31,6 +31,10 @@ const FIELDS: PartnerApplicationField[] = [
   "contactPhone",
   "contactEmail",
   "intro",
+  "representative",
+  "businessRegNo",
+  "businessAddress",
+  "tourismLicenseNo",
 ];
 const isField = (key: unknown): key is PartnerApplicationField =>
   FIELDS.some((field) => field === key);
@@ -62,6 +66,10 @@ export async function submitPartnerApplication(
     contact_phone: input.contactPhone,
     contact_email: input.contactEmail,
     intro: input.intro,
+    representative: input.representative,
+    business_reg_no: input.businessRegNo,
+    business_address: input.businessAddress,
+    tourism_license_no: input.tourismLicenseNo,
   });
   if (error) return { ok: false, error: errorMessage(knownErrorCode(error.message)) };
 

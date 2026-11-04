@@ -43,6 +43,15 @@ export function ApplicationList({
             </Badge>
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            {/* 승인하면 상품 페이지 "판매자 정보"에 공개되는 항목 — 사업자등록번호는 국세청 조회로 확인 */}
+            <dt className="text-muted-foreground">대표자</dt>
+            <dd>{a.representative}</dd>
+            <dt className="text-muted-foreground">사업자등록번호</dt>
+            <dd className="tabular-nums">{a.businessRegNo}</dd>
+            <dt className="text-muted-foreground">사업장 주소</dt>
+            <dd>{a.businessAddress}</dd>
+            <dt className="text-muted-foreground">여행업 등록</dt>
+            <dd>{a.tourismLicenseNo ?? "없음"}</dd>
             <dt className="text-muted-foreground">담당자</dt>
             <dd>{a.contactName}</dd>
             <dt className="text-muted-foreground">연락처</dt>

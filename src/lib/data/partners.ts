@@ -16,6 +16,10 @@ export type PartnerApplication = {
   contactPhone: string;
   contactEmail: string;
   intro: string;
+  representative: string;
+  businessRegNo: string;
+  businessAddress: string;
+  tourismLicenseNo: string | null;
   status: ApplicationStatus;
   rejectReason: string | null;
   createdAt: string;
@@ -38,7 +42,7 @@ export type PartnerRow = {
 
 // partner_applications → profiles 외래 키가 두 개(신청자·검토자)라 어느 쪽인지 이름으로 지정한다
 const APPLICATION_COLUMNS = `id, business_name, contact_name, contact_phone, contact_email, intro,
-  status, reject_reason, created_at, reviewed_at,
+  representative, business_reg_no, business_address, tourism_license_no, status, reject_reason, created_at, reviewed_at,
   applicant:profiles!partner_applications_user_id_profiles_id_fk ( display_name )`;
 
 type ApplicationRecord = {
@@ -48,6 +52,10 @@ type ApplicationRecord = {
   contact_phone: string;
   contact_email: string;
   intro: string;
+  representative: string;
+  business_reg_no: string;
+  business_address: string;
+  tourism_license_no: string | null;
   status: ApplicationStatus;
   reject_reason: string | null;
   created_at: string;
@@ -62,6 +70,10 @@ const toApplication = (r: ApplicationRecord): PartnerApplication => ({
   contactPhone: r.contact_phone,
   contactEmail: r.contact_email,
   intro: r.intro,
+  representative: r.representative,
+  businessRegNo: r.business_reg_no,
+  businessAddress: r.business_address,
+  tourismLicenseNo: r.tourism_license_no,
   status: r.status,
   rejectReason: r.reject_reason,
   createdAt: r.created_at,

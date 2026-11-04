@@ -12,6 +12,10 @@ const PENDING: PartnerApplication = {
   contactEmail: "nara@example.com",
   intro:
     "나라 공원과 도다이지를 걷는 소규모 가이드 투어를 운영합니다.\n한국어 가이드가 동행하고, 최대 8명까지 진행해요.",
+  representative: "정나래",
+  businessRegNo: "123-45-00021",
+  businessAddress: "서울특별시 종로구 예시로 21",
+  tourismLicenseNo: null,
   status: "pending",
   rejectReason: null,
   createdAt: "2026-10-20T01:30:00Z",
