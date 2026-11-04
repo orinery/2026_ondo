@@ -1,0 +1,2 @@
+ALTER TABLE "products" ADD COLUMN "child_age_label" text;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_child_age_label" CHECK ("products"."child_age_label" is null or ("products"."child_price" is not null and char_length("products"."child_age_label") between 1 and 30));

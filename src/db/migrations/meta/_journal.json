@@ -253,6 +253,20 @@
       "when": 1793582721489,
       "tag": "0035_funnel_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793758958620,
+      "tag": "0036_child_age_label",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793758960806,
+      "tag": "0037_save_product_child_age",
+      "breakpoints": true
     }
   ]
 }

@@ -1623,6 +1623,34 @@ async function main() {
       await expectError(tx, "고객: 상품 저장 함수", B, "forbidden", (sp) =>
         saveProduct(sp, null, { ...productJson, slug: "rls-customer" }, images, slotsJson),
       );
+      // 아동 기준 (Q2): 아동 가격이 있을 때만 저장된다
+      await expectOk(tx, "파트너: 아동 가격과 아동 기준 저장", D, async (sp) => {
+        await saveProduct(
+          sp,
+          savedId,
+          { ...productJson, child_price: 20000, child_age_label: "만 6~12세" },
+          images,
+          slotsJson,
+        );
+        const [row] = await sp<{ child_age_label: string | null }[]>`
+          select child_age_label from public.products where id = ${savedId}`;
+        if (row?.child_age_label !== "만 6~12세") throw new Error(`${row?.child_age_label}`);
+        return row.child_age_label;
+      });
+      await expectError(
+        tx,
+        "파트너: 성인 전용 상품에 아동 기준",
+        D,
+        "products_child_age_label",
+        (sp) =>
+          saveProduct(
+            sp,
+            savedId,
+            { ...productJson, child_price: null, child_age_label: "만 6~12세" },
+            images,
+            slotsJson,
+          ),
+      );
       await expectOk(
         tx,
         "파트너: 회차 하나 빼고 공개로 수정 → 뺀 회차는 판매만 끔",

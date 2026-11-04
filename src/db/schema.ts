@@ -311,6 +311,8 @@ export const products = pgTable(
     // 가격은 원(KRW) 정수. 아동 가격이 없으면 성인 전용 상품
     adultPrice: integer("adult_price").notNull(),
     childPrice: integer("child_price"),
+    // 아동 기준 표시 문구 (예: "만 4~11세") — 일본 시설마다 기준이 달라 상품별로 둔다 (Q2)
+    childAgeLabel: text("child_age_label"),
     // 정가 — 있으면 할인 전 가격으로 취소선 표시
     listAdultPrice: integer("list_adult_price"),
     // 운영 요일 (ISO 요일: 1=월 … 7=일)
@@ -358,6 +360,11 @@ export const products = pgTable(
     check("products_title_length", sql`char_length(${t.title}) between 1 and 60`),
     check("products_adult_price", sql`${t.adultPrice} > 0`),
     check("products_child_price", sql`${t.childPrice} is null or ${t.childPrice} >= 0`),
+    // 성인 전용 상품(아동 가격 없음)에는 아동 기준을 둘 수 없다
+    check(
+      "products_child_age_label",
+      sql`${t.childAgeLabel} is null or (${t.childPrice} is not null and char_length(${t.childAgeLabel}) between 1 and 30)`,
+    ),
     check(
       "products_list_price",
       sql`${t.listAdultPrice} is null or ${t.listAdultPrice} > ${t.adultPrice}`,

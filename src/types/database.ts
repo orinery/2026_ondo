@@ -863,6 +863,7 @@ export type Database = {
           adult_price: number;
           cancel_policy: string;
           category: Database["public"]["Enums"]["product_category"];
+          child_age_label: string | null;
           child_price: number | null;
           city_id: string;
           confirmation_mode: Database["public"]["Enums"]["confirmation_mode"];
@@ -903,6 +904,7 @@ export type Database = {
           adult_price: number;
           cancel_policy: string;
           category: Database["public"]["Enums"]["product_category"];
+          child_age_label?: string | null;
           child_price?: number | null;
           city_id: string;
           confirmation_mode?: Database["public"]["Enums"]["confirmation_mode"];
@@ -942,6 +944,7 @@ export type Database = {
           adult_price?: number;
           cancel_policy?: string;
           category?: Database["public"]["Enums"]["product_category"];
+          child_age_label?: string | null;
           child_price?: number | null;
           city_id?: string;
           confirmation_mode?: Database["public"]["Enums"]["confirmation_mode"];

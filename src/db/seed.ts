@@ -26,6 +26,7 @@ import postgres from "postgres";
 
 import * as schema from "./schema";
 import {
+  SEED_CHILD_AGES,
   SEED_CITIES,
   SEED_PARTNERS,
   SEED_POLICIES,
@@ -187,6 +188,7 @@ async function upsertProduct(
     imageAlt: cover[1],
     adultPrice: p.adultPrice,
     childPrice: p.childPrice,
+    childAgeLabel: p.childPrice === null ? null : (SEED_CHILD_AGES[p.slug] ?? null),
     listAdultPrice: p.listAdultPrice ?? null,
     operatingDays: p.operatingDays,
     cutoffDays: p.cutoffDays,

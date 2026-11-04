@@ -1365,3 +1365,32 @@ export const SEED_PRODUCT_EXTRAS: Record<string, SeedProductExtra> = {
     confirmationMode: "manual",
   },
 };
+
+/**
+ * 아동 기준 표시 문구 (Q2) — 아동 가격이 있는 상품만. 포트폴리오 예시 값이며, 일본 시설·투어의 흔한 기준
+ * (테마파크 만 4~11세, 버스 투어 만 2~11세 등)을 참고해 정했다. 실제 판매라면 공급사 기준을 받아 넣는다.
+ */
+export const SEED_CHILD_AGES: Record<string, string> = {
+  "tokyo-teamlab-planets": "만 4~12세 (3세 이하 무료)",
+  "tokyo-skytree-deck": "만 6~11세 (5세 이하 무료)",
+  "tokyo-asakusa-yanaka-walk": "만 6~12세",
+  "tokyo-fuji-kawaguchiko-bus": "만 2~11세",
+  "kyoto-gion-kimono-rental": "만 3~12세 (키 140cm 이하)",
+  "kyoto-fushimi-arashiyama-day": "만 2~11세",
+  "kyoto-machiya-tea-ceremony": "만 6~12세",
+  "kyoto-hozugawa-river-boat": "만 4~11세",
+  "osaka-usj-1day": "만 4~11세 (3세 이하 무료)",
+  "osaka-dotonbori-food-walk": "만 6~12세",
+  "osaka-nara-deer-todaiji": "만 2~11세",
+  "fukuoka-yufuin-day-bus": "만 2~11세",
+  "fukuoka-beppu-jigoku-pass": "초등학생 (만 6~12세)",
+  "fukuoka-dazaifu-yanagawa": "만 2~11세",
+  "sapporo-otaru-canal": "만 6~12세",
+  "sapporo-biei-furano-flowers": "만 2~11세",
+  "sapporo-niseko-lift-1day": "초등학생 (만 6~12세)",
+  "sapporo-jozankei-onsen-lunch": "만 4~12세",
+  "okinawa-churaumi-aquarium": "초·중학생 (만 6~15세)",
+  "okinawa-blue-cave-snorkel": "만 6~11세 (보호자 동반)",
+  "okinawa-kerama-day-trip": "만 6~11세 (보호자 동반)",
+  "okinawa-north-bus-tour": "만 2~11세",
+};
