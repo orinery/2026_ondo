@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
+import { FunnelTable } from "@/components/admin/funnel-table";
 import { ConsolePageHeader } from "@/components/console/console-shell";
 import { UrlTabs } from "@/components/console/url-tabs";
 import { requireRole } from "@/lib/auth";
 import { addDays } from "@/lib/booking";
-import { getAdminKpis, getBreakdown, getDailyStats } from "@/lib/data/admin";
+import { getAdminKpis, getBreakdown, getDailyStats, getFunnel } from "@/lib/data/admin";
 import { formatKrw } from "@/lib/format";
 import { seoulNow } from "@/lib/trip-dates";
 
@@ -31,11 +32,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
   const { today } = seoulNow();
   const from = addDays(today, -(Number(period) - 1));
 
-  const [kpis, daily, byCity, byCategory] = await Promise.all([
+  const [kpis, daily, byCity, byCategory, funnel] = await Promise.all([
     getAdminKpis(from, today),
     getDailyStats(from, today),
     getBreakdown(from, today, "city"),
     getBreakdown(from, today, "category"),
+    getFunnel(from, today),
   ]);
   const net = kpis.gross - kpis.refunds;
   const cancelRate = kpis.items === 0 ? 0 : Math.round((kpis.closedItems / kpis.items) * 1000) / 10;
@@ -90,6 +92,21 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
           일별 결제·환불
         </h2>
         <DailyChart data={daily} title={`최근 ${period}일 일별 결제·환불`} />
+      </section>
+
+      <section
+        aria-labelledby="funnel-title"
+        className="flex flex-col gap-3 rounded-xl border bg-card p-4 md:p-6"
+      >
+        <div>
+          <h2 id="funnel-title" className="font-kr text-lg font-semibold">
+            구매 퍼널
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            고객 화면 방문 기준 (결제일 기준인 위 지표와 집계 기준이 달라요)
+          </p>
+        </div>
+        <FunnelTable funnel={funnel} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

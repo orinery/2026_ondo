@@ -83,6 +83,40 @@ export async function getBreakdown(
   }));
 }
 
+/** 퍼널 단계별 도달 방문 수 (전체 · 모바일 · 데스크톱) */
+export type FunnelCount = { all: number; mobile: number; desktop: number };
+export type Funnel = Record<
+  | "view_item"
+  | "start_booking"
+  | "add_to_cart"
+  | "begin_checkout"
+  | "purchase"
+  | "login_wall"
+  | "login_wall_recovered",
+  FunnelCount
+>;
+
+/** 기간 안의 구매 퍼널 (DB 함수 admin_funnel — 생성일 한국 날짜 기준) */
+export async function getFunnel(from: string, to: string): Promise<Funnel> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_funnel", { p_from: from, p_to: to });
+  if (error) throw error;
+  const byStep = new Map(data.map((r) => [r.step, r]));
+  const count = (step: keyof Funnel): FunnelCount => {
+    const r = byStep.get(step);
+    return { all: r?.sessions ?? 0, mobile: r?.mobile ?? 0, desktop: r?.desktop ?? 0 };
+  };
+  return {
+    view_item: count("view_item"),
+    start_booking: count("start_booking"),
+    add_to_cart: count("add_to_cart"),
+    begin_checkout: count("begin_checkout"),
+    purchase: count("purchase"),
+    login_wall: count("login_wall"),
+    login_wall_recovered: count("login_wall_recovered"),
+  };
+}
+
 export type AdminProductRow = {
   id: string;
   slug: string;
