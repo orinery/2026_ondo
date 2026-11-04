@@ -12,6 +12,7 @@ import { LocationMap } from "@/components/product/location-map";
 import { ProductCard, ProductGrid } from "@/components/product/product-card";
 import { ReviewDialog } from "@/components/product/review-dialog";
 import { ReviewSection } from "@/components/product/review-section";
+import { SellerInfo } from "@/components/product/seller-info";
 import { ShareButton } from "@/components/product/share-button";
 import { ReadonlyTimeline } from "@/components/itinerary/readonly-timeline";
 import { getCurrentUser } from "@/lib/auth";
@@ -24,6 +25,7 @@ import {
   getInventory,
   getRelatedProducts,
   getReviews,
+  getSellers,
   type ProductDetail,
 } from "@/lib/data/products";
 import { formatKrw } from "@/lib/format";
@@ -64,17 +66,21 @@ export default async function ProductDetailPage({
   const initialDate = resume?.date ?? (typeof query.date === "string" ? query.date : null);
 
   const { today } = seoulNow();
-  const [{ items: reviews, distribution }, likedIds, user, related, inventory] = await Promise.all([
-    getReviews(product.id),
-    getLikedIds(),
-    getCurrentUser(),
-    getRelatedProducts(product),
-    // 날짜별 잔여석·가격 (예약 위젯 달력·회차 선택용)
-    getInventory(
-      product.slots.map((sl) => sl.id),
-      today,
-    ),
-  ]);
+  const [{ items: reviews, distribution }, likedIds, user, related, inventory, sellers] =
+    await Promise.all([
+      getReviews(product.id),
+      getLikedIds(),
+      getCurrentUser(),
+      getRelatedProducts(product),
+      // 날짜별 잔여석·가격 (예약 위젯 달력·회차 선택용)
+      getInventory(
+        product.slots.map((sl) => sl.id),
+        today,
+      ),
+      getSellers([product.id]),
+    ]);
+  // 공개 전 상품(파트너 미리 보기)은 함수가 판매자를 돌려주지 않는다
+  const seller = sellers.get(product.id) ?? null;
   // 상품당 리뷰 1개(사용자 확정) → 이미 쓴 리뷰가 있으면 다이얼로그가 수정 모드가 된다
   const myReview = user ? (reviews.find((r) => r.userId === user.id) ?? null) : null;
   // 새 리뷰는 이용을 마친 구매 고객만 (DB 정책과 같은 판단으로 버튼을 미리 숨긴다)
@@ -215,6 +221,15 @@ export default async function ProductDetailPage({
               className="max-w-xl"
             />
           </section>
+
+          {seller && (
+            <section aria-labelledby="seller-title" className="flex flex-col gap-4">
+              <h2 id="seller-title" className="font-kr text-2xl font-semibold">
+                판매자 정보
+              </h2>
+              <SellerInfo seller={seller} className="max-w-xl" />
+            </section>
+          )}
 
           <ReviewSection
             rating={product.rating}

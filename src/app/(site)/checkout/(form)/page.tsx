@@ -11,6 +11,7 @@ import { OrderItemList } from "@/components/checkout/order-item-list";
 import { CancellationPolicyTable } from "@/components/product/cancellation-policy-table";
 import { requireUser } from "@/lib/auth";
 import { getCartItems } from "@/lib/data/cart";
+import { getSellers } from "@/lib/data/products";
 import { errorMessage } from "@/lib/order-errors";
 import { optionLabel } from "@/lib/booking";
 import { parseItemsParam } from "@/lib/validation/checkout";
@@ -34,6 +35,13 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   if (items.length === 0) redirect("/cart");
 
   const blocked = items.filter((i) => i.error);
+  // 판매자별로 묶은 상품명 — 결제 전에 누구와 거래하는지 보여 준다 (통신판매중개 고지, Q3)
+  const sellers = await getSellers(items.map((i) => i.product.id));
+  const bySeller = new Map<string, string[]>();
+  for (const i of items) {
+    const name = sellers.get(i.product.id)?.name;
+    if (name) bySeller.set(name, [...(bySeller.get(name) ?? []), i.product.title]);
+  }
   const total = items.reduce((sum, i) => sum + i.subtotal, 0);
   // 같은 취소 규정을 쓰는 상품끼리 묶어 한 번만 보여준다
   const policies = [...new Map(items.map((i) => [i.product.cancelPolicy.code, i])).values()].map(
@@ -103,6 +111,22 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
               주문 상품 {items.length}개
             </h2>
             <OrderItemList lines={lines} />
+            {bySeller.size > 0 && (
+              <div className="rounded-md bg-muted px-4 py-3 text-sm">
+                <p className="font-medium">판매자</p>
+                <ul className="mt-1 flex flex-col gap-0.5 text-muted-foreground">
+                  {[...bySeller].map(([name, titles]) => (
+                    <li key={name}>
+                      <span className="text-foreground">{name}</span> · {titles.join(", ")}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  여운은 통신판매중개자로서 거래 당사자가 아니며, 상품 정보와 예약 이행의 책임은 각
+                  판매자에게 있어요. 판매자 정보는 상품 페이지에서 볼 수 있어요.
+                </p>
+              </div>
+            )}
           </section>
 
           <section aria-labelledby="policy-title" className="flex flex-col gap-4">

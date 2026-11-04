@@ -481,3 +481,38 @@ export async function canReviewProduct(productId: string) {
   if (error) return false;
   return data;
 }
+
+/** 판매자 신원 정보 (상품 상세 "판매자 정보" · 주문서) — 공개 항목만 돌려주는 DB 함수 product_sellers (Q3) */
+export type Seller = {
+  name: string;
+  representative: string;
+  businessRegNo: string;
+  businessAddress: string;
+  phone: string;
+  email: string;
+  tourismLicenseNo: string | null;
+};
+
+/** 상품 id → 판매자. 공개되지 않은 상품은 빠진다 */
+export async function getSellers(productIds: string[]): Promise<Map<string, Seller>> {
+  if (productIds.length === 0) return new Map();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("product_sellers", {
+    p_product_ids: [...new Set(productIds)].slice(0, 50),
+  });
+  if (error) throw error;
+  return new Map(
+    data.map((s) => [
+      s.product_id,
+      {
+        name: s.name,
+        representative: s.representative,
+        businessRegNo: s.business_reg_no,
+        businessAddress: s.business_address,
+        phone: s.phone,
+        email: s.email,
+        tourismLicenseNo: s.tourism_license_no,
+      },
+    ]),
+  );
+}

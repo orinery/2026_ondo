@@ -9,3 +9,20 @@ export const PII_SHARE = {
   period:
     "이용일 7일 뒤까지 원문 열람, 그 뒤와 취소·거절된 예약은 가린 값으로만 보임 (관계 법령에 따른 보관은 회사가 함)",
 } as const;
+
+/**
+ * 플랫폼(통신판매중개자) 사업자 정보 — 푸터에 표시 (전자상거래법 제10조 사이버몰 운영자 표시, Q3).
+ * 포트폴리오 예시 값: 실제 사업자가 아니며, 번호·주소는 실제와 겹치지 않게 만든 값이다.
+ */
+export const COMPANY = {
+  name: "여운(Yeoun)",
+  representative: "김여운",
+  businessRegNo: "123-45-00000",
+  mailOrderNo: "제2026-서울중구-0000호", // 통신판매업 신고번호
+  tourismLicenseNo: "제2026-000000호", // 관광사업(여행업) 등록번호
+  address: "서울특별시 중구 예시로 1",
+  phone: "02-0000-0000",
+  hours: "평일 10:00~18:00",
+  email: "help@yeoun.example",
+  hosting: "Vercel Inc.",
+} as const;
