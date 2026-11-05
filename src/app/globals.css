@@ -127,6 +127,15 @@
   }
   html {
     -webkit-text-size-adjust: 100%;
+    /* 스크롤바 자리를 항상 비워 둔다 — 메뉴·선택 상자·다이얼로그가 스크롤을 잠가 스크롤바가 사라져도
+       페이지 폭이 그대로라 화면이 옆으로 밀리지 않는다 (아바타 메뉴를 열 때 흔들리던 문제) */
+    scrollbar-gutter: stable;
+  }
+  /* Radix의 스크롤 잠금(react-remove-scroll-bar)은 사라진 스크롤바 폭만큼 body에 오른쪽 여백을 더한다.
+     위에서 자리를 이미 비워 두었으므로 그 여백이 오히려 밀림을 만든다 → 없앤다 */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px;
   }
   body {
     @apply bg-background font-sans text-foreground antialiased;
