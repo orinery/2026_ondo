@@ -143,6 +143,7 @@ type BookingWidgetProps = {
   isLoggedIn: boolean;
   // 1023 이하 하단 바에 함께 둘 버튼 (찜·공유)
   mobileActions?: React.ReactNode;
+  onCartChange?: () => void; // 장바구니에 담은 뒤 (내비 장바구니 수 갱신)
 };
 
 /** 화면이 사이드 카드 너비(1024 이상)인지 — 서버 렌더링에서는 true로 두어 시트를 닫은 채 그린다 */
@@ -175,6 +176,7 @@ export function BookingWidget({
   resume = null,
   isLoggedIn,
   mobileActions,
+  onCartChange,
 }: BookingWidgetProps) {
   const router = useRouter();
   const [date, setDate] = useState<string | null>(
@@ -254,13 +256,18 @@ export function BookingWidget({
       };
       const result = await addToCart(input, mode === "buy" ? "set" : "add");
       if (!result.ok) {
-        if (result.reason === "unauthenticated") return router.push(loginPath(mode));
+        if (result.reason === "unauthenticated") {
+          // 로그인 정보를 아직 받기 전에 눌렀거나 세션이 끝난 경우 — 서버가 알려 준 뒤에 로그인 벽으로
+          track("login_wall", product.id);
+          return router.push(loginPath(mode));
+        }
         return setError(result.message ?? errorMessage(null));
       }
       track("add_to_cart", product.id);
       setRestored(false);
       if (mode === "buy") return router.push(`/checkout?items=${result.cartItemId}`);
       setAdded(true);
+      onCartChange?.();
     });
   };
 

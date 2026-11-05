@@ -20,6 +20,13 @@ import { seoulNow } from "@/lib/trip-dates";
  * 날짜·회차에 덮어쓴 가격이 있으면 그것 + 고른 옵션 금액 (DB line_price와 같은 공식 → 결제 금액과 일치).
  */
 
+/** 장바구니 배지 숫자 — 행 수만 센다(head: true → 데이터는 받지 않음). RLS로 본인 것만 */
+export async function getCartCount() {
+  const supabase = await createClient();
+  const { count } = await supabase.from("cart_items").select("id", { count: "exact", head: true });
+  return count ?? 0;
+}
+
 export type CartItem = {
   id: string;
   useDate: string;

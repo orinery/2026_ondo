@@ -5,12 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useOptimistic, useState, useTransition } from "react";
 
 import { toggleLike } from "@/actions/likes";
+import { useViewer } from "@/components/viewer/viewer-provider";
 import { cn } from "@/lib/utils";
 
 type LikeButtonProps = {
   productId: string;
   productTitle: string;
-  initialLiked?: boolean;
+  initialLiked?: boolean; // /api/me 응답 전·데모(local)의 초기값. 응답이 오면 찜 목록(useViewer)을 따른다
   // overlay: 사진 위 흰 원형 (카드) / outline: 일반 배경 위 버튼 (상세 헤더·하단 CTA)
   variant?: "overlay" | "outline";
   // local: 서버에 저장하지 않는 데모용(/dev/components)
@@ -21,8 +22,9 @@ type LikeButtonProps = {
 /**
  * 찜 토글 버튼 (명세 5.1 Anatomy: 44×44, 찜됨이면 ♥ 코랄 + aria-pressed)
  *
+ * 찜 여부는 /api/me가 준 찜 목록(useViewer)에서 읽는다 — 상품 카드·상세가 캐시된 공용 HTML이라서 (S2).
  * 낙관적 업데이트(useOptimistic): 누르는 즉시 하트를 바꾸고 서버 저장은 뒤에서 진행한다.
- * 저장에 실패하면 transition이 끝날 때 서버 값(initialLiked)으로 자동 복귀한다.
+ * 저장에 성공하면 찜 목록에 반영하고, 실패하면 transition이 끝날 때 원래 값으로 자동 복귀한다.
  * 비로그인 상태면 로그인 페이지로 보낸 뒤 지금 페이지로 돌아오게 한다.
  */
 export function LikeButton({
@@ -36,8 +38,10 @@ export function LikeButton({
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
+  const viewer = useViewer();
+  const savedLiked = viewer.status === "ready" ? viewer.likedIds.has(productId) : initialLiked;
   const [localLiked, setLocalLiked] = useState(initialLiked);
-  const [optimisticLiked, setOptimisticLiked] = useOptimistic(initialLiked);
+  const [optimisticLiked, setOptimisticLiked] = useOptimistic(savedLiked);
   const [message, setMessage] = useState("");
 
   const liked = mode === "local" ? localLiked : optimisticLiked;
@@ -52,6 +56,7 @@ export function LikeButton({
       setOptimisticLiked(next);
       const result = await toggleLike(productId, next);
       if (result.ok) {
+        viewer.setLiked(productId, next);
         setMessage(next ? `${productTitle}을(를) 찜했어요` : `${productTitle} 찜을 해제했어요`);
       } else if (result.reason === "unauthenticated") {
         router.push(`/login?next=${encodeURIComponent(pathname)}`);

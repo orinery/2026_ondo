@@ -19,8 +19,9 @@ import { cartItemSchema, cartQuantitySchema } from "@/lib/validation/cart";
 
 const uuid = z.uuid();
 
-// 장바구니 개수 배지(내비)와 장바구니·주문서가 바뀌므로 레이아웃 단위로 다시 그린다
-const refresh = () => revalidatePath("/", "layout");
+// 장바구니 화면만 다시 그린다. 내비 개수 배지는 브라우저가 /api/me로 다시 불러온다(S2) —
+// 레이아웃 전체를 지우면 담기 한 번에 캐시된 메인·상세가 모두 다시 만들어져야 한다
+const refresh = () => revalidatePath("/cart");
 
 function dbFailure(message: string | undefined): ActionResult<never> {
   const code = knownErrorCode(message);

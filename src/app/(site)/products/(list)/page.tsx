@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { ProductExplorer } from "@/components/product/product-explorer";
 import { categoryLabel, themeLabel } from "@/lib/constants/taxonomy";
-import { getLikedIds } from "@/lib/data/likes";
 import { getCities, getProducts, getThemeCounts } from "@/lib/data/products";
 import { formatUseDate } from "@/lib/format";
 import { parseProductSearchParams, type ProductFilters } from "@/lib/validation/product-filters";
@@ -34,11 +33,11 @@ export async function generateMetadata({
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const { filters, page } = parseProductSearchParams(await searchParams);
 
-  const [{ items, total }, themeCounts, cities, likedIds] = await Promise.all([
+  // 찜 여부는 브라우저가 /api/me로 따로 불러온다 (S2) — 여기서는 공개 데이터만 읽는다
+  const [{ items, total }, themeCounts, cities] = await Promise.all([
     getProducts(filters, page),
     getThemeCounts(filters),
     getCities(),
-    getLikedIds(),
   ]);
 
   return (
@@ -50,7 +49,6 @@ export default async function ProductsPage({ searchParams }: PageProps<"/product
       hasMore={items.length < total}
       cities={cities.map((c) => ({ slug: c.slug, name: c.name }))}
       themeCounts={themeCounts}
-      likedIds={likedIds}
       heading={headingOf(filters, cities.find((c) => c.slug === filters.city)?.name)}
     />
   );

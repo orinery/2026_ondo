@@ -10,6 +10,7 @@ import { removeCartItems, updateCartQuantity } from "@/actions/cart";
 import { QuantityStepper } from "@/components/product/quantity-stepper";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useViewer } from "@/components/viewer/viewer-provider";
 import type { CartItem } from "@/lib/data/cart";
 import { formatKrw, formatUseDate } from "@/lib/format";
 import { bookingErrorLabel, optionLabel } from "@/lib/booking";
@@ -39,6 +40,7 @@ export function CartView({
   const [selected, setSelected] = useState<string[]>(() => orderable.map((i) => i.id));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { refresh } = useViewer();
 
   // 서버에서 항목이 사라졌으면(삭제·주문) 선택에서도 뺀다
   const selectedItems = orderable.filter((i) => selected.includes(i.id));
@@ -53,6 +55,8 @@ export function CartView({
     startTransition(async () => {
       const result = await task();
       if (!result.ok) setError(result.message ?? errorMessage(null));
+      // 내비 장바구니 개수 갱신 (S2: 내비는 /api/me 값을 쓴다)
+      else refresh();
     });
   };
 

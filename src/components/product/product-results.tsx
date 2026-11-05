@@ -8,7 +8,7 @@ import { ProductCard, ProductCardSkeleton, ProductGrid } from "./product-card";
 
 type ProductResultsProps = {
   items: ProductSummary[];
-  likedIds?: ReadonlySet<string>;
+  likedIds?: ReadonlySet<string>; // 데모용 초기값 — 실제 화면은 /api/me의 찜 목록을 따른다 (LikeButton)
   likeMode?: "server" | "local";
   date?: string | null; // 이용일 필터 → 카드 링크로 상세 예약 위젯에 넘긴다
   // 첫 로딩(이전 결과 없음) → 스켈레톤 8개

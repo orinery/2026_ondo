@@ -13,6 +13,7 @@ import {
 } from "@/lib/booking";
 import { freeCancelDays } from "@/lib/cancel-policy";
 import type { ConfirmationMode, ThemeSlug, UserItemTypeSlug } from "@/lib/constants/taxonomy";
+import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 import { seoulNow } from "@/lib/trip-dates";
 import type { ProductFilters, SortKey } from "@/lib/validation/product-filters";
@@ -22,6 +23,8 @@ import type { CitySummary, GalleryImage, ProductSummary } from "@/types/product"
 /**
  * 상품·도시 조회 (Data Access Layer)
  * - 모든 조회는 supabase-js(사용자 JWT 또는 anon)로 해서 RLS가 적용된다.
+ * - 공개 카탈로그(목록·상세·리뷰·판매자)는 쿠키 없는 anon 클라이언트로 읽는다 (S2): 누구에게나 같은 결과라
+ *   메인·상세를 미리 만들어 엣지 캐시에서 내려줄 수 있다. 사람마다 다른 값은 /api/me가 따로 준다.
  * - 목록은 공개된(published_at 있는) 상품만: 파트너·관리자는 RLS로 임시 저장 상품도 읽을 수 있어서
  *   목록에 섞이지 않게 명시적으로 거른다.
  * - DB 행(snake_case) → 화면용 뷰 모델(camelCase)로 바꿔서 돌려준다. 컴포넌트는 DB 구조를 모른다.
@@ -96,7 +99,7 @@ export const PAGE_SIZE = 24; // 명세 4.2: 24개 단위 "더 보기"
 
 /** 도시 목록 — 필터 Select·메인 타일·검색 팔레트가 함께 쓴다. 같은 요청에서는 한 번만 조회 */
 export const getCities = cache(async (): Promise<CitySummary[]> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("cities")
     .select("id, slug, name, name_en, summary, image_url, image_alt")
@@ -178,7 +181,7 @@ const SORT_ORDER: Record<SortKey, { column: string; ascending: boolean }[]> = {
 };
 
 export async function getProducts(filters: ProductFilters, page = 1) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   let query = applyFilters(
     supabase.from("products").select(SUMMARY_COLUMNS, { count: "exact" }),
     filters,
@@ -202,7 +205,7 @@ export async function getProducts(filters: ProductFilters, page = 1) {
  * 테마를 제외한 나머지 조건만 적용해서 센다 → 0개인 칩은 disabled (명세 5.2).
  */
 export async function getThemeCounts(filters: Filterable) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const query = applyFilters(
     supabase.from("products").select("theme, cities!inner ( slug )"),
     filters,
@@ -224,7 +227,7 @@ export async function getThemeTotals() {
 
 /** 메인 "지금 인기 있는 상품" — 판매 중인 상품을 추천 순위대로 */
 export async function getFeaturedProducts(limit = 8) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select(SUMMARY_COLUMNS)
@@ -237,9 +240,20 @@ export async function getFeaturedProducts(limit = 8) {
   return (data ?? []).map(toSummary);
 }
 
+/** 공개된 상품 주소 — 상세 페이지를 빌드 때 미리 만들 목록 (generateStaticParams, S2) */
+export async function getPublishedSlugs() {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("slug")
+    .not("published_at", "is", null);
+  if (error) throw error;
+  return (data ?? []).map((p) => p.slug);
+}
+
 /** 검색 팔레트(⌘K)용 — 24개라 한 번에 가져온다 */
 export async function getSearchItems() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select("slug, title, category, cities!inner ( name, name_en )")
@@ -295,7 +309,7 @@ export type ProductDetail = ProductSummary & {
 
 /** 상세 — 상품 + 도시 + 사진 + 진행 일정 + 취소 규정을 한 번의 요청으로 (FK 관계로 중첩 조회) */
 export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select(
@@ -384,9 +398,14 @@ export const getProductBySlug = cache(async (slug: string): Promise<ProductDetai
  * 예약 가능 기간(오늘 ~ 180일)의 날짜별 재고 — 덮어쓴 정원·가격·마감과 예약 인원.
  * 행은 덮어썼거나 예약이 있는 날짜에만 있어서 많지 않다. 없는 날짜는 회차 기본값.
  */
-export async function getInventory(slotIds: string[], today: string): Promise<InventoryRow[]> {
+export async function getInventory(
+  slotIds: string[],
+  today: string,
+  // public: 공개 상세(캐시되는 페이지)용 anon 조회 / 기본: 파트너 재고 화면처럼 로그인 세션으로 조회
+  { public: anon = false }: { public?: boolean } = {},
+): Promise<InventoryRow[]> {
   if (slotIds.length === 0) return [];
-  const supabase = await createClient();
+  const supabase = anon ? createPublicClient() : await createClient();
   const { data, error } = await supabase
     .from("slot_inventory")
     .select("slot_id, use_date, capacity, closed, adult_price, child_price, booked")
@@ -407,7 +426,7 @@ export async function getInventory(slotIds: string[], today: string): Promise<In
 
 /** 같은 도시의 다른 상품 (상세 하단 "함께 보면 좋은 상품") */
 export async function getRelatedProducts(product: Pick<ProductSummary, "id" | "city">, limit = 4) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select(SUMMARY_COLUMNS)
@@ -437,7 +456,7 @@ export type ReviewItem = {
 
 /** 리뷰 목록 + 별점 분포. 리뷰는 구매 고객만 쓸 수 있으므로(DB 정책) 모든 리뷰가 "구매 인증" 리뷰다 */
 export async function getReviews(productId: string) {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("reviews")
     .select(
@@ -474,6 +493,31 @@ export async function getReviews(productId: string) {
   return { items, distribution };
 }
 
+/**
+ * 내가 이 상품에 쓴 리뷰 (상세의 리뷰 수정 버튼용, /api/me/review). 공개 리뷰 목록은 anon으로 읽어
+ * 숨김 처리된 내 리뷰가 빠지므로 로그인 세션으로 따로 읽는다 (RLS: 작성자는 숨긴 리뷰도 읽을 수 있다).
+ */
+export async function getMyReview(productId: string, userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("id, rating, content, photo_path, hidden_at")
+    .eq("product_id", productId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    rating: data.rating,
+    content: data.content,
+    photoUrl: data.photo_path
+      ? supabase.storage.from("review-photos").getPublicUrl(data.photo_path).data.publicUrl
+      : null,
+    hidden: data.hidden_at !== null,
+  };
+}
+
 /** 로그인 사용자가 이 상품에 리뷰를 쓸 수 있는지 (DB의 has_used_product와 같은 판단) */
 export async function canReviewProduct(productId: string) {
   const supabase = await createClient();
@@ -496,7 +540,7 @@ export type Seller = {
 /** 상품 id → 판매자. 공개되지 않은 상품은 빠진다 */
 export async function getSellers(productIds: string[]): Promise<Map<string, Seller>> {
   if (productIds.length === 0) return new Map();
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase.rpc("product_sellers", {
     p_product_ids: [...new Set(productIds)].slice(0, 50),
   });

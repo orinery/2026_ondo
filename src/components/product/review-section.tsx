@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ReviewItem } from "@/lib/data/products";
 
-import { ReviewReportDialog } from "./review-report-dialog";
+import { OwnReviewBadge, ReviewReportSlot } from "./review-viewer";
 
 type ReviewSectionProps = {
   rating: number;
@@ -13,7 +13,8 @@ type ReviewSectionProps = {
   distribution: { star: number; count: number }[];
   // 리뷰 쓰기/수정 버튼 (ReviewDialog)
   action?: React.ReactNode;
-  currentUserId?: string | null; // 내 리뷰에 "내 리뷰" 표시
+  // 내 리뷰 표시·신고 버튼 기준. 생략하면 /api/me의 로그인 사용자 (상세가 캐시된 HTML이라 브라우저에서 판단, S2)
+  currentUserId?: string | null;
 };
 
 const dateFormat = new Intl.DateTimeFormat("ko-KR", {
@@ -93,11 +94,7 @@ export function ReviewSection({
                         <BadgeCheckIcon aria-hidden className="size-3" />
                         구매 인증
                       </span>
-                      {r.userId === currentUserId && (
-                        <span className="rounded-sm bg-accent px-1.5 py-0.5 text-xs font-medium text-accent-foreground">
-                          내 리뷰
-                        </span>
-                      )}
+                      <OwnReviewBadge authorId={r.userId} currentUserId={currentUserId} />
                       {r.hidden && (
                         // 숨긴 리뷰는 작성자(와 관리자)에게만 보인다 — 왜 남에게 안 보이는지 알려 준다
                         <span className="rounded-sm border border-warning/50 px-1.5 py-0.5 text-xs font-medium text-warning">
@@ -112,11 +109,13 @@ export function ReviewSection({
                   <Stars rating={r.rating} className="ml-auto" />
                 </div>
                 {/* 로그인한 사용자가 남의 리뷰를 신고할 수 있다 */}
-                {currentUserId && r.userId !== currentUserId && !r.hidden && (
-                  <div className="-mt-2 flex justify-end">
-                    <ReviewReportDialog reviewId={r.id} authorName={r.author.name} />
-                  </div>
-                )}
+                <ReviewReportSlot
+                  reviewId={r.id}
+                  authorId={r.userId}
+                  authorName={r.author.name}
+                  hidden={r.hidden}
+                  currentUserId={currentUserId}
+                />
                 <p className="text-base whitespace-pre-line">{r.content}</p>
                 {r.photoUrl && (
                   <div className="relative size-40 overflow-hidden rounded-md bg-muted">

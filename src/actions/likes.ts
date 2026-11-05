@@ -23,8 +23,9 @@ const folderName = z
   .min(1, "폴더 이름을 입력해 주세요")
   .max(20, "폴더 이름은 20자 이하로 입력해 주세요");
 
-// 찜 상태가 바뀌면 카드의 하트(목록·메인·상세)와 나의 여행이 모두 바뀌어야 하므로 레이아웃 단위로 다시 그린다
-const refresh = () => revalidatePath("/", "layout");
+// 카드·상세의 하트는 브라우저가 /api/me 찜 목록으로 그린다(S2) → 캐시된 공개 페이지는 지우지 않고
+// 서버에서 찜을 그리는 나의 여행만 다시 그린다 (전체를 지우면 찜 한 번에 메인·상세 캐시가 모두 날아간다)
+const refresh = () => revalidatePath("/my", "layout");
 
 export async function toggleLike(productId: string, liked: boolean): Promise<ActionResult> {
   if (!(await getCurrentUser())) return { ok: false, reason: "unauthenticated" };

@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useViewer } from "@/components/viewer/viewer-provider";
 import type { UserRole } from "@/lib/constants/taxonomy";
 import { cn } from "@/lib/utils";
 
@@ -344,6 +345,7 @@ function UserArea({
   isLoading: boolean;
   transparent: boolean;
 }) {
+  const { signOutLocally } = useViewer();
   if (isLoading)
     return (
       <Skeleton
@@ -388,8 +390,8 @@ function UserArea({
           <Link href={ROLE_LINK[user.role].href}>{ROLE_LINK[user.role].label}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          {/* 로그아웃은 Server Action — 폼 제출로 실행한다 */}
-          <form action={signOut} className="w-full">
+          {/* 로그아웃은 Server Action — 폼 제출로 실행하고, 화면은 응답 전에 비로그인으로 바꾼다 */}
+          <form action={signOut} onSubmit={signOutLocally} className="w-full">
             <button type="submit" className="w-full text-left">
               로그아웃
             </button>
@@ -410,6 +412,7 @@ function MobileMenu({
   transparent: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const { signOutLocally } = useViewer();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -473,7 +476,11 @@ function MobileMenu({
         )}
         <div className="mt-4 flex items-center justify-between border-t pt-4">
           {user ? (
-            <form action={signOut} className="flex items-center gap-3 text-sm">
+            <form
+              action={signOut}
+              onSubmit={signOutLocally}
+              className="flex items-center gap-3 text-sm"
+            >
               <span className="font-medium">{user.name}님</span>
               <button type="submit" className="text-muted-foreground hover:underline">
                 로그아웃

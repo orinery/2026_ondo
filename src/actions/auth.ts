@@ -58,8 +58,9 @@ export async function signIn(_prev: AuthFormState, formData: FormData): Promise<
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { status: "error", message: authErrorMessage(error), values };
 
-  // 로그인 상태가 바뀌었으므로 내비게이션 등 레이아웃을 다시 그리게 한다
-  revalidatePath("/", "layout");
+  // 로그인한 사람의 화면(나의 여행 등)을 새로 그리게 한다. 공개 페이지는 사람과 무관하게 캐시되므로 두고(S2),
+  // 내비는 이동 뒤 브라우저가 /api/me로 다시 불러온다. (Server Action의 revalidatePath는 브라우저 라우터 캐시도 비운다)
+  revalidatePath("/my", "layout");
   // redirect()는 내부적으로 예외를 던져 이동시키므로 try/catch 밖에서 호출해야 한다
   redirect(safeNextPath(formData.get("next")));
 }
@@ -93,7 +94,7 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
 
   // 이메일 인증을 끈 프로젝트면 바로 세션이 생긴다 → 곧장 이동
   if (data.session) {
-    revalidatePath("/", "layout");
+    revalidatePath("/my", "layout");
     redirect(next);
   }
 
@@ -104,6 +105,6 @@ export async function signUp(_prev: AuthFormState, formData: FormData): Promise<
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  revalidatePath("/", "layout");
+  revalidatePath("/my", "layout");
   redirect("/");
 }

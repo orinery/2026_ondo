@@ -5,7 +5,6 @@ import Link from "next/link";
 import { HeroSearch } from "@/components/home/hero-search";
 import { ProductCard } from "@/components/product/product-card";
 import { COLLECTIONS, SEASON_EDITS } from "@/lib/constants/season-edits";
-import { getLikedIds } from "@/lib/data/likes";
 import { getCities, getFeaturedProducts, getThemeTotals } from "@/lib/data/products";
 import { englishMonth, seasonOf, seoulYear } from "@/lib/season";
 import { seoulNow } from "@/lib/trip-dates";
@@ -18,14 +17,19 @@ export const metadata: Metadata = {
 };
 
 /** 메인 (명세 4.1): 히어로 → 인기 상품 → 도시 바로가기 → 테마별 컬렉션 */
+/**
+ * 메인은 미리 만들어 엣지 캐시에서 내려준다 (S2 속도 개선) — 5분마다 다시 만든다(인기 상품·테마 개수·계절).
+ * 찜 하트는 브라우저가 /api/me로 채운다.
+ */
+export const revalidate = 300;
+
 export default async function HomePage() {
   const now = new Date();
   const season = seasonOf(now);
   const edit = SEASON_EDITS[season];
-  const [featured, themeTotals, likedIds, cities] = await Promise.all([
+  const [featured, themeTotals, cities] = await Promise.all([
     getFeaturedProducts(),
     getThemeTotals(),
-    getLikedIds(),
     getCities(),
   ]);
 
@@ -89,7 +93,6 @@ export default async function HomePage() {
               <li key={p.id} className="w-[76%] shrink-0 snap-start md:w-[38%] xl:w-auto">
                 <ProductCard
                   product={p}
-                  initialLiked={likedIds.includes(p.id)}
                   showReviewCount={false}
                   priority={i < 2}
                   sizes="(min-width: 1280px) 300px, (min-width: 768px) 38vw, 76vw"

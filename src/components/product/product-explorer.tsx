@@ -24,7 +24,6 @@ type ProductExplorerProps = {
   hasMore: boolean;
   cities: CityOption[];
   themeCounts: Partial<Record<ThemeSlug, number>>;
-  likedIds: string[]; // 서버→클라이언트로는 Set을 넘길 수 없어 배열로 받는다
   heading: string; // "투어·액티비티", "도쿄 상품" 등 필터에 맞춘 제목
 };
 
@@ -43,7 +42,6 @@ export function ProductExplorer({
   hasMore,
   cities,
   themeCounts,
-  likedIds,
   heading,
 }: ProductExplorerProps) {
   const router = useRouter();
@@ -94,7 +92,6 @@ export function ProductExplorer({
         <h2 className="sr-only">상품 목록</h2>
         <ProductResults
           items={items}
-          likedIds={new Set(likedIds)}
           isPending={isPending}
           date={filters.date}
           onReset={() => navigate(EMPTY_FILTERS)}

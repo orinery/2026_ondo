@@ -29,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useViewer } from "@/components/viewer/viewer-provider";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { REVIEW_PHOTO, reviewSchema, validatePhoto } from "@/lib/validation/review";
@@ -113,6 +114,8 @@ function ReviewDialogInner({
   isEdit,
 }: Omit<ReviewDialogProps, "userId"> & { userId: string; isEdit: boolean }) {
   const router = useRouter();
+  // 저장·삭제 뒤 "내 리뷰"를 다시 묻게 한다 (상세는 캐시된 HTML이라 버튼 상태를 브라우저가 들고 있다, S2)
+  const { refresh } = useViewer();
   const ids = useId();
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<number | null>(myReview?.rating ?? null);
@@ -194,6 +197,7 @@ function ReviewDialogInner({
         return;
       }
       setOpen(false);
+      refresh();
     });
   };
 
@@ -201,8 +205,10 @@ function ReviewDialogInner({
     if (!myReview) return;
     startTransition(async () => {
       const result = await deleteReview(myReview.id, slug);
-      if (result.ok) setOpen(false);
-      else setFormError("리뷰를 삭제하지 못했어요. 다시 시도해 주세요");
+      if (result.ok) {
+        setOpen(false);
+        refresh();
+      } else setFormError("리뷰를 삭제하지 못했어요. 다시 시도해 주세요");
     });
   };
 

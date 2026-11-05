@@ -8,7 +8,7 @@ const PROTECTED_PREFIXES = ["/my", "/cart", "/checkout", "/partner", "/partner-a
 const AUTH_PAGES = ["/login", "/signup"];
 
 /**
- * Next.js 16의 Proxy(구 Middleware). 모든 페이지 요청 앞에서 실행된다.
+ * Next.js 16의 Proxy(구 Middleware). 페이지 요청 앞에서 실행된다 (캐시되는 공개 페이지는 제외 — 아래 matcher).
  * 1) Supabase 세션 갱신
  * 2) 보호된 경로의 "낙관적" 접근 제어 — 빠른 리다이렉트용일 뿐이고,
  *    실제 권한 검사는 각 페이지의 requireUser()와 DB의 RLS가 다시 한다(다중 방어).
@@ -36,8 +36,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 정적 파일·이미지 최적화·퍼널 이벤트 수집(로그인과 무관) 요청에는 실행하지 않는다 (불필요한 인증 호출 방지)
+  // 실행하지 않는 요청 (불필요한 인증 호출·지연 방지)
+  // - 정적 파일·이미지 최적화·퍼널 이벤트 수집(로그인과 무관)
+  // - 엣지 캐시로 내려주는 공개 페이지(S2): 메인(/)·상품 상세(/products/상품)·약관·처리방침·sitemap·robots
+  //   proxy는 캐시보다 앞에서 실행되므로 여기서 빼야 캐시 응답이 그대로 나간다. 사람마다 다른 값이 없어
+  //   보호 경로 리다이렉트가 필요 없고, 로그인 토큰 갱신은 이 페이지들이 부르는 /api/me 요청에서 일어난다.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/events|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
+    "/((?!$|products/[^/]+$|terms$|privacy$|sitemap\\.xml$|robots\\.txt$|_next/static|_next/image|favicon.ico|api/events|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
   ],
 };

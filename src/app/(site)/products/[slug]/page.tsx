@@ -2,6 +2,7 @@ import { CheckIcon, MapPinIcon, XIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { TrackEvent } from "@/components/analytics/track-event";
 import { BookingWidget } from "@/components/product/booking-widget";
@@ -10,19 +11,18 @@ import { Gallery } from "@/components/product/gallery";
 import { LikeButton } from "@/components/product/like-button";
 import { LocationMap } from "@/components/product/location-map";
 import { ProductCard, ProductGrid } from "@/components/product/product-card";
-import { ReviewDialog } from "@/components/product/review-dialog";
 import { ReviewSection } from "@/components/product/review-section";
+import { ViewerReviewAction } from "@/components/product/review-viewer";
+import { ViewerBookingWidget } from "@/components/product/viewer-booking-widget";
 import { SellerInfo } from "@/components/product/seller-info";
 import { ShareButton } from "@/components/product/share-button";
 import { ReadonlyTimeline } from "@/components/itinerary/readonly-timeline";
-import { getCurrentUser } from "@/lib/auth";
 import { cutoffLabel, operatingDaysLabel } from "@/lib/booking";
 import { categoryLabel, themeLabel } from "@/lib/constants/taxonomy";
-import { getLikedIds } from "@/lib/data/likes";
 import {
-  canReviewProduct,
   getProductBySlug,
   getInventory,
+  getPublishedSlugs,
   getRelatedProducts,
   getReviews,
   getSellers,
@@ -30,9 +30,21 @@ import {
 } from "@/lib/data/products";
 import { formatKrw } from "@/lib/format";
 import { productJsonLd, serializeJsonLd } from "@/lib/structured-data";
-import { parseBookingResume } from "@/lib/validation/cart";
 import { seoulNow } from "@/lib/trip-dates";
 import type { ItineraryDay } from "@/types/itinerary";
+
+/**
+ * 상세는 미리 만들어 엣지 캐시에서 내려준다 (S2 속도 개선) — 쿠키·쿼리를 읽지 않는다.
+ * - 빌드 때 공개 상품을 모두 만들고, 새로 공개된 상품은 처음 열릴 때 만든다
+ * - 60초마다 다시 만든다(잔여석·가격·오늘 날짜) + 리뷰·주문·파트너 수정은 revalidatePath로 바로 갱신
+ * - 찜·로그인·리뷰 권한·로그인 복귀 선택(?resume=)은 브라우저가 채운다 (ViewerProvider·ViewerBookingWidget)
+ * 잔여석이 잠깐 어긋나도 담기·결제는 DB가 다시 확인한다.
+ */
+export const revalidate = 60;
+
+export async function generateStaticParams() {
+  return (await getPublishedSlugs()).map((slug) => ({ slug }));
+}
 
 export async function generateMetadata({
   params,
@@ -55,42 +67,53 @@ export async function generateMetadata({
 }
 
 /** 상품 상세 (명세 4.3 상세 구성 + 예약 위젯) */
-export default async function ProductDetailPage({
-  params,
-  searchParams,
-}: PageProps<"/products/[slug]">) {
+export default async function ProductDetailPage({ params }: PageProps<"/products/[slug]">) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const query = await searchParams;
-  // 로그인하고 돌아온 경우 위젯 선택 전체(Q1), 아니면 목록의 이용일 필터에서 넘어온 날짜만
-  const resume = parseBookingResume(query);
-  const initialDate = resume?.date ?? (typeof query.date === "string" ? query.date : null);
-
   const { today } = seoulNow();
-  const [{ items: reviews, distribution }, likedIds, user, related, inventory, sellers] =
-    await Promise.all([
-      getReviews(product.id),
-      getLikedIds(),
-      getCurrentUser(),
-      getRelatedProducts(product),
-      // 날짜별 잔여석·가격 (예약 위젯 달력·회차 선택용)
-      getInventory(
-        product.slots.map((sl) => sl.id),
-        today,
-      ),
-      getSellers([product.id]),
-    ]);
-  // 공개 전 상품(파트너 미리 보기)은 함수가 판매자를 돌려주지 않는다
+  const [{ items: reviews, distribution }, related, inventory, sellers] = await Promise.all([
+    getReviews(product.id),
+    getRelatedProducts(product),
+    // 날짜별 잔여석·가격 (예약 위젯 달력·회차 선택용)
+    getInventory(
+      product.slots.map((sl) => sl.id),
+      today,
+      { public: true },
+    ),
+    getSellers([product.id]),
+  ]);
   const seller = sellers.get(product.id) ?? null;
-  // 상품당 리뷰 1개(사용자 확정) → 이미 쓴 리뷰가 있으면 다이얼로그가 수정 모드가 된다
-  const myReview = user ? (reviews.find((r) => r.userId === user.id) ?? null) : null;
-  // 새 리뷰는 이용을 마친 구매 고객만 (DB 정책과 같은 판단으로 버튼을 미리 숨긴다)
-  const canReview = user && !myReview ? await canReviewProduct(product.id) : false;
-  const liked = likedIds.includes(product.id);
   const days = toItineraryDays(product);
   const slotTimes = product.slots.flatMap((sl) => (sl.startTime ? [sl.startTime] : []));
+
+  // 예약 위젯 — 캐시된 HTML에는 쿼리 없는 기본 위젯, 브라우저에서 쿼리·로그인 여부를 반영해 다시 그린다
+  const widget = {
+    product: {
+      id: product.id,
+      slug: product.slug,
+      title: product.title,
+      adultPrice: product.adultPrice,
+      childPrice: product.childPrice,
+      childAgeLabel: product.childAgeLabel,
+      cancelTiers: product.cancelPolicy.tiers,
+      listAdultPrice: product.listAdultPrice,
+      operatingDays: product.operatingDays,
+      cutoffDays: product.cutoffDays,
+      maxQty: product.maxQty,
+      unavailableReason: product.unavailableReason,
+      durationText: product.durationText,
+      confirmationMode: product.confirmationMode,
+      slots: product.slots,
+      options: product.options,
+      inventory,
+    },
+    today,
+    mobileActions: (
+      <LikeButton productId={product.id} productTitle={product.title} variant="outline" />
+    ),
+  };
 
   return (
     // 1023 이하: 하단 고정 예약 바(+360 하단 탭)에 내용이 가려지지 않게 여백
@@ -126,12 +149,7 @@ export default async function ProductDetailPage({
           <h1 className="mt-1 font-kr text-3xl font-semibold md:text-4xl">{product.title}</h1>
         </div>
         <div className="hidden items-center gap-2 lg:flex">
-          <LikeButton
-            productId={product.id}
-            productTitle={product.title}
-            initialLiked={liked}
-            variant="outline"
-          />
+          <LikeButton productId={product.id} productTitle={product.title} variant="outline" />
           <ShareButton title={`${product.title} · 여운`} />
         </div>
       </header>
@@ -243,24 +261,11 @@ export default async function ProductDetailPage({
             reviewCount={product.reviewCount}
             reviews={reviews}
             distribution={distribution}
-            currentUserId={user?.id}
             action={
-              <ReviewDialog
+              <ViewerReviewAction
                 productId={product.id}
                 slug={product.slug}
                 productTitle={product.title}
-                userId={user?.id ?? null}
-                canReview={canReview}
-                myReview={
-                  myReview
-                    ? {
-                        id: myReview.id,
-                        rating: myReview.rating,
-                        content: myReview.content,
-                        photoUrl: myReview.photoUrl,
-                      }
-                    : null
-                }
               />
             }
           />
@@ -268,39 +273,11 @@ export default async function ProductDetailPage({
 
         <aside aria-label="예약" className="lg:col-span-4">
           <div className="lg:sticky lg:top-24">
-            <BookingWidget
-              product={{
-                id: product.id,
-                slug: product.slug,
-                title: product.title,
-                adultPrice: product.adultPrice,
-                childPrice: product.childPrice,
-                childAgeLabel: product.childAgeLabel,
-                cancelTiers: product.cancelPolicy.tiers,
-                listAdultPrice: product.listAdultPrice,
-                operatingDays: product.operatingDays,
-                cutoffDays: product.cutoffDays,
-                maxQty: product.maxQty,
-                unavailableReason: product.unavailableReason,
-                durationText: product.durationText,
-                confirmationMode: product.confirmationMode,
-                slots: product.slots,
-                options: product.options,
-                inventory,
-              }}
-              today={today}
-              initialDate={initialDate}
-              resume={resume}
-              isLoggedIn={Boolean(user)}
-              mobileActions={
-                <LikeButton
-                  productId={product.id}
-                  productTitle={product.title}
-                  initialLiked={liked}
-                  variant="outline"
-                />
-              }
-            />
+            <Suspense
+              fallback={<BookingWidget {...widget} initialDate={null} isLoggedIn={false} />}
+            >
+              <ViewerBookingWidget {...widget} />
+            </Suspense>
           </div>
         </aside>
       </div>
@@ -315,7 +292,7 @@ export default async function ProductDetailPage({
           </h2>
           <ProductGrid>
             {related.map((p) => (
-              <ProductCard key={p.id} product={p} initialLiked={likedIds.includes(p.id)} />
+              <ProductCard key={p.id} product={p} />
             ))}
           </ProductGrid>
         </section>
