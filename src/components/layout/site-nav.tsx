@@ -387,6 +387,9 @@ function UserArea({
           <Link href="/my">나의 여행</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link href="/my/account">계정 설정</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href={ROLE_LINK[user.role].href}>{ROLE_LINK[user.role].label}</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -472,6 +475,15 @@ function MobileMenu({
             className="mt-4 border-t pt-4 text-sm text-muted-foreground hover:text-foreground"
           >
             {ROLE_LINK[user.role].label}
+          </Link>
+        )}
+        {user && (
+          <Link
+            href="/my/account"
+            onClick={() => setOpen(false)}
+            className="pt-3 text-sm text-muted-foreground hover:text-foreground"
+          >
+            계정 설정
           </Link>
         )}
         <div className="mt-4 flex items-center justify-between border-t pt-4">

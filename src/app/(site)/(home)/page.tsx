@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { HeroSearch } from "@/components/home/hero-search";
+import { WithdrawnNotice } from "@/components/home/withdrawn-notice";
 import { ProductCard } from "@/components/product/product-card";
 import { COLLECTIONS, SEASON_EDITS } from "@/lib/constants/season-edits";
 import { getCities, getFeaturedProducts, getThemeTotals } from "@/lib/data/products";
@@ -35,6 +37,10 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* 탈퇴 완료 안내 — 쿼리를 읽으므로 정적 페이지에서는 Suspense 경계가 필요하다 */}
+      <Suspense fallback={null}>
+        <WithdrawnNotice />
+      </Suspense>
       {/* ── 히어로: 풀블리드 사진 + 하단 스크림 (높이 480 / 560 / 640) ── */}
       <section
         aria-labelledby="hero-title"

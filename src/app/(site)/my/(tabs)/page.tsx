@@ -55,11 +55,16 @@ export default async function MyPage({ searchParams }: PageProps<"/my">) {
             {user.displayName}님, 다음 여행은 어디로 떠나볼까요?
           </p>
         </div>
-        <form action={signOut}>
-          <Button type="submit" variant="outline" className="h-10 rounded-md px-4">
-            로그아웃
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" className="h-10 rounded-md px-4">
+            <Link href="/my/account">계정 설정</Link>
           </Button>
-        </form>
+          <form action={signOut}>
+            <Button type="submit" variant="outline" className="h-10 rounded-md px-4">
+              로그아웃
+            </Button>
+          </form>
+        </div>
       </header>
 
       {/* 탭: 링크로 구현해 URL과 동기화 (명세 4.4) */}

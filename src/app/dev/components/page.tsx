@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
+import { DeleteAccountSection } from "@/components/account/delete-account-section";
+import { PasswordForm } from "@/components/account/password-form";
+import { ProfileForm } from "@/components/account/profile-form";
 import { ApplicationList } from "@/components/admin/application-list";
 import { BreakdownChart, DailyChart } from "@/components/admin/dashboard-charts";
 import { FunnelTable } from "@/components/admin/funnel-table";
@@ -62,6 +65,7 @@ import {
   MOCK_TIMELINE_ITEMS,
 } from "@/lib/mock/partners";
 import { MOCK_GALLERY, MOCK_PRODUCTS, unsplash } from "@/lib/mock/products";
+import { deletionBlockerMessage } from "@/lib/account";
 import { addDays } from "@/lib/booking";
 import { seoulNow } from "@/lib/trip-dates";
 
@@ -761,6 +765,19 @@ export default function DevComponentsPage() {
               memos={[]}
               headingId="order-memos-empty"
             />
+          </div>
+        </Section>
+
+        <Section id="account" title="13. 계정 설정 (/my/account)">
+          <p className="text-sm text-muted-foreground">
+            회원 정보 · 비밀번호 변경 · 회원 탈퇴. 목업이라 저장 버튼은 &quot;로그인이 필요해요&quot;로
+            실패한다. 탈퇴는 막는 사유가 있을 때(위)와 없을 때(아래).
+          </p>
+          <div className="flex max-w-3xl flex-col gap-8">
+            <ProfileForm email="traveler@example.com" name="김여행" />
+            <PasswordForm email="traveler@example.com" />
+            <DeleteAccountSection blockedReason={deletionBlockerMessage("has_upcoming_bookings")} />
+            <DeleteAccountSection blockedReason={null} />
           </div>
         </Section>
       </main>
