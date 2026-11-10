@@ -1485,6 +1485,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      account_deletion_blocker: { Args: Record<PropertyKey, never>; Returns: string };
       add_booking_to_trip: {
         Args: { p_order_item_id: string; p_trip_id: string };
         Returns: undefined;
@@ -1611,6 +1612,7 @@ export type Database = {
       cancel_order: { Args: { p_order_id: string }; Returns: number };
       cancel_order_item: { Args: { p_item_id: string }; Returns: number };
       confirm_item: { Args: { p_item_id: string }; Returns: string };
+      delete_my_account: { Args: Record<PropertyKey, never>; Returns: undefined };
       expire_pending_items: { Args: Record<PropertyKey, never>; Returns: number };
       generate_voucher_code: { Args: Record<PropertyKey, never>; Returns: string };
       has_used_product: { Args: { p_product_id: string }; Returns: boolean };

@@ -2987,6 +2987,88 @@ async function main() {
         async (sp) => (await sp`select 1 from public.orders where id = ${leaveOrder.id}`).length,
       );
 
+      // ── 회원 탈퇴 (계정 설정, 0040): 본인만, 파트너·관리자·이용 예정 예약이 있으면 막힘
+      await expectBlocked(tx, "비회원: 탈퇴 가능 여부 함수 실행", anon, async (sp) => {
+        await sp`select public.account_deletion_blocker()`;
+        return 1;
+      });
+      await expectBlocked(tx, "비회원: 탈퇴 함수 실행", anon, async (sp) => {
+        await sp`select public.delete_my_account()`;
+        return 1;
+      });
+      await expectError(tx, "파트너: 탈퇴 → 역할이 있어 거부", E, "account_has_role", (sp) =>
+        sp`select public.delete_my_account()`,
+      );
+      const userG = randomUUID();
+      const userH = randomUUID();
+      for (const [id, name] of [
+        [userG, "예약 남은 고객"],
+        [userH, "탈퇴할 고객"],
+      ] as const) {
+        await tx`insert into auth.users (id, email, raw_user_meta_data, aud, role)
+                 values (${id}, ${`${id}@rls.test`}, ${sql.json({ name })}, 'authenticated', 'authenticated')`;
+      }
+      const G: Role = { name: "authenticated", userId: userG };
+      const H: Role = { name: "authenticated", userId: userH };
+      const leaveFixture = async (userId: string, useDate: string, status: string) => {
+        const [o] = await tx<{ id: string }[]>`
+          insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
+          values (${`TEST-${randomUUID()}`}, ${userId}, '탈퇴', 'leave@rls.test', '010-1234-5678', 20000, ${randomUUID()}, now())
+          returning id`;
+        if (!o) throw new Error("탈퇴 검증 주문 생성 실패");
+        await tx`
+          insert into public.order_items (order_id, product_id, product_title, use_date, adult_qty, child_qty,
+            adult_price, subtotal, cancel_policy, slot_id, partner_id, commission_rate, status)
+          values (${o.id}, ${fuji.id}, '탈퇴 검증', ${useDate}::date, 1, 0,
+            20000, 20000, 'standard', ${fujiSlot.id}, ${partnerE.id}, 15, ${status}::public.order_item_status)`;
+        return o.id;
+      };
+      await leaveFixture(userG, dates.d10, "confirmed");
+      const usedOrderH = await leaveFixture(userH, dates.past, "used");
+      await tx`insert into public.likes (user_id, product_id) values (${userH}, ${tea.id})`;
+
+      await expectOk(tx, "이용 예정 예약이 있는 고객: 탈퇴 가능 여부 → 예약 사유", G, async (sp) => {
+        const [r] = await sp<{ b: string | null }[]>`select public.account_deletion_blocker() as b`;
+        if (r?.b !== "has_upcoming_bookings") throw new Error(`사유 ${r?.b}`);
+        return r.b;
+      });
+      await expectError(
+        tx,
+        "이용 예정 예약이 있는 고객: 탈퇴 → 거부",
+        G,
+        "has_upcoming_bookings",
+        (sp) => sp`select public.delete_my_account()`,
+      );
+      await expectOk(tx, "이용을 마친 고객: 탈퇴 가능 여부 → 막는 사유 없음", H, async (sp) => {
+        const [r] = await sp<{ b: string | null }[]>`select public.account_deletion_blocker() as b`;
+        if (r?.b !== null) throw new Error(`사유 ${r?.b}`);
+        return "null";
+      });
+      await expectOk(tx, "이용을 마친 고객: 탈퇴 성공", H, async (sp) => {
+        await sp`select public.delete_my_account()`;
+        return "삭제";
+      });
+      const [afterLeave] = await tx<
+        { users: number; profiles: number; likes: number; owner: string | null; others: number }[]
+      >`
+        select (select count(*)::int from auth.users where id = ${userH}) as users,
+               (select count(*)::int from public.profiles where id = ${userH}) as profiles,
+               (select count(*)::int from public.likes where user_id = ${userH}) as likes,
+               (select user_id from public.orders where id = ${usedOrderH}) as owner,
+               (select count(*)::int from auth.users where id in (${userA}, ${userB}, ${userG})) as others`;
+      check(
+        "탈퇴 뒤: 계정·프로필·찜은 지워지고 주문은 소유자 없이 남음, 다른 계정은 그대로",
+        afterLeave?.users === 0 &&
+          afterLeave.profiles === 0 &&
+          afterLeave.likes === 0 &&
+          afterLeave.owner === null &&
+          afterLeave.others === 3,
+        `계정 ${afterLeave?.users} · 프로필 ${afterLeave?.profiles} · 찜 ${afterLeave?.likes} · 주문 소유자 ${afterLeave?.owner ?? "null"} · 다른 계정 ${afterLeave?.others}`,
+      );
+      // as()가 설정한 JWT 클레임(트랜잭션 범위)이 지운 H로 남아 있으면, 이어서 만드는 주문의 감사 로그
+      // 행위자가 없는 프로필을 가리켜 실패한다 → 이 구역 전의 상태(고객 A)로 되돌린다
+      await as(tx, A, async () => null);
+
       // ── 파트너 연락처 가리기 (P0 A-06): 원문은 살아 있는 예약 + 이용일 7일 뒤까지만
       const [maskOrder] = await tx<{ id: string }[]>`
         insert into public.orders (order_no, user_id, booker_name, booker_email, booker_phone, total_amount, idempotency_key, policy_agreed_at)
